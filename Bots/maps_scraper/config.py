@@ -62,8 +62,9 @@ TOTAL_CATEGORIES = len(ALL_KEYWORD_CATEGORIES)
 # request operator confirmation to continue.
 BATCH_SIZE = 50
 
-# Where batch CSVs should be written.
-OUTPUT_DIR = Path("output")
+# Where batch CSVs should be written (absolute path so it works from any cwd)
+_SCRAPER_DIR = Path(__file__).parent
+OUTPUT_DIR = _SCRAPER_DIR / "output"
 
 # Consolidated CSV containing every lead gathered during a session. Resets at
 # the start of each run.

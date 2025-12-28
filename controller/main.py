@@ -38,6 +38,10 @@ def main(headless: bool = False):
         print("❌ Cannot start: scraper not found")
         sys.exit(1)
     
+    # Error tracking to prevent infinite loops
+    MAX_CONSECUTIVE_ERRORS = 3
+    consecutive_errors = 0
+    
     # Main loop
     loop_count = 0
     while True:
@@ -63,13 +67,34 @@ def main(headless: bool = False):
             print("\n▶️ Starting fresh scraper run...")
             exit_code, msg = run_scraper(headless=headless)
             print(f"\n📝 Scraper finished: {msg}")
+            
+            # Track errors
+            if exit_code != 0 and exit_code != -1:  # -1 is user interrupt
+                consecutive_errors += 1
+                print(f"⚠️ Error count: {consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}")
+                if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                    print(f"\n❌ Too many consecutive errors. Stopping.")
+                    break
+            else:
+                consecutive_errors = 0  # Reset on success
         
         elif action == "resume":
             print("\n▶️ Resuming scraper from saved position...")
             exit_code, msg = run_scraper(headless=headless)
             print(f"\n📝 Scraper finished: {msg}")
+            
+            # Track errors
+            if exit_code != 0 and exit_code != -1:
+                consecutive_errors += 1
+                print(f"⚠️ Error count: {consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}")
+                if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                    print(f"\n❌ Too many consecutive errors. Stopping.")
+                    break
+            else:
+                consecutive_errors = 0
         
         elif action == "next_category":
+            consecutive_errors = 0  # Reset errors on category transition
             # Category complete - prompt for advancement
             status = get_status_dict()
             cat = status.get("progress", {}).get("category", {})
