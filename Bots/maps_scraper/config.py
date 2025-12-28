@@ -1,6 +1,12 @@
 """Configuration for the Google Maps lead scraper."""
 
+import sys
 from pathlib import Path
+
+# Add Bots folder to path so common module can be found
+_BOTS_DIR = Path(__file__).parent.parent
+if str(_BOTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_BOTS_DIR))
 
 # Narrow geographic targets – add more items as your addressing partner
 # delivers additional micro-locations.
