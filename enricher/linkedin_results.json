@@ -1,0 +1,90 @@
+[
+  {
+    "input_website": "http://antaurus.nl/",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/antaurus-vermogensbeheer",
+      "https://www.linkedin.com/company/antaurus-vermogensbeheer/",
+      "https://www.linkedin.com/in/abanopjacob",
+      "https://www.linkedin.com/in/aharon-damiaans-404996149",
+      "https://www.linkedin.com/in/andreia-m-826a07116",
+      "https://www.linkedin.com/in/etienne-platte-96168b3",
+      "https://www.linkedin.com/in/jack-zwartveld-44b02b6",
+      "https://www.linkedin.com/in/juulko",
+      "https://www.linkedin.com/in/marc-l-66b9604",
+      "https://www.linkedin.com/in/michelle-van-grondelle-8047a518a",
+      "https://www.linkedin.com/in/pieterzandee",
+      "https://www.linkedin.com/in/robbert-manders-66067031",
+      "https://www.linkedin.com/in/seffietreistman",
+      "https://www.linkedin.com/in/silviazonneveldebbutt",
+      "https://www.linkedin.com/in/sjef-pieters-3379155",
+      "https://www.linkedin.com/in/wimschreudergoedheijt"
+    ],
+    "emails": [
+      "damiaans@antaurus.com",
+      "email@domein.com",
+      "info@antaurus.nl",
+      "jacob@antaurus.com",
+      "ko@antaurus.com",
+      "langeveld@antaurus.com",
+      "manders@antaurus.com",
+      "muresan@antaurus.com",
+      "pieters@antaurus.com",
+      "platte@antaurus.com",
+      "sweere@antaurus.com",
+      "treistman@antaurus.com",
+      "vangrondelle@antaurus.com",
+      "zandee@antaurus.com",
+      "zwartveld@antaurus.com"
+    ],
+    "tab": "alpha",
+    "row": 7
+  },
+  {
+    "input_website": "https://www.corum.nl/",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/corum-investments-nederland"
+    ],
+    "emails": [
+      "info@corum.nl"
+    ],
+    "tab": "alpha",
+    "row": 8
+  },
+  {
+    "input_website": "http://www.laaken.nl/",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/laaken-asset-management-n-v-"
+    ],
+    "emails": [
+      "flags@2x.webp",
+      "globe@2x.webp",
+      "info@laaken.nl"
+    ],
+    "tab": "alpha",
+    "row": 9
+  },
+  {
+    "input_website": "https://www.ipropertyam.com/",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/ipropertyam"
+    ],
+    "emails": [
+      "info@ipropertyam.com"
+    ],
+    "tab": "alpha",
+    "row": 10
+  },
+  {
+    "input_website": "http://www.baseinvestments.nl/",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/baseinvestments/about"
+    ],
+    "emails": [
+      "am2@baseinvestments.nl",
+      "office@baseinvestments.nl",
+      "service@baseinvestments.nl"
+    ],
+    "tab": "alpha",
+    "row": 11
+  }
+]

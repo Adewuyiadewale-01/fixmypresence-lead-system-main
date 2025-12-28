@@ -1,0 +1,6 @@
+aiohttp
+tenacity
+aiolimiter
+fake-useragent
+beautifulsoup4
+requests

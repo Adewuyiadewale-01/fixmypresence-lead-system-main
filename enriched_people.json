@@ -1,0 +1,12 @@
+[
+  {
+    "website": "https://www.openai.com",
+    "normalized_url": "https://www.openai.com",
+    "team_pages": [],
+    "people": [],
+    "errors": [
+      "homepage_unreachable"
+    ],
+    "meta": {}
+  }
+]
