@@ -3,9 +3,9 @@ import logging
 import ssl
 import aiohttp
 import httpx
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Dict, Any
 
-from common.config import WEBHOOK_URL, WEBHOOK_SECRET
+from common.config import WEBHOOK_URL, WEBHOOK_SECRET, SOURCE_WEBHOOK_URL, OUTPUT_WEBHOOK_URL
 
 logger = logging.getLogger(__name__)
 
@@ -73,21 +73,92 @@ class GoogleClient:
 
     @staticmethod
     async def fetch_urls(session: aiohttp.ClientSession) -> List[dict]:
-        """Fetch unprocessed URLs from Google Sheets via Apps Script."""
+        """Fetch unprocessed URLs from Google Sheets via Apps Script (legacy endpoint)."""
         try:
             ssl_context = ssl.create_default_context()
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
-            
+
             async with session.get(WEBHOOK_URL, ssl=ssl_context) as response:
                 if response.status == 200:
                     data = await response.json()
                     urls = data.get("urls", [])
-                    logger.info(f"📋 Fetched {len(urls)} unprocessed URLs from Google Sheets")
+                    logger.info(f"Fetched {len(urls)} unprocessed URLs from Google Sheets")
                     return urls
                 else:
-                    logger.error(f"❌ Failed to fetch URLs: {response.status}")
+                    logger.error(f"Failed to fetch URLs: {response.status}")
                     return []
         except Exception as e:
-            logger.error(f"❌ Error fetching URLs from sheet: {e}")
+            logger.error(f"Error fetching URLs from sheet: {e}")
             return []
+
+    @staticmethod
+    async def fetch_source_urls(session: aiohttp.ClientSession) -> List[dict]:
+        """Fetch unprocessed URLs from Alpha/Beta/Gamma tabs via source webhook."""
+        try:
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+
+            params = {"token": WEBHOOK_SECRET}
+            async with session.get(SOURCE_WEBHOOK_URL, params=params, ssl=ssl_context) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    urls = data.get("urls", [])
+                    logger.info(f"Fetched {len(urls)} unprocessed URLs from source sheet")
+                    return urls
+                else:
+                    logger.error(f"Failed to fetch source URLs: {response.status}")
+                    return []
+        except Exception as e:
+            logger.error(f"Error fetching source URLs: {e}")
+            return []
+
+    @staticmethod
+    async def mark_source_processed(session: aiohttp.ClientSession, updates: List[dict]) -> bool:
+        """Mark rows as processed in the source sheet."""
+        payload = {
+            "token": WEBHOOK_SECRET,
+            "action": "mark_processed",
+            "updates": updates,
+        }
+        try:
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+
+            async with session.post(SOURCE_WEBHOOK_URL, json=payload, ssl=ssl_context) as response:
+                if response.status == 200:
+                    return True
+                logger.error(f"Failed to mark source processed: {response.status}")
+                return False
+        except Exception as e:
+            logger.error(f"Error marking source processed: {e}")
+            return False
+
+    @staticmethod
+    async def post_to_output(session: aiohttp.ClientSession, companies: List[dict]) -> bool:
+        """Post grouped company+person results to the Employee_db output sheet."""
+        payload = {
+            "token": WEBHOOK_SECRET,
+            "companies": companies,
+        }
+        try:
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+
+            async with session.post(OUTPUT_WEBHOOK_URL, json=payload, ssl=ssl_context) as response:
+                if response.status == 200:
+                    text = await response.text()
+                    if any(x in text.lower() for x in ["ok", "success"]):
+                        logger.info(f"Output sheet updated: {text}")
+                        return True
+                    logger.warning(f"Output sheet response: {text}")
+                    return False
+                else:
+                    logger.error(f"Output sheet upload failed: {response.status}")
+                    return False
+        except Exception as e:
+            logger.error(f"Output sheet post failed: {e}")
+            return False

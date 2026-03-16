@@ -1,5 +1,3 @@
-from pathlib import Path
-
 # Shared Configuration for Fixmypresence System
 
 # Webhook integration (Google Apps Script)
@@ -8,6 +6,16 @@ WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyLmYnBgyBBMGGrDnp15yn-Xf
 WEBHOOK_SECRET = "FMP-Scraper"
 WEBHOOK_SPREADSHEET_ID = "1KrKoeun-h6eEzSK6-cc4_MUHriuabg8GyAR9b8NR7fc"
 WEBHOOK_TAB_NAME = "Leads"
+
+# Source sheet webhook (Alpha/Beta/Gamma tabs)
+# Deploy source_apps_script.js on sheet 1YF8WvLTPu... and paste the URL here.
+# Handles: GET (fetch URLs), POST action=mark_processed (update Scrape Status)
+SOURCE_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwFHK6yToabfEPucGMVtGKtqwEIG0lWokrZLDn-J23aUahGq0-_sn5xo5rgw15AEHH79g/exec"
+
+# Output sheet webhook (Employee_db tab)
+# Deploy output_apps_script.js on the output sheet and paste the URL here.
+# Handles: POST companies=[...] (write grouped rows to Employee_db)
+OUTPUT_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyYNaJdNvpVItavLbn100lzvMJ_fLdDTISFOgKWOBmfT2IATZmxqkhYOCbeFxO8xMis8A/exec"
 
 # User Agent
 USER_AGENT = (

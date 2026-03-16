@@ -1,90 +1,331 @@
 [
   {
-    "input_website": "http://antaurus.nl/",
+    "input_website": "https://www.assetpartners.nl/",
+    "name": "",
     "linkedin_urls": [
-      "https://www.linkedin.com/company/antaurus-vermogensbeheer",
-      "https://www.linkedin.com/company/antaurus-vermogensbeheer/",
-      "https://www.linkedin.com/in/abanopjacob",
-      "https://www.linkedin.com/in/aharon-damiaans-404996149",
-      "https://www.linkedin.com/in/andreia-m-826a07116",
-      "https://www.linkedin.com/in/etienne-platte-96168b3",
-      "https://www.linkedin.com/in/jack-zwartveld-44b02b6",
-      "https://www.linkedin.com/in/juulko",
-      "https://www.linkedin.com/in/marc-l-66b9604",
-      "https://www.linkedin.com/in/michelle-van-grondelle-8047a518a",
-      "https://www.linkedin.com/in/pieterzandee",
-      "https://www.linkedin.com/in/robbert-manders-66067031",
-      "https://www.linkedin.com/in/seffietreistman",
-      "https://www.linkedin.com/in/silviazonneveldebbutt",
-      "https://www.linkedin.com/in/sjef-pieters-3379155",
-      "https://www.linkedin.com/in/wimschreudergoedheijt"
+      "https://www.linkedin.com/company/asset-partners-b-v",
+      "https://www.linkedin.com/in/gijs-elting",
+      "https://www.linkedin.com/in/joswestra",
+      "https://www.linkedin.com/in/mattijs-t-hoen-mba"
     ],
+    "company_linkedin": "https://www.linkedin.com/company/asset-partners-b-v",
     "emails": [
-      "damiaans@antaurus.com",
-      "email@domein.com",
-      "info@antaurus.nl",
-      "jacob@antaurus.com",
-      "ko@antaurus.com",
-      "langeveld@antaurus.com",
-      "manders@antaurus.com",
-      "muresan@antaurus.com",
-      "pieters@antaurus.com",
-      "platte@antaurus.com",
-      "sweere@antaurus.com",
-      "treistman@antaurus.com",
-      "vangrondelle@antaurus.com",
-      "zandee@antaurus.com",
-      "zwartveld@antaurus.com"
+      "gelting@assetpartners.nl",
+      "info@assetpartners.nl",
+      "jwestra@assetpartners.nl",
+      "mhoen@assetpartners.nl"
     ],
-    "tab": "alpha",
-    "row": 7
+    "persons": [
+      {
+        "name": "Gijs Elting",
+        "role": "Partner",
+        "linkedin": "https://www.linkedin.com/in/gijs-elting",
+        "email": "gelting@assetpartners.nl",
+        "confidence": "high",
+        "strategy": "role_cards"
+      },
+      {
+        "name": "Mattijs T Hoen Mba",
+        "role": "Relationship Manager",
+        "linkedin": "https://www.linkedin.com/in/mattijs-t-hoen-mba",
+        "email": "mhoen@assetpartners.nl",
+        "confidence": "high",
+        "strategy": "role_cards"
+      },
+      {
+        "name": "Gelting",
+        "role": "",
+        "linkedin": "",
+        "email": "gelting@assetpartners.nl",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      },
+      {
+        "name": "Jwestra",
+        "role": "",
+        "linkedin": "",
+        "email": "jwestra@assetpartners.nl",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      },
+      {
+        "name": "Mhoen",
+        "role": "",
+        "linkedin": "",
+        "email": "mhoen@assetpartners.nl",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      },
+      {
+        "name": "Jos Westra",
+        "role": "Partner",
+        "linkedin": "",
+        "email": "jwestra@assetpartners.nl",
+        "confidence": "high",
+        "strategy": "role_cards"
+      }
+    ]
   },
   {
-    "input_website": "https://www.corum.nl/",
+    "input_website": "https://www.famadvocaten.nl/nl/",
+    "name": "",
     "linkedin_urls": [
-      "https://www.linkedin.com/company/corum-investments-nederland"
+      "http://www.linkedin.com/in/jo%C3%ABlle-lochtman-7b7b291a0",
+      "https://nl.linkedin.com/in/lotte-castelijns-1121abb7",
+      "https://www.linkedin.com/company/fam-advocaten",
+      "https://www.linkedin.com/in/diannekroezen",
+      "https://www.linkedin.com/in/martijnstammes",
+      "https://www.linkedin.com/in/sofievanvlijmen"
     ],
+    "company_linkedin": "https://www.linkedin.com/company/fam-advocaten",
     "emails": [
-      "info@corum.nl"
+      "castelijns@famadvocaten.nl",
+      "kantoor@famadvocaten.nl",
+      "kroezen@famadvocaten.nl",
+      "lochtman@famadvocaten.nl",
+      "stammes@famadvocaten.nl",
+      "vanvlijmen@famadvocaten.nl"
     ],
-    "tab": "alpha",
-    "row": 8
+    "persons": [
+      {
+        "name": "Lotte Castelijns",
+        "role": "",
+        "linkedin": "https://nl.linkedin.com/in/lotte-castelijns-1121abb7",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Castelijns",
+        "role": "",
+        "linkedin": "",
+        "email": "castelijns@famadvocaten.nl",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      },
+      {
+        "name": "Kantoor",
+        "role": "",
+        "linkedin": "",
+        "email": "kantoor@famadvocaten.nl",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      },
+      {
+        "name": "Kroezen",
+        "role": "",
+        "linkedin": "",
+        "email": "kroezen@famadvocaten.nl",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      },
+      {
+        "name": "Lochtman",
+        "role": "",
+        "linkedin": "",
+        "email": "lochtman@famadvocaten.nl",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      },
+      {
+        "name": "Stammes",
+        "role": "",
+        "linkedin": "",
+        "email": "stammes@famadvocaten.nl",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      },
+      {
+        "name": "Vanvlijmen",
+        "role": "",
+        "linkedin": "",
+        "email": "vanvlijmen@famadvocaten.nl",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      }
+    ]
   },
   {
-    "input_website": "http://www.laaken.nl/",
+    "input_website": "https://www.axento.nl/",
+    "name": "",
     "linkedin_urls": [
-      "https://www.linkedin.com/company/laaken-asset-management-n-v-"
+      "https://www.linkedin.com/company/axento",
+      "https://www.linkedin.com/company/axento/",
+      "https://www.linkedin.com/in/aaronlacunes",
+      "https://www.linkedin.com/in/amy-veerman-a65bb52b4",
+      "https://www.linkedin.com/in/angelina-kemper",
+      "https://www.linkedin.com/in/bo-runderkamp-246127228",
+      "https://www.linkedin.com/in/brenda-nentjes-0a5426194",
+      "https://www.linkedin.com/in/chantal-van-den-hogen-0b4728202",
+      "https://www.linkedin.com/in/emma-sier-a0b33033a",
+      "https://www.linkedin.com/in/eric-molenaar-659212292",
+      "https://www.linkedin.com/in/gudy-zwarthoed-69411920",
+      "https://www.linkedin.com/in/henk-molenaar-3637922",
+      "https://www.linkedin.com/in/jaapsteurcfa",
+      "https://www.linkedin.com/in/laurens-leek-0607353",
+      "https://www.linkedin.com/in/laurens-sombroek-92544545",
+      "https://www.linkedin.com/in/lois-zwarthoed-4b74ba168",
+      "https://www.linkedin.com/in/milan-kluessien-667122351",
+      "https://www.linkedin.com/in/nick-bond-950187a",
+      "https://www.linkedin.com/in/ronald-schut",
+      "https://www.linkedin.com/in/windjan"
     ],
+    "company_linkedin": "https://www.linkedin.com/company/axento",
     "emails": [
-      "flags@2x.webp",
-      "globe@2x.webp",
-      "info@laaken.nl"
+      "info@axento.nl",
+      "jaap.steur@care-is.nl",
+      "laurens.leek@care-is.nl",
+      "laurens.sombroek@care-is.nl",
+      "nick.bond@care-is.nl",
+      "ronald-schut@care-is.nl",
+      "service@axento.nl",
+      "wessel.stuijt@care-is.nl"
     ],
-    "tab": "alpha",
-    "row": 9
-  },
-  {
-    "input_website": "https://www.ipropertyam.com/",
-    "linkedin_urls": [
-      "https://www.linkedin.com/company/ipropertyam"
-    ],
-    "emails": [
-      "info@ipropertyam.com"
-    ],
-    "tab": "alpha",
-    "row": 10
-  },
-  {
-    "input_website": "http://www.baseinvestments.nl/",
-    "linkedin_urls": [
-      "https://www.linkedin.com/company/baseinvestments/about"
-    ],
-    "emails": [
-      "am2@baseinvestments.nl",
-      "office@baseinvestments.nl",
-      "service@baseinvestments.nl"
-    ],
-    "tab": "alpha",
-    "row": 11
+    "persons": [
+      {
+        "name": "Brenda Nentjes",
+        "role": "Axento vermogensbeheer",
+        "linkedin": "https://www.linkedin.com/in/brenda-nentjes-0a5426194",
+        "email": "",
+        "confidence": "medium",
+        "strategy": "linkedin_page"
+      },
+      {
+        "name": "Amy Veerman",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/amy-veerman-a65bb52b4",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Angelina Kemper",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/angelina-kemper",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Bo Runderkamp",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/bo-runderkamp-246127228",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Chantal Van Den Hogen",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/chantal-van-den-hogen-0b4728202",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Emma Sier",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/emma-sier-a0b33033a",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Eric Molenaar",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/eric-molenaar-659212292",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Gudy Zwarthoed",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/gudy-zwarthoed-69411920",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Henk Molenaar",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/henk-molenaar-3637922",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Laurens Leek",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/laurens-leek-0607353",
+        "email": "laurens.leek@care-is.nl",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      },
+      {
+        "name": "Laurens Sombroek",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/laurens-sombroek-92544545",
+        "email": "laurens.sombroek@care-is.nl",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      },
+      {
+        "name": "Lois Zwarthoed",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/lois-zwarthoed-4b74ba168",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Milan Kluessien",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/milan-kluessien-667122351",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Nick Bond",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/nick-bond-950187a",
+        "email": "nick.bond@care-is.nl",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      },
+      {
+        "name": "Ronald Schut",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/ronald-schut",
+        "email": "ronald-schut@care-is.nl",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      },
+      {
+        "name": "Jaap Steur",
+        "role": "",
+        "linkedin": "",
+        "email": "jaap.steur@care-is.nl",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      },
+      {
+        "name": "Service",
+        "role": "",
+        "linkedin": "",
+        "email": "service@axento.nl",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      },
+      {
+        "name": "Wessel Stuijt",
+        "role": "",
+        "linkedin": "",
+        "email": "wessel.stuijt@care-is.nl",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      }
+    ]
   }
 ]
