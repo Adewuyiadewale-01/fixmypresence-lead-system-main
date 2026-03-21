@@ -182,6 +182,30 @@ LEVEL2_EXCLUDE_PATTERNS = [
     "mailto:", "mail:",
 ]
 
+AUTH_PATH_SEGMENTS = {
+    "dashboard", "account", "login", "logout", "signin", "signup",
+    "register", "settings", "orders", "order", "bestellingen",
+    "bestelling", "subscription", "subscriptions", "abonnement",
+    "abonnementen", "checkout", "cart", "winkelmand",
+}
+
+ARTICLE_PATH_SEGMENTS = {
+    "blog", "news", "nieuws", "insights", "artikelen", "article",
+    "articles", "category", "tag", "tags", "author",
+}
+
+PROFILE_PATH_SEGMENTS = {
+    "team", "people", "person", "personen", "medewerkers",
+    "medewerker", "our-people", "onze-mensen", "leadership",
+    "about-us", "over-ons", "organisatie", "staff",
+}
+
+AUTH_FAMILY_PRIORITY = (
+    "dashboard", "account", "settings", "orders", "subscription",
+    "checkout", "cart", "login", "logout", "signin", "signup",
+    "register",
+)
+
 
 def _make_ssl_context():
     ctx = ssl.create_default_context()
@@ -198,6 +222,121 @@ def dedupe_keep_order(urls: List[str]) -> List[str]:
             seen.add(u)
             out.append(u)
     return out
+
+
+def _url_segments(url: str) -> List[str]:
+    try:
+        parsed = urllib.parse.urlparse(url)
+        path = urllib.parse.unquote(parsed.path or "")
+    except Exception:
+        return []
+    return [seg.lower() for seg in path.split('/') if seg]
+
+
+def _path_has_auth_segment(url: str) -> bool:
+    for seg in _url_segments(url):
+        base = seg.split('.')[0]
+        if base in AUTH_PATH_SEGMENTS:
+            return True
+        if any(base.startswith(prefix) for prefix in ("bestelling", "abonnement")):
+            return True
+    return False
+
+
+def _auth_prefix_family(url: str) -> str:
+    segments = _url_segments(url)
+    for family in AUTH_FAMILY_PRIORITY:
+        for seg in segments:
+            base = seg.split('.')[0]
+            if base == family or base.startswith(family):
+                return family
+    return ""
+
+
+def _path_has_article_signal(url: str) -> bool:
+    segments = _url_segments(url)
+    if any(seg in ARTICLE_PATH_SEGMENTS for seg in segments):
+        return True
+    try:
+        path = urllib.parse.unquote(urllib.parse.urlparse(url).path or "").strip('/')
+    except Exception:
+        return False
+    if re.search(r'/(19|20)\d{2}/\d{1,2}(/|$)', '/' + path):
+        return True
+    if segments:
+        last = segments[-1]
+        word_count = len([w for w in last.split('-') if w])
+        if word_count >= 5:
+            return True
+    return False
+
+
+def _is_url_hard_auth_candidate(url: str) -> bool:
+    """Very conservative URL-only hard reject for auth/dashboard utility pages."""
+    return _path_has_auth_segment(url)
+
+
+def _is_profile_like_href(href: str, base_url: str, anchor_text: str = "") -> bool:
+    try:
+        resolved = urllib.parse.urljoin(base_url, href)
+        parsed = urllib.parse.urlparse(resolved)
+        base = urllib.parse.urlparse(base_url)
+        if parsed.netloc.replace("www.", "") != base.netloc.replace("www.", ""):
+            return False
+    except Exception:
+        return False
+
+    segments = _url_segments(resolved)
+    if not segments:
+        return False
+    if any(seg in PROFILE_PATH_SEGMENTS for seg in segments):
+        return True
+    if any(seg in ARTICLE_PATH_SEGMENTS for seg in segments):
+        return False
+    last = urllib.parse.unquote(segments[-1]).replace('-', ' ').strip()
+    if _looks_like_person_name_static(anchor_text):
+        return True
+    return _looks_like_person_name_static(last)
+
+
+def _page_people_evidence(soup: BeautifulSoup, url: str, classification: Optional[Dict] = None) -> Dict[str, int]:
+    """Collect lightweight page-level people evidence counts."""
+    personal_li = 0
+    personal_email = 0
+    profile_link_count = 0
+    localized_profile_cluster = 0
+    parent_counts: Dict[int, int] = {}
+
+    for a in soup.find_all('a', href=True):
+        href = a.get('href') or ''
+        if _is_in_global_zone(a):
+            continue
+        if _is_personal_linkedin(href):
+            personal_li += 1
+        if href.lower().startswith(('mailto:', 'mail:')):
+            email = re.sub(r'^ma?ilto?:', '', href, flags=re.I)
+            if _is_personal_email(email):
+                personal_email += 1
+        if _is_profile_like_href(href, url, a.get_text(" ", strip=True)):
+            profile_link_count += 1
+            parent = a.parent
+            if parent:
+                pid = id(parent)
+                parent_counts[pid] = parent_counts.get(pid, 0) + 1
+
+    if parent_counts:
+        localized_profile_cluster = max(parent_counts.values())
+
+    signals = set(classification.get("signals", [])) if classification else set()
+    has_person_jsonld = any(sig in signals for sig in ("jsonld_person", "jsonld_person_list"))
+
+    return {
+        "personal_linkedin_count": personal_li,
+        "personal_email_count": personal_email,
+        "profile_link_count": profile_link_count,
+        "localized_profile_cluster": localized_profile_cluster,
+        "has_person_jsonld": 1 if has_person_jsonld else 0,
+    }
 
 
 # ─── PathCandidate: multi-signal evidence accumulator ─────────────────────────
@@ -227,6 +366,8 @@ class PathCandidate:
         real_sources = self.sources - {"common_guess"}
         if real_sources and any(k in self.url.lower() for k in INTERNAL_LINK_KEYWORDS):
             total += self.WEIGHTS["keyword"]
+        if _path_has_article_signal(self.url):
+            total -= 5
         return total
 
 
@@ -264,6 +405,8 @@ class CandidatePool:
         normalized = self._normalize(url)
         if not normalized:
             return
+        if _is_url_hard_auth_candidate(normalized):
+            return
         if normalized not in self._candidates:
             self._candidates[normalized] = PathCandidate(normalized)
         self._candidates[normalized].add_source(source)
@@ -283,7 +426,18 @@ class CandidatePool:
             key=lambda c: (c.score, c.url),
             reverse=True
         )
-        return [c.url for c in ranked[:limit]]
+        final_urls = []
+        auth_family_counts: Dict[str, int] = {}
+        for candidate in ranked:
+            family = _auth_prefix_family(candidate.url)
+            if family:
+                if auth_family_counts.get(family, 0) >= 1:
+                    continue
+                auth_family_counts[family] = auth_family_counts.get(family, 0) + 1
+            final_urls.append(candidate.url)
+            if len(final_urls) >= limit:
+                break
+        return final_urls
 
     def get_score(self, url: str) -> int:
         normalized = url.rstrip("/")
@@ -302,6 +456,547 @@ class PageArtifact:
     soup: Optional[BeautifulSoup]
     emails: Set[str]
     linkedin_urls: Set[str]
+    classification: Optional[Dict] = None  # Output of classify_page()
+
+
+# ─── Lightweight page classifier ─────────────────────────────────────────────
+# Shallow, coarse signals only. Must NOT do ancestor walk-up, card extraction,
+# peer promotion, or sibling sweep. Used after fetch/render to gate level-2
+# expansion — never blocks the initial fetch of a candidate page.
+
+_AUTH_NAV_KEYWORDS = {
+    "dashboard", "account", "settings", "logout", "log out", "sign out",
+    "my orders", "my account", "subscriptions", "api keys", "api-keys",
+    "billing", "payment", "password", "profile settings",
+}
+
+_ARTICLE_LD_TYPES = {"BlogPosting", "NewsArticle", "Article", "TechArticle", "Report"}
+
+
+def classify_page(soup: BeautifulSoup, url: str = "") -> Dict:
+    """Classify a fetched page into people_hint / article_score / auth_score.
+
+    Returns dict with:
+        people_hint: int   — coarse signal that this page contains people info
+        article_score: int — signal that this is an article/blog page
+        auth_score: int    — signal that this is a dashboard/account/auth page
+        signals: list[str] — explainability tags for debugging
+    """
+    people_hint = 0
+    article_score = 0
+    auth_score = 0
+    signals: List[str] = []
+
+    # ── People hints (cheap, page-level only) ──
+
+    # JSON-LD Person / ItemList of persons
+    for script in soup.find_all('script', type='application/ld+json'):
+        try:
+            import json as _json
+            data = _json.loads(script.string or '{}')
+            items = data if isinstance(data, list) else [data]
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                item_type = item.get('@type', '')
+                if isinstance(item_type, list):
+                    item_type = ' '.join(item_type)
+                if 'Person' in item_type:
+                    people_hint += 2
+                    signals.append("jsonld_person")
+                # Organization with employee list
+                for key in ('employee', 'employees', 'member', 'founder'):
+                    nested = item.get(key, [])
+                    if isinstance(nested, dict):
+                        nested = [nested]
+                    if isinstance(nested, list) and len(nested) >= 2:
+                        people_hint += 2
+                        signals.append("jsonld_person_list")
+                        break
+        except Exception:
+            continue
+
+    evidence = _page_people_evidence(soup, url)
+    personal_li_count = evidence["personal_linkedin_count"]
+    personal_email_count = evidence["personal_email_count"]
+    profile_link_count = evidence["profile_link_count"]
+    localized_profile_cluster = evidence["localized_profile_cluster"]
+
+    if personal_li_count >= 1:
+        people_hint += 1
+        signals.append(f"personal_linkedin_x{personal_li_count}")
+    if personal_email_count >= 1:
+        people_hint += 1
+        signals.append(f"personal_emails_x{personal_email_count}")
+    if personal_li_count >= 1 and personal_email_count >= 1:
+        people_hint += 1
+        signals.append("mixed_personal_signals")
+    if localized_profile_cluster >= 2:
+        people_hint += 2
+        signals.append(f"profile_link_cluster_x{localized_profile_cluster}")
+    elif profile_link_count >= 2:
+        people_hint += 1
+        signals.append(f"profile_links_x{profile_link_count}")
+
+    # ── Article score ──
+
+    if _path_has_article_signal(url):
+        article_score += 2
+        signals.append("article_url")
+
+    if soup.find('article'):
+        article_score += 2
+        signals.append("article_tag")
+
+    # JSON-LD article types
+    for script in soup.find_all('script', type='application/ld+json'):
+        try:
+            import json as _json
+            data = _json.loads(script.string or '{}')
+            items = data if isinstance(data, list) else [data]
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                item_type = item.get('@type', '')
+                if isinstance(item_type, list):
+                    item_type = ' '.join(item_type)
+                if any(t in item_type for t in _ARTICLE_LD_TYPES):
+                    article_score += 2
+                    signals.append("jsonld_article")
+                    break
+        except Exception:
+            continue
+
+    # datePublished meta
+    if soup.find('meta', attrs={'property': 'article:published_time'}) or \
+       soup.find('time', attrs={'datetime': True}):
+        article_score += 1
+        signals.append("date_published")
+
+    # Byline / author patterns
+    author_el = soup.find(class_=re.compile(r'author|byline', re.I))
+    if author_el:
+        article_score += 1
+        signals.append("byline")
+
+    if soup.find(class_=re.compile(r'tag|category|related-post|related', re.I)) or \
+       soup.find(id=re.compile(r'tag|category|related-post|related', re.I)):
+        article_score += 1
+        signals.append("article_taxonomy")
+
+    # ── Auth / dashboard score ──
+
+    # Password fields
+    if soup.find('input', attrs={'type': 'password'}):
+        auth_score += 3
+        signals.append("password_field")
+
+    # Account update forms
+    for form in soup.find_all('form'):
+        action = (form.get('action') or '').lower()
+        if any(kw in action for kw in ['account', 'login', 'signin', 'signup',
+                                         'register', 'password', 'settings']):
+            auth_score += 2
+            signals.append("auth_form")
+            break
+
+    # Logout / account nav links
+    auth_link_count = 0
+    for a in soup.find_all('a', href=True):
+        href = (a.get('href') or '').lower()
+        text = (a.get_text(strip=True) or '').lower()
+        combined = href + " " + text
+        if any(kw in combined for kw in _AUTH_NAV_KEYWORDS):
+            auth_link_count += 1
+    if auth_link_count >= 2:
+        auth_score += 2
+        signals.append(f"auth_nav_links_x{auth_link_count}")
+
+    auth_heading_button_count = 0
+    for node in soup.find_all(['h1', 'h2', 'h3', 'button']):
+        text = node.get_text(" ", strip=True).lower()
+        if any(kw in text for kw in _AUTH_NAV_KEYWORDS):
+            auth_heading_button_count += 1
+    if auth_heading_button_count >= 1:
+        auth_score += 1
+        signals.append("auth_heading_button")
+
+    # URL-based penalty (very conservative, language-agnostic only)
+    url_lower = url.lower()
+    if _path_has_auth_segment(url_lower):
+        auth_score += 1
+        signals.append("auth_url_segment")
+
+    return {
+        "people_hint": people_hint,
+        "article_score": article_score,
+        "auth_score": auth_score,
+        "signals": signals,
+    }
+
+
+def is_hard_auth_page(url: str, soup: BeautifulSoup, classification: Optional[Dict] = None) -> bool:
+    """Near-certain auth/dashboard reject using path + UI evidence."""
+    classification = classification or classify_page(soup, url)
+    signals = set(classification.get("signals", []))
+    if "password_field" in signals:
+        return True
+
+    has_auth_url = _path_has_auth_segment(url)
+    has_logout = False
+    auth_nav_cluster = 0
+    for a in soup.find_all('a', href=True):
+        combined = ((a.get('href') or '') + " " + a.get_text(" ", strip=True)).lower()
+        if any(kw in combined for kw in ('logout', 'sign out', 'uitloggen')):
+            has_logout = True
+        if any(kw in combined for kw in _AUTH_NAV_KEYWORDS):
+            auth_nav_cluster += 1
+
+    has_auth_form = "auth_form" in signals
+    heading_button = "auth_heading_button" in signals
+    if has_auth_url and (has_logout or auth_nav_cluster >= 3 or has_auth_form):
+        return True
+
+    auth_ui_signals = sum([
+        1 if has_logout else 0,
+        1 if auth_nav_cluster >= 3 else 0,
+        1 if has_auth_form else 0,
+        1 if heading_button else 0,
+    ])
+    return auth_ui_signals >= 2 and classification.get("people_hint", 0) == 0
+
+
+def is_soft_article_page(url: str, soup: BeautifulSoup, classification: Optional[Dict] = None) -> bool:
+    """Return True for article/blog pages that lack meaningful people evidence."""
+    classification = classification or classify_page(soup, url)
+    evidence = _page_people_evidence(soup, url, classification)
+    has_people_evidence = (
+        evidence["personal_linkedin_count"] >= 1
+        or evidence["personal_email_count"] >= 1
+        or evidence["localized_profile_cluster"] >= 2
+        or evidence["profile_link_count"] >= 2
+        or evidence["has_person_jsonld"] >= 1
+    )
+    if has_people_evidence:
+        return False
+    article_score = classification.get("article_score", 0)
+    if article_score >= 3:
+        return True
+    return article_score >= 2 and _path_has_article_signal(url)
+
+
+def should_suppress_level2(classification: Dict, soup: Optional[BeautifulSoup] = None, url: str = "") -> bool:
+    """Return True if the page classification indicates level-2 expansion
+    should be suppressed (auth/article dominates people)."""
+    if not classification:
+        return False
+    if soup is not None:
+        if is_hard_auth_page(url, soup, classification):
+            return True
+        if is_soft_article_page(url, soup, classification):
+            return True
+        return False
+    ph = classification.get("people_hint", 0)
+    if classification.get("auth_score", 0) >= 3 and ph == 0:
+        return True
+    if classification.get("article_score", 0) >= 3 and ph == 0:
+        return True
+    return False
+
+
+# ─── Structural fingerprint for card containers ──────────────────────────────
+
+def _container_shape(container) -> tuple:
+    """Return a structural fingerprint for a container element.
+
+    Uses only DOM structure, not text content. Fingerprint components:
+    - direct child tag names (capped at 8)
+    - descendant count bucket (0-5, 6-15, 16-30, 31+)
+    - short-leaf count bucket
+    - flags for image, anchor, mailto, linkedin, tel
+    """
+    # Direct child tags
+    child_tags = []
+    for child in container.children:
+        tag_name = getattr(child, 'name', None)
+        if tag_name:
+            child_tags.append(tag_name)
+    child_tags = tuple(child_tags[:8])
+
+    # Descendant count bucket
+    desc_count = len(container.find_all(True))
+    if desc_count <= 5:
+        desc_bucket = 'xs'
+    elif desc_count <= 15:
+        desc_bucket = 'sm'
+    elif desc_count <= 30:
+        desc_bucket = 'md'
+    else:
+        desc_bucket = 'lg'
+
+    # Short leaf count
+    short_leaves = 0
+    for tag in container.find_all(True):
+        if tag.name in {'script', 'style', 'svg', 'path'}:
+            continue
+        if not any(getattr(c, 'name', None) for c in tag.children):
+            text = tag.get_text(strip=True)
+            if 2 <= len(text) <= 120:
+                short_leaves += 1
+    if short_leaves <= 2:
+        leaf_bucket = 'few'
+    elif short_leaves <= 5:
+        leaf_bucket = 'some'
+    else:
+        leaf_bucket = 'many'
+
+    # Flags
+    has_img = bool(container.find('img'))
+    has_anchor = bool(container.find('a', href=True))
+    has_mailto = bool(container.find('a', href=re.compile(r'^mailto:', re.I)))
+    has_linkedin = bool(container.find('a', href=re.compile(r'linkedin\.com', re.I)))
+    has_tel = bool(container.find('a', href=re.compile(r'^tel:', re.I)))
+
+    return (child_tags, desc_bucket, leaf_bucket, has_img, has_anchor,
+            has_mailto, has_linkedin, has_tel)
+
+
+def _shapes_match(shape_a: tuple, shape_b: tuple) -> bool:
+    """Return True if two container shapes are structurally similar enough
+    to be considered peers in a people section."""
+    if not shape_a or not shape_b:
+        return False
+    tags_a, desc_a, leaf_a = shape_a[:3]
+    tags_b, desc_b, leaf_b = shape_b[:3]
+
+    # Same descendant bucket
+    if desc_a != desc_b:
+        return False
+
+    # Child tags: intersection-over-union >= 60%
+    if not tags_a or not tags_b:
+        return tags_a == tags_b
+    set_a = set(tags_a)
+    set_b = set(tags_b)
+    if not set_a and not set_b:
+        return True
+    iou = len(set_a & set_b) / max(len(set_a | set_b), 1)
+    if iou < 0.6:
+        return False
+
+    return True
+
+
+# ─── Name-node positional path (for sibling sweep corroboration) ─────────────
+
+def _name_node_path(container, name_node) -> Optional[tuple]:
+    """Return the DOM path from container root to name_node as a tuple of tag
+    names. Used for positional corroboration in sibling sweep: a sibling
+    container's name-like text must be at the same structural position."""
+    if name_node is None or container is None:
+        return None
+    path = []
+    current = name_node
+    while current and current != container:
+        if getattr(current, 'name', None):
+            path.append(current.name)
+        current = getattr(current, 'parent', None)
+    if current != container:
+        return None  # name_node is not a descendant of container
+    return tuple(reversed(path))
+
+
+def _find_name_at_position(container, target_path: tuple, role_keywords: List[str]) -> Optional:
+    """Find a name-like leaf node at the same structural position in a
+    sibling container. Returns the node or None."""
+    if not target_path:
+        return None
+
+    # Walk down the container following the tag path
+    candidates = [container]
+    for tag_name in target_path[:-1]:
+        next_candidates = []
+        for node in candidates:
+            for child in node.children:
+                if getattr(child, 'name', None) == tag_name:
+                    next_candidates.append(child)
+        candidates = next_candidates
+        if not candidates:
+            return None
+
+    # At the final level, find the matching tag that contains a name-like text
+    final_tag = target_path[-1]
+    for node in candidates:
+        for child in node.children:
+            if getattr(child, 'name', None) == final_tag:
+                text = child.get_text(" ", strip=True)
+                if _looks_like_person_name_static(text) and not _matches_role_static(text, role_keywords):
+                    return child
+    return None
+
+
+def _looks_like_person_name_static(text: str) -> bool:
+    """Standalone version of PersonExtractor._looks_like_person_name."""
+    clean = re.sub(r'\s+', ' ', (text or '').strip())
+    words = clean.split()
+    if len(words) < 2 or len(words) > 5:
+        return False
+    particles = {'de', 'van', 'den', 'der', 'het', 'ten', 'ter', 'von',
+                  'du', 'le', 'la', 'di', 'el', 'al', 'bin', 'op'}
+    capitalized = re.compile(r"^[A-Z\u00C0-\u024F][A-Za-z\u00C0-\u024F'\u2018\u2019\-]+$")
+    cap_count = 0
+    for word in words:
+        if word.lower() in particles:
+            continue
+        if not capitalized.match(word):
+            return False
+        cap_count += 1
+    return cap_count >= 2
+
+
+def _matches_role_static(text: str, role_keywords: List[str]) -> bool:
+    """Standalone version of PersonExtractor._matches_role."""
+    t = (text or "").strip().lower()
+    return any(t == kw or t.startswith(kw) or t.endswith(kw) or kw in t for kw in role_keywords)
+
+
+# ─── Personal-signal normalization helpers ────────────────────────────────────
+
+def _normalize_tokens(text: str) -> List[str]:
+    """Normalize a name/slug into lowercase tokens for matching."""
+    text = re.sub(r"[''\".,;:!?()]+", "", (text or "").strip().lower())
+    return [t for t in re.split(r'[\s\-_]+', text) if len(t) > 1]
+
+
+def _is_personal_linkedin(url: str) -> bool:
+    """Return True if this is a personal /in/ LinkedIn URL."""
+    url_lower = (url or "").lower()
+    if '/in/' not in url_lower:
+        return False
+    if any(x in url_lower for x in ['/share', '/sharearticle', '/embed', '/pulse/']):
+        return False
+    return 'linkedin.com' in url_lower
+
+
+def _is_personal_email(email: str) -> bool:
+    """Return True if this email looks like a personal inbox (not generic)."""
+    if not email:
+        return False
+    local = email.split('@')[0].lower()
+    if local in GENERIC_EMAIL_PREFIXES or len(local) <= 2:
+        return False
+    if RE_MACHINE_EMAIL_LOCAL.fullmatch(local):
+        return False
+    return True
+
+
+def _match_name_to_signal(name_text: str, email: str = "", linkedin_url: str = "") -> str:
+    """Match a candidate name against email/linkedin tokens.
+
+    Returns: 'strong', 'medium', 'weak', or 'none'.
+    """
+    name_tokens = _normalize_tokens(name_text)
+    if not name_tokens or len(name_tokens) < 2:
+        return "none"
+
+    # Build signal tokens from email and linkedin
+    signal_tokens = set()
+    email_local = ""
+    if email and _is_personal_email(email):
+        email_local = email.split('@')[0].lower()
+        for t in re.split(r'[.\-_+]', email_local):
+            if len(t) > 1:
+                signal_tokens.add(t)
+
+    li_slug = ""
+    if linkedin_url and _is_personal_linkedin(linkedin_url):
+        match = re.search(r'linkedin\.com/in/([^/?#]+)', linkedin_url, re.I)
+        if match:
+            li_slug = re.sub(r'-\d+$', '', match.group(1).lower())
+            for t in li_slug.split('-'):
+                if len(t) > 1:
+                    signal_tokens.add(t)
+
+    if not signal_tokens:
+        return "none"
+
+    # Exact token matches
+    first_match = name_tokens[0] in signal_tokens
+    surname_match = name_tokens[-1] in signal_tokens
+    joined_name = ''.join(name_tokens)
+
+    # Strong: exact first+surname OR slug-contains-joined-name
+    if first_match and surname_match:
+        return "strong"
+    if li_slug and (li_slug in joined_name or joined_name in li_slug):
+        return "strong"
+    if email_local and (email_local.replace('.', '') in joined_name or joined_name in email_local.replace('.', '')):
+        return "strong"
+
+    # Medium: first-name token match only against a 2-4 word candidate
+    if first_match and 2 <= len(name_tokens) <= 4:
+        return "medium"
+
+    # Weak: partial only
+    any_match = any(t in signal_tokens for t in name_tokens)
+    if any_match:
+        return "weak"
+
+    return "none"
+
+
+# ─── Footer/header/nav detection ─────────────────────────────────────────────
+
+_GLOBAL_ZONE_TAGS = {'header', 'footer', 'nav'}
+_GLOBAL_ZONE_CLASSES = {'footer', 'header', 'nav', 'navbar', 'navigation',
+                         'site-footer', 'site-header', 'global-footer',
+                         'global-header', 'masthead', 'bottom-bar'}
+
+
+def _is_in_global_zone(node) -> bool:
+    """Return True if node is inside a header/footer/nav/global-contact zone."""
+    current = node
+    while current:
+        tag_name = getattr(current, 'name', None)
+        if tag_name in _GLOBAL_ZONE_TAGS:
+            return True
+        classes = current.get('class', []) if hasattr(current, 'get') else []
+        if isinstance(classes, list):
+            for cls in classes:
+                if cls.lower() in _GLOBAL_ZONE_CLASSES:
+                    return True
+        current = getattr(current, 'parent', None)
+    return False
+
+
+# ─── Verified people section logic ───────────────────────────────────────────
+
+def find_verified_sections(persons: List[Dict]) -> List[Dict]:
+    """Identify verified people sections from extracted person records.
+
+    A verified people section is a group of persons sharing the same
+    parent_section_id where:
+    - at least 2 person cards were extracted
+    - at least 1 card is 'primary' confidence (backed by personal email/linkedin)
+
+    Returns list of dicts: {parent_section_id, card_count, has_primary, persons}
+    """
+    by_section: Dict[str, List[Dict]] = {}
+    for p in persons:
+        section_id = p.get("parent_section_id", "unknown")
+        by_section.setdefault(section_id, []).append(p)
+
+    results = []
+    for section_id, section_persons in by_section.items():
+        has_primary = any(p.get("confidence") == "primary" for p in section_persons)
+        results.append({
+            "parent_section_id": section_id,
+            "card_count": len(section_persons),
+            "has_primary": has_primary,
+            "persons": section_persons,
+        })
+
+    return results
 
 
 class LinkedInFinder:
@@ -964,38 +1659,56 @@ class LinkedInFinder:
                 page_linkedin = set(artifact_linkedin)
                 page_emails = set(artifact_emails)
 
+                # ── Page classification: gate level-2 expansion ──
+                page_soup = pw_res.get("soup")
+                page_classification = None
+                suppress_l2 = False
+                hard_auth_page = False
+                if page_soup:
+                    page_classification = classify_page(page_soup, page_url)
+                    hard_auth_page = is_hard_auth_page(page_url, page_soup, page_classification)
+                    suppress_l2 = should_suppress_level2(page_classification, page_soup, page_url)
+                    if suppress_l2:
+                        logger.info(f"    -> Suppressing level-2 for {page_url} "
+                                    f"(signals: {page_classification.get('signals', [])})")
+
                 # Level-2 crawl: check new internal links from this page
-                # Strip fragments and query params for canonical dedup
-                cleaned_links = []
-                for l in new_links:
-                    # Remove fragment
-                    l = l.split('#')[0]
-                    # Remove query params for dedup purposes
-                    l = l.split('?')[0]
-                    l = l.rstrip('/')
-                    if l:
-                        cleaned_links.append(l)
-                cleaned_links = dedupe_keep_order(cleaned_links)
+                # Skip if classifier says auth/article dominates people
+                if not suppress_l2:
+                    # Strip fragments and query params for canonical dedup
+                    cleaned_links = []
+                    for l in new_links:
+                        # Remove fragment
+                        l = l.split('#')[0]
+                        # Remove query params for dedup purposes
+                        l = l.split('?')[0]
+                        l = l.rstrip('/')
+                        if l:
+                            cleaned_links.append(l)
+                    cleaned_links = dedupe_keep_order(cleaned_links)
 
-                async with results_lock:
-                    level2_links = [
-                        l for l in cleaned_links
-                        if l not in already_checked
-                        and l.rstrip('/') != start_url.rstrip('/')
-                        and not any(pat in l.lower() for pat in LEVEL2_EXCLUDE_PATTERNS)
-                    ]
-                    level2_links = level2_links[:LEVEL2_LIMIT]
-                    already_checked.update(level2_links)
+                    async with results_lock:
+                        level2_links = [
+                            l for l in cleaned_links
+                            if l not in already_checked
+                            and l.rstrip('/') != start_url.rstrip('/')
+                            and not any(pat in l.lower() for pat in LEVEL2_EXCLUDE_PATTERNS)
+                        ]
+                        level2_links = level2_links[:LEVEL2_LIMIT]
+                        already_checked.update(level2_links)
 
-                if level2_links:
-                    logger.info(f"    -> {len(level2_links)} level-2 links from {page_url}")
-                    l2_tasks = [_bounded_static(session, l2) for l2 in level2_links]
-                    l2_results = await asyncio.gather(*l2_tasks)
-                    for l2_li, l2_em in l2_results:
-                        page_linkedin.update(l2_li)
-                        page_emails.update(l2_em)
+                    if level2_links:
+                        logger.info(f"    -> {len(level2_links)} level-2 links from {page_url}")
+                        l2_tasks = [_bounded_static(session, l2) for l2 in level2_links]
+                        l2_results = await asyncio.gather(*l2_tasks)
+                        for l2_li, l2_em in l2_results:
+                            page_linkedin.update(l2_li)
+                            page_emails.update(l2_em)
 
-                artifact = self._make_page_artifact(page_url, pw_res.get("soup"), artifact_linkedin, artifact_emails)
+                artifact_soup = None if hard_auth_page else page_soup
+                artifact = self._make_page_artifact(page_url, artifact_soup, artifact_linkedin, artifact_emails)
+                if artifact and page_classification:
+                    artifact.classification = page_classification
                 return page_linkedin, page_emails, artifact
 
         async with aiohttp.ClientSession() as session:
@@ -1071,10 +1784,20 @@ class PersonExtractor:
     def _looks_like_person_name(text: str) -> bool:
         clean = re.sub(r'\s+', ' ', (text or '').strip())
         words = clean.split()
-        if len(words) < 2 or len(words) > 4:
+        if len(words) < 2 or len(words) > 5:
             return False
-        pattern = re.compile(r"^[A-Z\u00C0-\u024F][A-Za-z\u00C0-\u024F'’\-]+$")
-        return all(pattern.match(word) for word in words)
+        # Common lowercase particles in Dutch/German/French/Spanish names
+        particles = {'de', 'van', 'den', 'der', 'het', 'ten', 'ter', 'von',
+                      'du', 'le', 'la', 'di', 'el', 'al', 'bin', 'op'}
+        capitalized = re.compile(r"^[A-Z\u00C0-\u024F][A-Za-z\u00C0-\u024F''\-]+$")
+        cap_count = 0
+        for word in words:
+            if word.lower() in particles:
+                continue  # particles are always allowed
+            if not capitalized.match(word):
+                return False
+            cap_count += 1
+        return cap_count >= 2  # At least 2 non-particle capitalized words
 
     @staticmethod
     def _node_text(node) -> str:
@@ -1359,6 +2082,494 @@ class PersonExtractor:
             return []
         return self._discover_container_candidates(artifact.soup, artifact.url)
 
+    # ─── V2 extraction: unified pipeline with all upgrade strategies ─────
+
+    def extract_from_page_artifact_v2(self, soup: BeautifulSoup, page_url: str) -> List[Dict]:
+        """Unified extraction pipeline that combines:
+        1. Existing confirmed container extraction (hard-contact-backed)
+        2. Flat contact-anchor extraction (personal LinkedIn/email walk-up)
+        3. Structural peer promotion (pending bucket for role-only cards)
+        4. Sibling sweep (expand confirmed sections to peers)
+
+        Returns deduplicated list of person dicts with evidence/confidence fields.
+        """
+        if not soup:
+            return []
+
+        role_keywords = self._role_keywords_for_soup(soup)
+
+        # ── Pass 1: Existing confirmed extraction + separate pending bucket ──
+        confirmed, pending_by_parent = self._discover_candidates_v2(soup, page_url, role_keywords)
+
+        # ── Pass 2: Flat contact-anchor extraction ──
+        anchor_persons = self._flat_contact_anchor_extraction(soup, page_url, role_keywords)
+
+        # ── Pass 3: Structural peer promotion ──
+        promoted = self._promote_pending_peers(pending_by_parent, page_url, role_keywords)
+
+        # ── Pass 4: Sibling sweep from confirmed + promoted cards ──
+        all_confirmed = confirmed + anchor_persons + promoted
+        swept = self._sibling_sweep(soup, all_confirmed, page_url, role_keywords)
+
+        # ── Combine and dedupe ──
+        all_persons = all_confirmed + swept
+        return self._dedupe_persons(all_persons)
+
+    def _discover_candidates_v2(self, soup: BeautifulSoup, page_url: str,
+                                 role_keywords: List[str]) -> Tuple[List[Dict], Dict]:
+        """Split container discovery into confirmed (hard-contact) and pending
+        (role-only, no contact signal) buckets.
+
+        Returns: (confirmed_persons, pending_by_parent)
+        where pending_by_parent maps parent_id -> list of
+              {container, name_node, shape, role_keywords}
+        """
+        confirmed: List[Dict] = []
+        pending_by_parent: Dict[int, List[Dict]] = {}
+
+        leaves = [leaf for leaf in self._get_leaf_nodes(soup) if len(self._node_text(leaf)) < 120]
+
+        # Track which containers we've already processed
+        seen_containers: Set[int] = set()
+
+        # ── Layer 1: Role-keyword walk-up ──
+        for leaf in leaves:
+            if not self._matches_role(self._node_text(leaf), role_keywords):
+                continue
+
+            current = leaf
+            found_smallest = False
+            for _ in range(MAX_CONTAINER_ANCESTOR_WALK):
+                if current is None:
+                    break
+                cid = id(current)
+
+                if not getattr(current, 'name', None):
+                    current = current.parent
+                    continue
+
+                # Check descendant bounds
+                desc_count = self._container_descendants(current)
+                if desc_count < MIN_CONTAINER_DESCENDANTS:
+                    current = current.parent
+                    continue
+                if desc_count > MAX_CONTAINER_DESCENDANTS:
+                    break
+
+                if cid in seen_containers:
+                    break
+
+                # Skip global zones
+                if _is_in_global_zone(current):
+                    break
+
+                # Skip section wrappers: a container with 3+ role-keyword
+                # leaves is a section, not an individual person card
+                role_leaf_count = sum(
+                    1 for l in self._get_leaf_nodes(current)
+                    if self._matches_role(self._node_text(l), role_keywords)
+                    and len(self._node_text(l)) < 120
+                )
+                if role_leaf_count > 2:
+                    current = current.parent
+                    continue
+
+                # Check for hard contact signal
+                has_hard_contact = bool(
+                    current.find('a', href=re.compile(r'^mailto:', re.I)) or
+                    current.find('a', href=re.compile(r'linkedin\.com/in/', re.I))
+                )
+
+                if has_hard_contact:
+                    # Try confirmed extraction
+                    email = self._find_email(current)
+                    linkedin = self._find_personal_linkedin(current) or self._find_any_linkedin(current)
+                    corroborated = self._corroborate_name(current, email, linkedin, role_keywords)
+                    if corroborated:
+                        person = self._extract_person_from_container(
+                            current, corroborated["name_node"], page_url,
+                            corroborated["confidence"], corroborated["strategy"],
+                            corroborated["evidence"], role_keywords
+                        )
+                        if person:
+                            parent = current.parent
+                            person["parent_section_id"] = str(id(parent)) if parent else "root"
+                            person["_container_id"] = cid
+                            person["_container"] = current
+                            person["_name_node"] = corroborated["name_node"]
+                            confirmed.append(person)
+                            seen_containers.add(cid)
+                            found_smallest = True
+                            break
+                else:
+                    # No hard contact → add to pending (smallest only per walk path)
+                    # Check there's a name-like leaf too
+                    name_leaves = [
+                        l for l in self._get_leaf_nodes(current)
+                        if self._looks_like_person_name(self._node_text(l))
+                        and not self._matches_role(self._node_text(l), role_keywords)
+                        and len(self._node_text(l)) < 120
+                    ]
+                    if name_leaves:
+                        parent = current.parent
+                        pid = id(parent) if parent else 0
+                        shape = _container_shape(current)
+                        pending_entry = {
+                            "container": current,
+                            "name_node": name_leaves[0],
+                            "shape": shape,
+                            "role_keywords": role_keywords,
+                            "container_id": cid,
+                        }
+                        pending_by_parent.setdefault(pid, []).append(pending_entry)
+                        seen_containers.add(cid)
+                        found_smallest = True
+                        break
+
+                current = current.parent
+
+        # ── Layer 2: Contact-anchor walk-up (existing confirmed path) ──
+        contact_anchors = []
+        for anchor in soup.find_all('a', href=True):
+            href = anchor.get('href', '')
+            if href.lower().startswith('mailto:') or 'linkedin.com/in/' in href.lower():
+                if not _is_in_global_zone(anchor):
+                    contact_anchors.append(anchor)
+
+        for anchor in contact_anchors:
+            current = anchor
+            for _ in range(MAX_CONTAINER_ANCESTOR_WALK):
+                if current is None:
+                    break
+                cid = id(current)
+                if cid in seen_containers:
+                    break
+                if not getattr(current, 'name', None):
+                    current = current.parent
+                    continue
+
+                desc_count = self._container_descendants(current)
+                if desc_count < MIN_CONTAINER_DESCENDANTS:
+                    current = current.parent
+                    continue
+                if desc_count > MAX_CONTAINER_DESCENDANTS:
+                    break
+
+                if _is_in_global_zone(current):
+                    break
+
+                if self._is_valid_container(current):
+                    email = self._find_email(current)
+                    linkedin = self._find_personal_linkedin(current) or self._find_any_linkedin(current)
+                    corroborated = self._corroborate_name(current, email, linkedin, role_keywords)
+                    if corroborated:
+                        person = self._extract_person_from_container(
+                            current, corroborated["name_node"], page_url,
+                            corroborated["confidence"], corroborated["strategy"],
+                            corroborated["evidence"], role_keywords
+                        )
+                        if person:
+                            parent = current.parent
+                            person["parent_section_id"] = str(id(parent)) if parent else "root"
+                            person["_container_id"] = cid
+                            person["_container"] = current
+                            person["_name_node"] = corroborated["name_node"]
+                            confirmed.append(person)
+                            seen_containers.add(cid)
+                            break
+
+                current = current.parent
+
+        return confirmed, pending_by_parent
+
+    def _flat_contact_anchor_extraction(self, soup: BeautifulSoup, page_url: str,
+                                         role_keywords: List[str]) -> List[Dict]:
+        """Extract persons starting from personal LinkedIn or personal email
+        anchors, walking upward to find nearest name+role.
+
+        This is distinct from container extraction: it starts from the signal
+        and walks up, rather than starting from a role keyword and walking up.
+        """
+        persons = []
+        seen_anchors: Set[str] = set()
+
+        for anchor in soup.find_all('a', href=True):
+            href = anchor.get('href', '').strip()
+            if not href:
+                continue
+
+            # Determine signal type
+            signal_email = ""
+            signal_linkedin = ""
+
+            if href.lower().startswith('mailto:'):
+                email = href.replace('mailto:', '').replace('Mailto:', '').strip()
+                if _is_personal_email(email):
+                    signal_email = email
+                else:
+                    continue
+            elif _is_personal_linkedin(href):
+                signal_linkedin = href
+            else:
+                continue
+
+            signal_key = signal_email or signal_linkedin
+            if signal_key in seen_anchors:
+                continue
+            seen_anchors.add(signal_key)
+
+            # Skip global zones
+            if _is_in_global_zone(anchor):
+                continue
+
+            # Walk up to find nearest container with a name-like text
+            current = anchor.parent
+            for _ in range(MAX_CONTAINER_ANCESTOR_WALK):
+                if current is None:
+                    break
+                if not getattr(current, 'name', None):
+                    current = current.parent
+                    continue
+                if _is_in_global_zone(current):
+                    break
+
+                desc_count = self._container_descendants(current)
+                if desc_count > MAX_CONTAINER_DESCENDANTS:
+                    break
+                if desc_count < MIN_CONTAINER_DESCENDANTS:
+                    current = current.parent
+                    continue
+
+                # Look for a name-like leaf
+                candidate_leaves = self._get_leaf_nodes(current)
+                name_node = None
+                role_node = None
+
+                for leaf in candidate_leaves:
+                    text = self._node_text(leaf)
+                    if not text or len(text) >= 120:
+                        continue
+                    if self._looks_like_person_name(text) and not self._matches_role(text, role_keywords):
+                        # Check name matches signal
+                        match_strength = _match_name_to_signal(text, signal_email, signal_linkedin)
+                        if match_strength in ("strong", "medium"):
+                            name_node = leaf
+                            break
+
+                if name_node:
+                    # Find role
+                    for leaf in candidate_leaves:
+                        text = self._node_text(leaf)
+                        if text == self._node_text(name_node) or len(text) >= 120:
+                            continue
+                        if self._matches_role(text, role_keywords):
+                            role_node = leaf
+                            break
+
+                    # Medium matches go to pending-like confidence, not primary
+                    match_str = _match_name_to_signal(
+                        self._node_text(name_node), signal_email, signal_linkedin)
+                    if match_str == "strong":
+                        confidence = "primary"
+                    else:
+                        confidence = "secondary"
+
+                    parent = current.parent
+                    # Prefer the original signal that triggered this walk-up.
+                    # Only fall back to container-scoped search if no signal of
+                    # that type was the trigger — otherwise we risk grabbing a
+                    # sibling's contact from a shared ancestor.
+                    person = {
+                        "name": self._node_text(name_node),
+                        "role": self._node_text(role_node) or "",
+                        "linkedin": signal_linkedin or self._find_personal_linkedin(current),
+                        "email": signal_email or self._find_email(current),
+                        "bio": "",
+                        "confidence": confidence,
+                        "strategy": "contact_anchor",
+                        "evidence": f"signal_match_{match_str}",
+                        "source_url": page_url,
+                        "parent_section_id": str(id(parent)) if parent else "root",
+                        "_container_id": id(current),
+                        "_container": current,
+                        "_name_node": name_node,
+                    }
+                    persons.append(person)
+                    break
+
+                current = current.parent
+
+        return persons
+
+    def _promote_pending_peers(self, pending_by_parent: Dict, page_url: str,
+                                role_keywords: List[str]) -> List[Dict]:
+        """Promote pending cards (role-only, no hard contact) when 2+ siblings
+        under the same parent share a matching structural fingerprint."""
+        promoted = []
+
+        for pid, entries in pending_by_parent.items():
+            if len(entries) < 2:
+                continue
+
+            # Group by structural shape
+            shape_groups: Dict[int, List] = {}
+            for i, entry in enumerate(entries):
+                found_group = False
+                for gid, group in shape_groups.items():
+                    if _shapes_match(entry["shape"], group[0]["shape"]):
+                        group.append(entry)
+                        found_group = True
+                        break
+                if not found_group:
+                    shape_groups[len(shape_groups)] = [entry]
+
+            # Promote groups with 2+ members
+            for gid, group in shape_groups.items():
+                if len(group) < 2:
+                    continue
+                for entry in group:
+                    container = entry["container"]
+                    name_node = entry["name_node"]
+                    name_text = self._node_text(name_node)
+
+                    if not name_text or not self._looks_like_person_name(name_text):
+                        continue
+
+                    # Find role
+                    role_text = ""
+                    for leaf in self._get_leaf_nodes(container):
+                        text = self._node_text(leaf)
+                        if text == name_text or len(text) >= 120:
+                            continue
+                        if self._matches_role(text, role_keywords):
+                            role_text = text
+                            break
+
+                    parent = container.parent
+                    person = {
+                        "name": name_text,
+                        "role": role_text,
+                        "linkedin": self._find_personal_linkedin(container),
+                        "email": self._find_email(container),
+                        "bio": "",
+                        "confidence": "secondary",
+                        "strategy": "structural_promotion",
+                        "evidence": "structural_peer_match",
+                        "source_url": page_url,
+                        "parent_section_id": str(id(parent)) if parent else "root",
+                        "_container_id": entry["container_id"],
+                        "_container": container,
+                        "_name_node": name_node,
+                    }
+                    # Also extract phone if present
+                    tel_anchor = container.find('a', href=re.compile(r'^tel:', re.I))
+                    if tel_anchor:
+                        person["phone"] = tel_anchor.get('href', '').replace('tel:', '').strip()
+                    promoted.append(person)
+
+        return promoted
+
+    def _sibling_sweep(self, soup: BeautifulSoup, confirmed_persons: List[Dict],
+                        page_url: str, role_keywords: List[str]) -> List[Dict]:
+        """After confirmed and promoted cards are identified, sweep sibling
+        containers with matching structural fingerprint to find peers that
+        lack hard personal signals.
+
+        Uses positional corroboration: the sibling must have a name-like text
+        at the same DOM position as the confirmed card's name node.
+        """
+        if not confirmed_persons:
+            return []
+
+        swept = []
+        seen_container_ids: Set[int] = set()
+        for p in confirmed_persons:
+            seen_container_ids.add(p.get("_container_id", 0))
+
+        # Group confirmed cards by parent section
+        by_parent: Dict[str, List[Dict]] = {}
+        for p in confirmed_persons:
+            pid = p.get("parent_section_id", "unknown")
+            by_parent.setdefault(pid, []).append(p)
+
+        for parent_id, parent_persons in by_parent.items():
+            # Get a reference card to build the fingerprint and name-node path
+            ref_person = parent_persons[0]
+            ref_container = ref_person.get("_container")
+            ref_name_node = ref_person.get("_name_node")
+            if not ref_container or not ref_name_node:
+                continue
+
+            ref_shape = _container_shape(ref_container)
+            ref_name_path = _name_node_path(ref_container, ref_name_node)
+            if not ref_name_path:
+                continue
+
+            # Get the actual parent element
+            parent_element = ref_container.parent
+            if not parent_element:
+                continue
+
+            # Skip if parent is a global zone
+            if _is_in_global_zone(parent_element):
+                continue
+
+            # Sweep siblings
+            for sibling in parent_element.children:
+                if not getattr(sibling, 'name', None):
+                    continue
+                sid = id(sibling)
+                if sid in seen_container_ids:
+                    continue
+
+                # Check structural match
+                sibling_shape = _container_shape(sibling)
+                if not _shapes_match(ref_shape, sibling_shape):
+                    continue
+
+                # Positional corroboration: find name at same position
+                name_node = _find_name_at_position(sibling, ref_name_path, role_keywords)
+                if not name_node:
+                    continue
+
+                name_text = name_node.get_text(" ", strip=True)
+                if not name_text or not _looks_like_person_name_static(name_text):
+                    continue
+
+                # Find role
+                role_text = ""
+                for leaf in self._get_leaf_nodes(sibling):
+                    text = self._node_text(leaf)
+                    if text == name_text or len(text) >= 120:
+                        continue
+                    if self._matches_role(text, role_keywords):
+                        role_text = text
+                        break
+
+                person = {
+                    "name": name_text,
+                    "role": role_text,
+                    "linkedin": self._find_personal_linkedin(sibling),
+                    "email": self._find_email(sibling),
+                    "bio": "",
+                    "confidence": "secondary",
+                    "strategy": "sibling_sweep",
+                    "evidence": "sibling_sweep",
+                    "source_url": page_url,
+                    "parent_section_id": parent_id,
+                    "_container_id": sid,
+                    "_container": sibling,
+                    "_name_node": name_node,
+                }
+                # Extract phone if present
+                tel_anchor = sibling.find('a', href=re.compile(r'^tel:', re.I))
+                if tel_anchor:
+                    person["phone"] = tel_anchor.get('href', '').replace('tel:', '').strip()
+                swept.append(person)
+                seen_container_ids.add(sid)
+
+        return swept
+
     def strategy2_json_ld(self, soup: BeautifulSoup) -> List[Dict]:
         persons = []
         for script in soup.find_all('script', type='application/ld+json'):
@@ -1505,21 +2716,23 @@ class PersonExtractor:
                                emails: List[str],
                                site_domain: str = "") -> List[Dict]:
         all_persons = []
-        container_count = 0
+        v2_count = 0
         jsonld_count = 0
 
         for artifact in page_artifacts:
             if not artifact.soup:
                 continue
-            extracted = self.extract_from_page_artifact(artifact)
-            container_count += len(extracted)
+            # Use the v2 unified pipeline (container + contact-anchor +
+            # peer promotion + sibling sweep) instead of the legacy v1 path.
+            extracted = self.extract_from_page_artifact_v2(artifact.soup, artifact.url)
+            v2_count += len(extracted)
             all_persons.extend(extracted)
 
             jsonld_people = self.strategy2_json_ld(artifact.soup)
             jsonld_count += len(jsonld_people)
             all_persons.extend(jsonld_people)
 
-        logger.info(f"  Strategy 1 (Container extraction): {container_count} persons")
+        logger.info(f"  Strategy 1 (V2 extraction pipeline): {v2_count} persons")
         logger.info(f"  Strategy 2 (JSON-LD): {jsonld_count} persons")
 
         found_linkedin_urls = {p['linkedin'] for p in all_persons if p.get('linkedin')}
@@ -1589,7 +2802,14 @@ class PersonExtractor:
             else:
                 merge_into(existing, record)
 
-        return list(final_by_name.values())
+        # Strip internal pipeline fields (BS4 objects, container IDs) that
+        # would bloat/break downstream JSON serialisation.
+        _internal_keys = {"_container", "_name_node", "_container_id", "parent_section_id"}
+        results = list(final_by_name.values())
+        for record in results:
+            for key in _internal_keys:
+                record.pop(key, None)
+        return results
 
 
 # ─── Upload / process functions ───────────────────────────────────────────────
