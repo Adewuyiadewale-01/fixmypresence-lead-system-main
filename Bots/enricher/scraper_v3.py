@@ -14,7 +14,6 @@ from datetime import datetime
 import aiohttp
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
-from common.config import USER_AGENT
 from common.google_client import GoogleClient
 
 # Configure logging
@@ -236,6 +235,26 @@ def dedupe_keep_order(urls: List[str]) -> List[str]:
     return out
 
 
+def _normalize_domain(domain: str) -> str:
+    domain = (domain or "").strip().lower()
+    if not domain:
+        return ""
+    domain = domain.split(":", 1)[0].rstrip(".")
+    if domain.startswith("www."):
+        domain = domain[4:]
+    return domain
+
+
+def _same_site_family(domain_a: str, domain_b: str) -> bool:
+    a = _normalize_domain(domain_a)
+    b = _normalize_domain(domain_b)
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    return a.endswith("." + b) or b.endswith("." + a)
+
+
 def _url_segments(url: str) -> List[str]:
     try:
         parsed = urllib.parse.urlparse(url)
@@ -293,7 +312,7 @@ def _is_profile_like_href(href: str, base_url: str, anchor_text: str = "") -> bo
         resolved = urllib.parse.urljoin(base_url, href)
         parsed = urllib.parse.urlparse(resolved)
         base = urllib.parse.urlparse(base_url)
-        if parsed.netloc.replace("www.", "") != base.netloc.replace("www.", ""):
+        if not _same_site_family(parsed.netloc, base.netloc):
             return False
     except Exception:
         return False
@@ -394,7 +413,7 @@ class CandidatePool:
     def __init__(self, base_url: str):
         parsed = urllib.parse.urlparse(base_url)
         self.base = f"{parsed.scheme}://{parsed.netloc}"
-        self.base_domain = parsed.netloc.replace("www.", "")
+        self.base_domain = _normalize_domain(parsed.netloc)
         self.start_url = base_url
         self._candidates: Dict[str, PathCandidate] = {}
 
@@ -411,8 +430,8 @@ class CandidatePool:
         # Must be same origin
         try:
             parsed = urllib.parse.urlparse(url)
-            domain = parsed.netloc.replace("www.", "")
-            if domain and domain != self.base_domain:
+            domain = _normalize_domain(parsed.netloc)
+            if domain and not _same_site_family(domain, self.base_domain):
                 return None
         except Exception:
             return None
@@ -1392,10 +1411,10 @@ class LinkedInFinder:
             try:
                 url = response.url
                 parsed = urllib.parse.urlparse(url)
-                resp_domain = parsed.netloc.replace("www.", "")
+                resp_domain = _normalize_domain(parsed.netloc)
 
                 # Only same-origin requests
-                if resp_domain != base_domain:
+                if not _same_site_family(resp_domain, base_domain):
                     return
 
                 # Skip non-data content types
@@ -1522,6 +1541,7 @@ class LinkedInFinder:
         internal_links_ordered = []
         emails = set()
         soup = None
+        final_url = url
         try:
             context = await self.browser.new_context(user_agent=USER_AGENT)
             page = await context.new_page()
@@ -1534,7 +1554,7 @@ class LinkedInFinder:
                 await page.route(pattern, lambda route: route.abort())
 
             # Set up XHR/response interception
-            base_domain = urllib.parse.urlparse(url).netloc.replace("www.", "")
+            base_domain = _normalize_domain(urllib.parse.urlparse(url).netloc)
             xhr_state = self._setup_xhr_interception(page, base_domain)
 
             try:
@@ -1542,6 +1562,9 @@ class LinkedInFinder:
                 await self._wait_until_ready(page)
             except PlaywrightTimeoutError:
                 logger.warning(f"Timeout loading {url} in Playwright, proceeding with what loaded.")
+
+            final_url = page.url or url
+            effective_domain = _normalize_domain(urllib.parse.urlparse(final_url).netloc) or base_domain
 
             # Extract framework globals before doing anything else
             try:
@@ -1584,12 +1607,12 @@ class LinkedInFinder:
 
                 try:
                     parsed = urllib.parse.urlparse(href)
-                    href_domain = parsed.netloc.replace("www.", "")
-                    is_internal = (not parsed.netloc) or (href_domain == base_domain)
+                    href_domain = _normalize_domain(parsed.netloc)
+                    is_internal = (not parsed.netloc) or _same_site_family(href_domain, effective_domain)
                     if not is_internal:
                         continue
 
-                    full_int_url = urllib.parse.urljoin(url, href)
+                    full_int_url = urllib.parse.urljoin(final_url, href)
 
                     if any(full_int_url.lower().endswith(ext) for ext in (
                         ".js", ".css", ".png", ".jpg", ".jpeg", ".svg",
@@ -1620,15 +1643,18 @@ class LinkedInFinder:
                 emails = self._extract_emails_from_text(content)
 
                 # 3) Internal links from raw HTML regex
-                re_internal = re.compile(
-                    r'(https?:\/\/(?:www\.)?' + re.escape(base_domain) + r'\/[a-zA-Z0-9%\-_.\/]+)',
-                    re.I
-                )
-                for m in re_internal.findall(content):
-                    m = m.strip('"\'')
-                    if any(ext in m.lower() for ext in ['.js', '.css', '.png', '.jpg', '.jpeg', '.svg', '.woff', '.woff2', '.gif', '.pdf', '.ttf', '.eot']):
+                for domain in {base_domain, effective_domain}:
+                    if not domain:
                         continue
-                    internal_links_ordered.append(m)
+                    re_internal = re.compile(
+                        r'(https?:\/\/(?:www\.)?' + re.escape(domain) + r'\/[a-zA-Z0-9%\-_.\/]+)',
+                        re.I
+                    )
+                    for m in re_internal.findall(content):
+                        m = m.strip('"\'')
+                        if any(ext in m.lower() for ext in ['.js', '.css', '.png', '.jpg', '.jpeg', '.svg', '.woff', '.woff2', '.gif', '.pdf', '.ttf', '.eot']):
+                            continue
+                        internal_links_ordered.append(m)
 
             internal_links = dedupe_keep_order(internal_links_ordered)
             if content:
@@ -1641,6 +1667,7 @@ class LinkedInFinder:
                 "framework_routes": framework_routes,
                 "xhr_paths": xhr_paths,
                 "soup": soup,
+                "final_url": final_url,
             }
 
         except Exception as e:
@@ -1652,6 +1679,7 @@ class LinkedInFinder:
                 "framework_routes": [],
                 "xhr_paths": [],
                 "soup": None,
+                "final_url": final_url,
             }
         finally:
             if page:
@@ -1672,12 +1700,6 @@ class LinkedInFinder:
         all_emails: Set[str] = set()
         page_artifacts: Dict[str, PageArtifact] = {}
 
-        parsed = urllib.parse.urlparse(start_url)
-        base = f"{parsed.scheme}://{parsed.netloc}"
-
-        # Build candidate pool
-        pool = CandidatePool(start_url)
-
         # ── Phase 1: Homepage pass (Playwright + static + sitemap in parallel) ──
 
         async def _homepage_playwright():
@@ -1695,7 +1717,7 @@ class LinkedInFinder:
                         if resp.status == 200:
                             text = await resp.text()
                             soup = BeautifulSoup(text, 'html.parser')
-                            li = self._extract_from_soup(soup, start_url)
+                            li = self._extract_from_soup(soup, str(resp.url))
                             li.update(self._extract_from_text(text))
                             emails = self._extract_emails_from_text(text)
                             artifact = self._make_page_artifact(str(resp.url), soup, li, emails)
@@ -1719,6 +1741,24 @@ class LinkedInFinder:
             _homepage_sitemap()
         )
 
+        pw_home_url = pw_result.get("final_url") or start_url
+        static_linkedin, static_emails, homepage_soup, homepage_static_artifact = static_result
+        static_home_url = homepage_static_artifact.url if homepage_static_artifact else start_url
+
+        adopted_home_url = start_url
+        start_domain = _normalize_domain(urllib.parse.urlparse(start_url).netloc)
+        for candidate_url in (pw_home_url, static_home_url):
+            candidate_domain = _normalize_domain(urllib.parse.urlparse(candidate_url).netloc)
+            if candidate_url and candidate_domain and _same_site_family(candidate_domain, start_domain):
+                adopted_home_url = candidate_url
+                break
+
+        parsed = urllib.parse.urlparse(adopted_home_url)
+        base = f"{parsed.scheme}://{parsed.netloc}"
+
+        # Build candidate pool after homepage pass so redirects can redefine the crawl base.
+        pool = CandidatePool(adopted_home_url)
+
         # Unpack Playwright results
         all_found.update(pw_result["linkedin"])
         all_emails.update(pw_result["emails"])
@@ -1727,11 +1767,10 @@ class LinkedInFinder:
         xhr_paths = pw_result["xhr_paths"]
         self._merge_page_artifact(
             page_artifacts,
-            self._make_page_artifact(start_url, pw_result.get("soup"), pw_result["linkedin"], pw_result["emails"])
+            self._make_page_artifact(pw_home_url, pw_result.get("soup"), pw_result["linkedin"], pw_result["emails"])
         )
 
         # Unpack static results
-        static_linkedin, static_emails, homepage_soup, homepage_static_artifact = static_result
         all_found.update(static_linkedin)
         all_emails.update(static_emails)
         self._merge_page_artifact(page_artifacts, homepage_static_artifact)
@@ -1946,7 +1985,14 @@ class PersonExtractor:
 
     def _matches_role(self, text: str, role_keywords: List[str]) -> bool:
         t = (text or "").strip().lower()
-        return any(t == kw or t.startswith(kw) or t.endswith(kw) or kw in t for kw in role_keywords)
+        if not t:
+            return False
+        for kw in role_keywords:
+            if t == kw or t.startswith(kw + " ") or t.endswith(" " + kw):
+                return True
+            if re.search(r'\b' + re.escape(kw) + r'\b', t):
+                return True
+        return False
 
     @staticmethod
     def _looks_like_person_name(text: str) -> bool:
@@ -2557,6 +2603,17 @@ class PersonExtractor:
                 if desc_count > MAX_CONTAINER_DESCENDANTS:
                     break
 
+                # Section-wrapper guard: a container with 3+ role-keyword
+                # leaves is a section wrapper, not an individual person card.
+                role_leaf_count = sum(
+                    1 for l in self._get_leaf_nodes(current)
+                    if self._matches_role(self._node_text(l), role_keywords)
+                    and len(self._node_text(l)) < 120
+                )
+                if role_leaf_count > 2:
+                    current = current.parent
+                    continue
+
                 emails, linkedins = self._container_personal_signals(current)
                 if not emails and not linkedins:
                     current = current.parent
@@ -2765,85 +2822,6 @@ class PersonExtractor:
 
         return promoted
 
-    def _discover_container_candidates(self, soup: BeautifulSoup, page_url: str) -> List[Dict]:
-        role_keywords = self._role_keywords_for_soup(soup)
-        candidates: Dict[int, Dict] = {}
-        leaves = [leaf for leaf in self._get_leaf_nodes(soup) if len(self._node_text(leaf)) < 120]
-
-        def try_add(node, layer: int) -> bool:
-            if not node or not getattr(node, 'name', None):
-                return False
-            if not self._is_valid_container(node):
-                return False
-            email = self._find_email(node)
-            linkedin = self._find_personal_linkedin(node) or self._find_any_linkedin(node)
-            corroborated = self._corroborate_name(node, email, linkedin, role_keywords)
-            if not corroborated:
-                return False
-            existing = candidates.get(id(node))
-            if existing:
-                current_rank = 2 if corroborated["confidence"] == "primary" else 1
-                existing_rank = 2 if existing["confidence"] == "primary" else 1
-                if current_rank <= existing_rank:
-                    return True
-            candidates[id(node)] = {
-                "container": node,
-                "name_node": corroborated["name_node"],
-                "confidence": corroborated["confidence"],
-                "strategy": corroborated["strategy"],
-                "evidence": corroborated["evidence"],
-                "page_url": page_url,
-                "role_keywords": role_keywords,
-                "layer": layer,
-            }
-            return True
-
-        for leaf in leaves:
-            if not self._matches_role(self._node_text(leaf), role_keywords):
-                continue
-            current = leaf
-            for _ in range(MAX_CONTAINER_ANCESTOR_WALK):
-                if try_add(current, 1):
-                    break
-                current = current.parent
-                if current is None:
-                    break
-
-        contact_anchors = []
-        for anchor in soup.find_all('a', href=True):
-            href = anchor.get('href', '')
-            if href.lower().startswith(('mailto:', 'mail:')) or 'linkedin.com' in href.lower():
-                contact_anchors.append(anchor)
-
-        for anchor in contact_anchors:
-            current = anchor
-            for _ in range(MAX_CONTAINER_ANCESTOR_WALK):
-                if try_add(current, 2):
-                    break
-                current = current.parent
-                if current is None:
-                    break
-
-        persons = []
-        for candidate in candidates.values():
-            person = self._extract_person_from_container(
-                candidate["container"],
-                candidate["name_node"],
-                candidate["page_url"],
-                candidate["confidence"],
-                candidate["strategy"],
-                candidate["evidence"],
-                candidate["role_keywords"],
-            )
-            if person:
-                persons.append(person)
-        return self._dedupe_persons(persons)
-
-    def extract_from_page_artifact(self, artifact: PageArtifact) -> List[Dict]:
-        if not artifact or not artifact.soup:
-            return []
-        return self._discover_container_candidates(artifact.soup, artifact.url)
-
     # ─── V2 extraction: unified pipeline with all upgrade strategies ─────
 
     def extract_from_page_artifact_v2(self, soup: BeautifulSoup, page_url: str) -> List[Dict]:
@@ -2884,368 +2862,6 @@ class PersonExtractor:
         all_confirmed = role_confirmed + signal_confirmed + ancestor_promoted + contactless_promoted
         swept = self._sibling_sweep(soup, all_confirmed, page_url, role_keywords)
         return self._dedupe_persons(all_confirmed + swept)
-
-    def _discover_candidates_v2(self, soup: BeautifulSoup, page_url: str,
-                                 role_keywords: List[str]) -> Tuple[List[Dict], Dict]:
-        """Split container discovery into confirmed (hard-contact) and pending
-        (role-only, no contact signal) buckets.
-
-        Returns: (confirmed_persons, pending_by_parent)
-        where pending_by_parent maps parent_id -> list of
-              {container, name_node, shape, role_keywords}
-        """
-        confirmed: List[Dict] = []
-        pending_by_parent: Dict[int, List[Dict]] = {}
-
-        leaves = [leaf for leaf in self._get_leaf_nodes(soup) if len(self._node_text(leaf)) < 120]
-
-        # Track which containers we've already processed
-        seen_containers: Set[int] = set()
-
-        # ── Layer 1: Role-keyword walk-up ──
-        for leaf in leaves:
-            if not self._matches_role(self._node_text(leaf), role_keywords):
-                continue
-
-            current = leaf
-            found_smallest = False
-            for _ in range(MAX_CONTAINER_ANCESTOR_WALK):
-                if current is None:
-                    break
-                cid = id(current)
-
-                if not getattr(current, 'name', None):
-                    current = current.parent
-                    continue
-
-                # Check descendant bounds
-                desc_count = self._container_descendants(current)
-                if desc_count < MIN_CONTAINER_DESCENDANTS:
-                    current = current.parent
-                    continue
-                if desc_count > MAX_CONTAINER_DESCENDANTS:
-                    break
-
-                if cid in seen_containers:
-                    break
-
-                # Skip global zones
-                if _is_in_global_zone(current):
-                    break
-
-                # Skip section wrappers: a container with 3+ role-keyword
-                # leaves is a section, not an individual person card
-                role_leaf_count = sum(
-                    1 for l in self._get_leaf_nodes(current)
-                    if self._matches_role(self._node_text(l), role_keywords)
-                    and len(self._node_text(l)) < 120
-                )
-                if role_leaf_count > 2:
-                    current = current.parent
-                    continue
-
-                # Check for hard contact signal
-                has_hard_contact = bool(
-                    current.find('a', href=re.compile(r'^mail(?:to)?:', re.I)) or
-                    current.find('a', href=re.compile(r'linkedin\.com/in/', re.I))
-                )
-
-                if has_hard_contact:
-                    # Try confirmed extraction
-                    email = self._find_email(current)
-                    linkedin = self._find_personal_linkedin(current) or self._find_any_linkedin(current)
-                    corroborated = self._corroborate_name(current, email, linkedin, role_keywords)
-                    if corroborated:
-                        person = self._extract_person_from_container(
-                            current, corroborated["name_node"], page_url,
-                            corroborated["confidence"], corroborated["strategy"],
-                            corroborated["evidence"], role_keywords
-                        )
-                        if person:
-                            parent = current.parent
-                            person["parent_section_id"] = str(id(parent)) if parent else "root"
-                            person["_container_id"] = cid
-                            person["_container"] = current
-                            person["_name_node"] = corroborated["name_node"]
-                            confirmed.append(person)
-                            seen_containers.add(cid)
-                            found_smallest = True
-                            break
-                else:
-                    # No hard contact → add to pending (smallest only per walk path)
-                    # Check there's a name-like leaf too
-                    name_leaves = [
-                        l for l in self._get_leaf_nodes(current)
-                        if self._looks_like_person_name(self._node_text(l))
-                        and not self._matches_role(self._node_text(l), role_keywords)
-                        and len(self._node_text(l)) < 120
-                    ]
-                    if name_leaves:
-                        parent = current.parent
-                        pid = id(parent) if parent else 0
-                        shape = _container_shape(current)
-                        pending_entry = {
-                            "container": current,
-                            "name_node": name_leaves[0],
-                            "shape": shape,
-                            "role_keywords": role_keywords,
-                            "container_id": cid,
-                        }
-                        pending_by_parent.setdefault(pid, []).append(pending_entry)
-                        seen_containers.add(cid)
-                        found_smallest = True
-                        break
-
-                current = current.parent
-
-        # ── Layer 2: Contact-anchor walk-up (existing confirmed path) ──
-        contact_anchors = []
-        for anchor in soup.find_all('a', href=True):
-            href = anchor.get('href', '')
-            if href.lower().startswith(('mailto:', 'mail:')) or 'linkedin.com/in/' in href.lower():
-                if not _is_in_global_zone(anchor):
-                    contact_anchors.append(anchor)
-
-        for anchor in contact_anchors:
-            current = anchor
-            for _ in range(MAX_CONTAINER_ANCESTOR_WALK):
-                if current is None:
-                    break
-                cid = id(current)
-                if cid in seen_containers:
-                    break
-                if not getattr(current, 'name', None):
-                    current = current.parent
-                    continue
-
-                desc_count = self._container_descendants(current)
-                if desc_count < MIN_CONTAINER_DESCENDANTS:
-                    current = current.parent
-                    continue
-                if desc_count > MAX_CONTAINER_DESCENDANTS:
-                    break
-
-                if _is_in_global_zone(current):
-                    break
-
-                if self._is_valid_container(current):
-                    email = self._find_email(current)
-                    linkedin = self._find_personal_linkedin(current) or self._find_any_linkedin(current)
-                    corroborated = self._corroborate_name(current, email, linkedin, role_keywords)
-                    if corroborated:
-                        person = self._extract_person_from_container(
-                            current, corroborated["name_node"], page_url,
-                            corroborated["confidence"], corroborated["strategy"],
-                            corroborated["evidence"], role_keywords
-                        )
-                        if person:
-                            parent = current.parent
-                            person["parent_section_id"] = str(id(parent)) if parent else "root"
-                            person["_container_id"] = cid
-                            person["_container"] = current
-                            person["_name_node"] = corroborated["name_node"]
-                            confirmed.append(person)
-                            seen_containers.add(cid)
-                            break
-
-                current = current.parent
-
-        return confirmed, pending_by_parent
-
-    def _flat_contact_anchor_extraction(self, soup: BeautifulSoup, page_url: str,
-                                         role_keywords: List[str]) -> List[Dict]:
-        """Extract persons starting from personal LinkedIn or personal email
-        anchors, walking upward to find nearest name+role.
-
-        This is distinct from container extraction: it starts from the signal
-        and walks up, rather than starting from a role keyword and walking up.
-        """
-        persons = []
-        seen_anchors: Set[str] = set()
-
-        for anchor in soup.find_all('a', href=True):
-            href = anchor.get('href', '').strip()
-            if not href:
-                continue
-
-            # Determine signal type
-            signal_email = ""
-            signal_linkedin = ""
-
-            if href.lower().startswith(('mailto:', 'mail:')):
-                email = self._normalize_mail_href(href)
-                if _is_personal_email(email):
-                    signal_email = email
-                else:
-                    continue
-            elif _is_personal_linkedin(href):
-                signal_linkedin = href
-            else:
-                continue
-
-            signal_key = signal_email or signal_linkedin
-            if signal_key in seen_anchors:
-                continue
-            seen_anchors.add(signal_key)
-
-            # Skip global zones
-            if _is_in_global_zone(anchor):
-                continue
-
-            # Walk up to find nearest container with a name-like text
-            current = anchor.parent
-            for _ in range(MAX_CONTAINER_ANCESTOR_WALK):
-                if current is None:
-                    break
-                if not getattr(current, 'name', None):
-                    current = current.parent
-                    continue
-                if _is_in_global_zone(current):
-                    break
-
-                desc_count = self._container_descendants(current)
-                if desc_count > MAX_CONTAINER_DESCENDANTS:
-                    break
-                if desc_count < MIN_CONTAINER_DESCENDANTS:
-                    current = current.parent
-                    continue
-
-                # Look for a name-like leaf
-                candidate_leaves = self._get_leaf_nodes(current)
-                name_node = None
-                role_node = None
-
-                for leaf in candidate_leaves:
-                    text = self._node_text(leaf)
-                    if not text or len(text) >= 120:
-                        continue
-                    combined = self._split_combined_name_role(text, role_keywords)
-                    candidate_name = combined[0] if combined else text
-                    if self._looks_like_person_name(candidate_name) and not (
-                        self._matches_role(text, role_keywords) and not combined
-                    ):
-                        match_strength = _match_name_to_signal(candidate_name, signal_email, signal_linkedin)
-                        if match_strength in ("strong", "medium"):
-                            name_node = leaf
-                            break
-
-                if name_node:
-                    raw_name_text = self._node_text(name_node)
-                    combined = self._split_combined_name_role(raw_name_text, role_keywords)
-                    clean_name = combined[0] if combined else raw_name_text
-
-                    # Find role
-                    if not combined:
-                        for leaf in candidate_leaves:
-                            text = self._node_text(leaf)
-                            if text == raw_name_text or len(text) >= 120:
-                                continue
-                            if self._matches_role(text, role_keywords):
-                                role_node = leaf
-                                break
-
-                    # Medium matches go to pending-like confidence, not primary
-                    match_str = _match_name_to_signal(
-                        clean_name, signal_email, signal_linkedin)
-                    if match_str == "strong":
-                        confidence = "primary"
-                    else:
-                        confidence = "secondary"
-
-                    parent = current.parent
-                    # Prefer the original signal that triggered this walk-up.
-                    # Only fall back to container-scoped search if no signal of
-                    # that type was the trigger — otherwise we risk grabbing a
-                    # sibling's contact from a shared ancestor.
-                    person = {
-                        "name": clean_name,
-                        "role": combined[1] if combined else (self._node_text(role_node) or ""),
-                        "linkedin": signal_linkedin or self._find_personal_linkedin(current),
-                        "email": signal_email or self._find_email(current),
-                        "bio": "",
-                        "confidence": confidence,
-                        "strategy": "contact_anchor",
-                        "evidence": f"signal_match_{match_str}",
-                        "source_url": page_url,
-                        "parent_section_id": str(id(parent)) if parent else "root",
-                        "_container_id": id(current),
-                        "_container": current,
-                        "_name_node": name_node,
-                    }
-                    persons.append(person)
-                    break
-
-                current = current.parent
-
-        return persons
-
-    def _promote_pending_peers(self, pending_by_parent: Dict, page_url: str,
-                                role_keywords: List[str]) -> List[Dict]:
-        """Promote pending cards (role-only, no hard contact) when 2+ siblings
-        under the same parent share a matching structural fingerprint."""
-        promoted = []
-
-        for pid, entries in pending_by_parent.items():
-            if len(entries) < 2:
-                continue
-
-            # Group by structural shape
-            shape_groups: Dict[int, List] = {}
-            for i, entry in enumerate(entries):
-                found_group = False
-                for gid, group in shape_groups.items():
-                    if _shapes_match(entry["shape"], group[0]["shape"]):
-                        group.append(entry)
-                        found_group = True
-                        break
-                if not found_group:
-                    shape_groups[len(shape_groups)] = [entry]
-
-            # Promote groups with 2+ members
-            for gid, group in shape_groups.items():
-                if len(group) < 2:
-                    continue
-                for entry in group:
-                    container = entry["container"]
-                    name_node = entry["name_node"]
-                    name_text = self._node_text(name_node)
-
-                    if not name_text or not self._looks_like_person_name(name_text):
-                        continue
-
-                    # Find role
-                    role_text = ""
-                    for leaf in self._get_leaf_nodes(container):
-                        text = self._node_text(leaf)
-                        if text == name_text or len(text) >= 120:
-                            continue
-                        if self._matches_role(text, role_keywords):
-                            role_text = text
-                            break
-
-                    parent = container.parent
-                    person = {
-                        "name": name_text,
-                        "role": role_text,
-                        "linkedin": self._find_personal_linkedin(container),
-                        "email": self._find_email(container),
-                        "bio": "",
-                        "confidence": "secondary",
-                        "strategy": "structural_promotion",
-                        "evidence": "structural_peer_match",
-                        "source_url": page_url,
-                        "parent_section_id": str(id(parent)) if parent else "root",
-                        "_container_id": entry["container_id"],
-                        "_container": container,
-                        "_name_node": name_node,
-                    }
-                    # Also extract phone if present
-                    tel_anchor = container.find('a', href=re.compile(r'^tel:', re.I))
-                    if tel_anchor:
-                        person["phone"] = tel_anchor.get('href', '').replace('tel:', '').strip()
-                    promoted.append(person)
-
-        return promoted
 
     def _sibling_sweep(self, soup: BeautifulSoup, confirmed_persons: List[Dict],
                         page_url: str, role_keywords: List[str]) -> List[Dict]:
@@ -3695,7 +3311,7 @@ async def process_single_site(finder: LinkedInFinder, google_session: aiohttp.Cl
             logger.info(f"Done {url} -> {len(links)} LinkedIn, {len(emails)} emails")
 
             persons = []
-            if person_extractor and (links or emails):
+            if person_extractor and (links or emails or page_artifacts):
                 persons = await person_extractor.extract_persons(
                     google_session, page_artifacts, links, emails,
                     site_domain=urllib.parse.urlparse(url).netloc

@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from enricher.scraper_v3 import LinkedInFinder, PersonExtractor
+from enricher.scraper_v3 import CandidatePool, LinkedInFinder, PersonExtractor, _same_site_family
 
 
 FAM_STYLE_EMAIL_ONLY = """
@@ -432,6 +432,16 @@ class TestPersonExtractorV3(unittest.TestCase):
         self.assertIn("Bob Jones", by_name)
         self.assertEqual(by_name["Alice Smith"]["email"], "alice.smith@example.com")
         self.assertEqual(by_name["Bob Jones"]["email"], "bob.jones@example.com")
+
+    def test_same_site_family_treats_locale_subdomain_as_internal(self):
+        self.assertTrue(_same_site_family("www.bots.io", "nl.bots.io"))
+        self.assertTrue(_same_site_family("nl.bots.io", "bots.io"))
+
+    def test_candidate_pool_accepts_locale_subdomain_redirects(self):
+        pool = CandidatePool("http://www.bots.io")
+        pool.add("https://nl.bots.io/ons-verhaal", "homepage_anchor")
+        ranked = pool.ranked(10)
+        self.assertIn("https://nl.bots.io/ons-verhaal", ranked)
 
 
 if __name__ == "__main__":
