@@ -6,7 +6,16 @@ from bs4 import BeautifulSoup
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from enricher.scraper_v3 import CandidatePool, LinkedInFinder, PersonExtractor, _same_site_family
+from enricher.scraper_v3 import (
+    CandidatePool,
+    COMMON_INTERNAL,
+    LinkedInFinder,
+    PersonExtractor,
+    _is_people_page_url,
+    _playwright_result_is_sparse,
+    _same_brand_homepage_redirect,
+    _same_site_family,
+)
 
 
 FAM_STYLE_EMAIL_ONLY = """
@@ -70,7 +79,6 @@ SIGNAL_TEMPLATE_SWEEP = """
 </main>
 </body></html>
 """
-
 
 ROLE_FIRST_TEMPLATE = """
 <html lang="en"><body>
@@ -437,11 +445,40 @@ class TestPersonExtractorV3(unittest.TestCase):
         self.assertTrue(_same_site_family("www.bots.io", "nl.bots.io"))
         self.assertTrue(_same_site_family("nl.bots.io", "bots.io"))
 
+    def test_same_brand_homepage_redirect_allows_cross_tld_brand_match(self):
+        self.assertTrue(_same_brand_homepage_redirect("youngfinancials.nl", "youngfinancials.com"))
+        self.assertFalse(_same_brand_homepage_redirect("youngcapital.nl", "youngfinancials.com"))
+
     def test_candidate_pool_accepts_locale_subdomain_redirects(self):
         pool = CandidatePool("http://www.bots.io")
         pool.add("https://nl.bots.io/ons-verhaal", "homepage_anchor")
         ranked = pool.ranked(10)
         self.assertIn("https://nl.bots.io/ons-verhaal", ranked)
+
+    def test_people_page_url_detection(self):
+        self.assertTrue(_is_people_page_url("https://example.com/our-team"))
+        self.assertTrue(_is_people_page_url("https://example.com/about/management"))
+        self.assertFalse(_is_people_page_url("https://example.com/privacy-policy"))
+
+    def test_common_internal_includes_our_team(self):
+        self.assertIn("/our-team", COMMON_INTERNAL)
+
+    def test_sparse_playwright_result_detection(self):
+        self.assertTrue(_playwright_result_is_sparse({
+            "final_url": "about:blank",
+            "soup": None,
+            "internal_links": [],
+            "linkedin": set(),
+            "emails": set(),
+        }))
+        soup = BeautifulSoup("<html><body><h1>Team</h1><p>People people people</p></body></html>", "html.parser")
+        self.assertFalse(_playwright_result_is_sparse({
+            "final_url": "https://example.com/team",
+            "soup": soup,
+            "internal_links": ["https://example.com/a", "https://example.com/b", "https://example.com/c"],
+            "linkedin": set(),
+            "emails": set(),
+        }))
 
 
 if __name__ == "__main__":

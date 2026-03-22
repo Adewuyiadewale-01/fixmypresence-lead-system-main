@@ -104,7 +104,7 @@ INTERNAL_LINK_KEYWORDS = [
 COMMON_INTERNAL = [
     "/", "/about", "/about-us", "/over", "/over-ons", "/team", "/contact",
     "/contact-us", "/company", "/who-we-are", "/wie-zijn-wij", "/overons",
-    "/ons-team", "/social", "/connect", "/footer", "/imprint", "/legal",
+    "/ons-team", "/our-team", "/social", "/connect", "/footer", "/imprint", "/legal",
     "/team-van", "/onze-mensen", "/organisatie", "/medewerkers"
 ]
 
@@ -253,6 +253,68 @@ def _same_site_family(domain_a: str, domain_b: str) -> bool:
     if a == b:
         return True
     return a.endswith("." + b) or b.endswith("." + a)
+
+
+_GENERIC_REGISTRABLE_LABELS = {
+    "co", "com", "org", "net", "gov", "edu", "ac",
+}
+
+
+def _registrable_brand_label(domain: str) -> str:
+    normalized = _normalize_domain(domain)
+    if not normalized:
+        return ""
+    parts = normalized.split(".")
+    if len(parts) < 2:
+        return normalized
+    label_index = -2
+    if len(parts) >= 3 and parts[-2] in _GENERIC_REGISTRABLE_LABELS:
+        label_index = -3
+    label = parts[label_index].strip("-")
+    if len(label) < 4:
+        return ""
+    return label
+
+
+def _same_brand_homepage_redirect(domain_a: str, domain_b: str) -> bool:
+    """Allow careful homepage adoption across TLDs for the same brand.
+
+    This is intentionally narrower than _same_site_family and should only be
+    used when choosing the canonical homepage origin after an initial redirect.
+    """
+    if _same_site_family(domain_a, domain_b):
+        return True
+    a = _registrable_brand_label(domain_a)
+    b = _registrable_brand_label(domain_b)
+    return bool(a and b and a == b)
+
+
+def _is_people_page_url(url: str) -> bool:
+    segments = _url_segments(url)
+    if not segments:
+        return False
+    for seg in segments:
+        base = seg.split(".")[0]
+        if base in INTERNAL_LINK_KEYWORDS:
+            return True
+        if any(keyword in base for keyword in ("team", "people", "staff", "board", "management", "employee")):
+            return True
+    return False
+
+
+def _playwright_result_is_sparse(result: Dict) -> bool:
+    soup = result.get("soup")
+    final_url = (result.get("final_url") or "").strip().lower()
+    if final_url == "about:blank":
+        return True
+    if soup is None:
+        return True
+    text = soup.get_text(" ", strip=True)
+    text_len = len(text)
+    internal_count = len(result.get("internal_links") or [])
+    linkedin_count = len(result.get("linkedin") or [])
+    email_count = len(result.get("emails") or [])
+    return text_len < 200 and internal_count < 3 and linkedin_count == 0 and email_count == 0
 
 
 def _url_segments(url: str) -> List[str]:
@@ -1702,14 +1764,14 @@ class LinkedInFinder:
 
         # ── Phase 1: Homepage pass (Playwright + static + sitemap in parallel) ──
 
-        async def _homepage_playwright():
-            return await self._process_playwright(start_url)
+        async def _homepage_playwright(target_url: str):
+            return await self._process_playwright(target_url)
 
-        async def _homepage_static():
+        async def _homepage_static(target_url: str):
             try:
                 async with aiohttp.ClientSession() as tmp_session:
                     async with tmp_session.get(
-                        start_url,
+                        target_url,
                         headers={"User-Agent": USER_AGENT},
                         timeout=aiohttp.ClientTimeout(total=15),
                         ssl=self._ssl_ctx
@@ -1726,30 +1788,60 @@ class LinkedInFinder:
                 pass
             return set(), set(), None, None
 
-        async def _homepage_sitemap():
+        async def _homepage_sitemap(target_url: str):
             try:
                 async with aiohttp.ClientSession() as tmp_session:
-                    return await self._fetch_sitemap(tmp_session, start_url)
+                    return await self._fetch_sitemap(tmp_session, target_url)
             except Exception:
                 return []
 
-        logger.info(f"Processing {start_url} — homepage pass (Playwright + static + sitemap)...")
+        async def _run_homepage_bundle(target_url: str):
+            logger.info(f"Processing {target_url} — homepage pass (Playwright + static + sitemap)...")
+            return await asyncio.gather(
+                _homepage_playwright(target_url),
+                _homepage_static(target_url),
+                _homepage_sitemap(target_url)
+            )
 
-        pw_result, static_result, sitemap_urls = await asyncio.gather(
-            _homepage_playwright(),
-            _homepage_static(),
-            _homepage_sitemap()
-        )
+        homepage_targets = [start_url]
+        if start_url.startswith("http://"):
+            https_start_url = "https://" + start_url[len("http://"):]
+            homepage_targets = [https_start_url, start_url]
+
+        selected_start_url = start_url
+        pw_result = {"linkedin": set(), "emails": set(), "internal_links": [], "framework_routes": [], "xhr_paths": [], "soup": None, "final_url": start_url}
+        static_result = (set(), set(), None, None)
+        sitemap_urls = []
+
+        for idx, target_url in enumerate(homepage_targets):
+            bundle_pw_result, bundle_static_result, bundle_sitemap_urls = await _run_homepage_bundle(target_url)
+            bundle_static_linkedin, bundle_static_emails, bundle_homepage_soup, bundle_homepage_artifact = bundle_static_result
+            bundle_viable = (
+                not _playwright_result_is_sparse(bundle_pw_result)
+                or bundle_homepage_artifact is not None
+                or bool(bundle_sitemap_urls)
+            )
+            pw_result = bundle_pw_result
+            static_result = bundle_static_result
+            sitemap_urls = bundle_sitemap_urls
+            if bundle_viable or idx == len(homepage_targets) - 1:
+                selected_start_url = target_url
+                static_linkedin = bundle_static_linkedin
+                static_emails = bundle_static_emails
+                homepage_soup = bundle_homepage_soup
+                homepage_static_artifact = bundle_homepage_artifact
+                break
+
+        start_url = selected_start_url
 
         pw_home_url = pw_result.get("final_url") or start_url
-        static_linkedin, static_emails, homepage_soup, homepage_static_artifact = static_result
         static_home_url = homepage_static_artifact.url if homepage_static_artifact else start_url
 
         adopted_home_url = start_url
         start_domain = _normalize_domain(urllib.parse.urlparse(start_url).netloc)
         for candidate_url in (pw_home_url, static_home_url):
             candidate_domain = _normalize_domain(urllib.parse.urlparse(candidate_url).netloc)
-            if candidate_url and candidate_domain and _same_site_family(candidate_domain, start_domain):
+            if candidate_url and candidate_domain and _same_brand_homepage_redirect(candidate_domain, start_domain):
                 adopted_home_url = candidate_url
                 break
 
@@ -1831,6 +1923,12 @@ class LinkedInFinder:
                     self._process_playwright(page_url),
                     self._fetch_static(session, page_url)
                 )
+
+                if _is_people_page_url(page_url) and _playwright_result_is_sparse(pw_res):
+                    logger.info(f"    -> Retrying sparse Playwright result for people page: {page_url}")
+                    retry_res = await self._process_playwright(page_url)
+                    if not _playwright_result_is_sparse(retry_res):
+                        pw_res = retry_res
 
                 new_links = pw_res["internal_links"]
                 st_li, st_em = static_res

@@ -1,0 +1,585 @@
+{
+  "companies": [
+    {
+      "id": "20260322-2117fa",
+      "name": "VB Advisory",
+      "website": "http://www.vbadvisory.nl/",
+      "linkedin": "",
+      "class": "beta",
+      "persons": []
+    },
+    {
+      "id": "20260322-d6cfc0",
+      "name": "NPEX-effectenbeurs",
+      "website": "http://www.npex.nl/",
+      "linkedin": "https://www.linkedin.com/company/1019369/admin",
+      "class": "beta",
+      "persons": []
+    },
+    {
+      "id": "20260322-5ec70e",
+      "name": "XOTELS - Revenue Management Consulting",
+      "website": "http://www.xotels.com/",
+      "linkedin": "https://www.linkedin.com/company/xotels",
+      "class": "beta",
+      "persons": [
+        {
+          "name": "Hotel Management Blog",
+          "role": "",
+          "email": "?subject=How%20to%20Start%20a%20Hotel%20Business&body=https%3A%2F%2Fwww.xotels.com%2Fen%2Frevenue-management%2Fstarting-your-own-hotel",
+          "linkedin": ""
+        },
+        {
+          "name": "Remko West",
+          "role": "Remko West COO",
+          "email": "",
+          "linkedin": "https://www.linkedin.com/in/remkowest"
+        },
+        {
+          "name": "Logo Wiwt Aligned Tagline Ivy Epic",
+          "role": "",
+          "email": "h_logo_wiwt_aligned-tagline_ivy-epic@4x-1-200x86.webp",
+          "linkedin": ""
+        }
+      ]
+    },
+    {
+      "id": "20260322-76b794",
+      "name": "Young Financials",
+      "website": "http://youngfinancials.nl/",
+      "linkedin": "https://www.linkedin.com/company/young-financials",
+      "class": "beta",
+      "persons": [
+        {
+          "name": "Sophie Maaswinkel",
+          "role": "Young Financials",
+          "email": "sophie.maaswinkel@youngfinancials.com",
+          "linkedin": "http://linkedin.com/in/sophie-maaswinkel-341134209"
+        },
+        {
+          "name": "Ezra Breeveld",
+          "role": "",
+          "email": "ezra.breeveld@youngfinancials.com",
+          "linkedin": ""
+        },
+        {
+          "name": "Floor Vanligten",
+          "role": "",
+          "email": "floor.vanligten@youngfinancials.com",
+          "linkedin": ""
+        },
+        {
+          "name": "Floris Croese",
+          "role": "",
+          "email": "floris.croese@youngfinancials.com",
+          "linkedin": "https://www.linkedin.com/in/floris-croese"
+        },
+        {
+          "name": "Frederike Hubers",
+          "role": "",
+          "email": "frederike.hubers@youngfinancials.com",
+          "linkedin": "https://www.linkedin.com/in/frederike-hubers-a0662b1b7"
+        },
+        {
+          "name": "Isabelle Pompen",
+          "role": "",
+          "email": "isabelle.pompen@youngfinancials.com",
+          "linkedin": "https://www.linkedin.com/in/isabelle-pompen-894890185"
+        },
+        {
+          "name": "Janna Kohler",
+          "role": "",
+          "email": "janna.kohler@youngfinancials.com",
+          "linkedin": ""
+        },
+        {
+          "name": "Janne Debruin",
+          "role": "",
+          "email": "janne.debruin@youngfinancials.com",
+          "linkedin": ""
+        },
+        {
+          "name": "Jimi Kivit",
+          "role": "",
+          "email": "jimi.kivit@younganalytics.com",
+          "linkedin": ""
+        },
+        {
+          "name": "Lotte Vandendobbelsteen",
+          "role": "",
+          "email": "lotte.vandendobbelsteen@youngfinancials.com",
+          "linkedin": ""
+        },
+        {
+          "name": "Meghan Vanbruggen",
+          "role": "",
+          "email": "meghan.vanbruggen@youngfinancials.com",
+          "linkedin": ""
+        },
+        {
+          "name": "Nicole Bos",
+          "role": "",
+          "email": "nicole.bos@youngfinancials.com",
+          "linkedin": ""
+        },
+        {
+          "name": "Ezra B",
+          "role": "",
+          "email": "",
+          "linkedin": "https://www.linkedin.com/in/ezra-b-064184150"
+        },
+        {
+          "name": "Floor Van Ligten",
+          "role": "",
+          "email": "",
+          "linkedin": "https://www.linkedin.com/in/floor-van-ligten"
+        },
+        {
+          "name": "Janne De Bruin",
+          "role": "",
+          "email": "",
+          "linkedin": "https://www.linkedin.com/in/janne-de-bruin-34ab79225"
+        },
+        {
+          "name": "Lotte Lou Van Den Dobbelsteen",
+          "role": "",
+          "email": "",
+          "linkedin": "https://www.linkedin.com/in/lotte-lou-van-den-dobbelsteen-07878b2a4"
+        },
+        {
+          "name": "Meghan Van Bruggen",
+          "role": "",
+          "email": "",
+          "linkedin": "https://www.linkedin.com/in/meghan-van-bruggen"
+        },
+        {
+          "name": "Roos Nijhuis",
+          "role": "",
+          "email": "",
+          "linkedin": "https://www.linkedin.com/in/roos-nijhuis-30bb80231"
+        }
+      ]
+    },
+    {
+      "id": "20260322-d7742e",
+      "name": "Nxchange B.V.",
+      "website": "https://www.nxchange.com/",
+      "linkedin": "https://www.linkedin.com/company/nxchange",
+      "class": "beta",
+      "persons": [
+        {
+          "name": "Jack Berk",
+          "role": "Jack Berk Lawyer",
+          "email": "",
+          "linkedin": ""
+        },
+        {
+          "name": "Pascal van der Heiden",
+          "role": "Pascal van der Heiden Operational Manager",
+          "email": "",
+          "linkedin": ""
+        },
+        {
+          "name": "Peter Houweling",
+          "role": "",
+          "email": "",
+          "linkedin": ""
+        },
+        {
+          "name": "Marleen Evertsz",
+          "role": "Marleen Evertsz CEO / Co-Founder",
+          "email": "",
+          "linkedin": ""
+        },
+        {
+          "name": "Alex Butter",
+          "role": "Alex Butter CTO / Co-Founder",
+          "email": "",
+          "linkedin": ""
+        },
+        {
+          "name": "Joris de Vor",
+          "role": "Joris de Vor Head of Operations",
+          "email": "",
+          "linkedin": ""
+        },
+        {
+          "name": "Sanne Dupain",
+          "role": "Sanne Dupain Compliance Officer",
+          "email": "",
+          "linkedin": ""
+        }
+      ]
+    }
+  ],
+  "raw_results": [
+    {
+      "input_website": "http://www.vbadvisory.nl/",
+      "name": "VB Advisory",
+      "linkedin_urls": [],
+      "company_linkedin": "",
+      "emails": [],
+      "persons": [],
+      "tab": "beta",
+      "row": 17
+    },
+    {
+      "input_website": "http://www.npex.nl/",
+      "name": "NPEX-effectenbeurs",
+      "linkedin_urls": [
+        "https://www.linkedin.com/company/1019369/admin",
+        "https://www.linkedin.com/company/npex"
+      ],
+      "company_linkedin": "https://www.linkedin.com/company/1019369/admin",
+      "emails": [
+        "a.vangriethuysen@npex.nl",
+        "c.hennen@npex.nl",
+        "c.verlaan@npex.nl",
+        "info@npex.nl",
+        "k.snip@npex.nl",
+        "m.bos@npex.nl",
+        "r.hoekstra@npex.nl",
+        "recruitment@npex.nl"
+      ],
+      "persons": [],
+      "tab": "beta",
+      "row": 18
+    },
+    {
+      "input_website": "http://www.xotels.com/",
+      "name": "XOTELS - Revenue Management Consulting",
+      "linkedin_urls": [
+        "https://www.linkedin.com/company/xotels",
+        "https://www.linkedin.com/in/remkowest",
+        "https://www.linkedin.com/in/xotels"
+      ],
+      "company_linkedin": "https://www.linkedin.com/company/xotels",
+      "emails": [
+        "h_logo_wiwt_aligned-tagline_ivy-epic@4x-1-200x86.webp",
+        "h_logo_wiwt_aligned-tagline_ivy-epic@4x-1.webp",
+        "hr@xotels.com",
+        "info@xotels.com",
+        "internship@xotels.com",
+        "office@xotels.com"
+      ],
+      "persons": [
+        {
+          "name": "Hotel Management Blog",
+          "role": "",
+          "linkedin": "",
+          "email": "?subject=How%20to%20Start%20a%20Hotel%20Business&body=https%3A%2F%2Fwww.xotels.com%2Fen%2Frevenue-management%2Fstarting-your-own-hotel",
+          "bio": "",
+          "confidence": "secondary",
+          "strategy": "signal_template",
+          "evidence": "signal_template_medium",
+          "source_url": "https://www.xotels.com/en/revenue-management/starting-your-own-hotel"
+        },
+        {
+          "name": "Remko West",
+          "role": "Remko West COO",
+          "linkedin": "https://www.linkedin.com/in/remkowest",
+          "email": "",
+          "bio": "",
+          "confidence": "primary",
+          "strategy": "role_signal_template",
+          "evidence": "role_then_signal_strong",
+          "source_url": "https://www.xotels.com/en/revenue-management-jobs"
+        },
+        {
+          "name": "Logo Wiwt Aligned Tagline Ivy Epic",
+          "role": "",
+          "linkedin": "",
+          "email": "h_logo_wiwt_aligned-tagline_ivy-epic@4x-1-200x86.webp",
+          "confidence": "medium",
+          "strategy": "email_parsing"
+        }
+      ],
+      "tab": "beta",
+      "row": 19
+    },
+    {
+      "input_website": "http://youngfinancials.nl/",
+      "name": "Young Financials",
+      "linkedin_urls": [
+        "http://linkedin.com/in/sophie-maaswinkel-341134209",
+        "https://www.linkedin.com/company/young-financials",
+        "https://www.linkedin.com/in/ezra-b-064184150",
+        "https://www.linkedin.com/in/floor-van-ligten",
+        "https://www.linkedin.com/in/floris-croese",
+        "https://www.linkedin.com/in/frederike-hubers-a0662b1b7",
+        "https://www.linkedin.com/in/isabelle-pompen-894890185",
+        "https://www.linkedin.com/in/jannakohler",
+        "https://www.linkedin.com/in/janne-de-bruin-34ab79225",
+        "https://www.linkedin.com/in/jimikivit",
+        "https://www.linkedin.com/in/lotte-lou-van-den-dobbelsteen-07878b2a4",
+        "https://www.linkedin.com/in/meghan-van-bruggen",
+        "https://www.linkedin.com/in/nicolebossocialnetwork",
+        "https://www.linkedin.com/in/roos-nijhuis-30bb80231"
+      ],
+      "company_linkedin": "https://www.linkedin.com/company/young-financials",
+      "emails": [
+        "ezra.breeveld@youngfinancials.com",
+        "floor.vanligten@youngfinancials.com",
+        "floris.croese@youngfinancials.com",
+        "frederike.hubers@youngfinancials.com",
+        "info@youngfinancials.nl",
+        "isabelle.pompen@youngfinancials.com",
+        "janna.kohler@youngfinancials.com",
+        "janne.debruin@youngfinancials.com",
+        "jimi.kivit@younganalytics.com",
+        "lotte.vandendobbelsteen@youngfinancials.com",
+        "meghan.vanbruggen@youngfinancials.com",
+        "nicole.bos@youngfinancials.com",
+        "recruitment@youngfinancials.com",
+        "sophie.maaswinkel@youngfinancials.com"
+      ],
+      "persons": [
+        {
+          "name": "Sophie Maaswinkel",
+          "role": "Young Financials",
+          "linkedin": "http://linkedin.com/in/sophie-maaswinkel-341134209",
+          "email": "sophie.maaswinkel@youngfinancials.com",
+          "confidence": "medium",
+          "strategy": "linkedin_page"
+        },
+        {
+          "name": "Ezra Breeveld",
+          "role": "",
+          "linkedin": "",
+          "email": "ezra.breeveld@youngfinancials.com",
+          "confidence": "medium",
+          "strategy": "email_parsing"
+        },
+        {
+          "name": "Floor Vanligten",
+          "role": "",
+          "linkedin": "",
+          "email": "floor.vanligten@youngfinancials.com",
+          "confidence": "medium",
+          "strategy": "email_parsing"
+        },
+        {
+          "name": "Floris Croese",
+          "role": "",
+          "linkedin": "https://www.linkedin.com/in/floris-croese",
+          "email": "floris.croese@youngfinancials.com",
+          "confidence": "medium",
+          "strategy": "email_parsing"
+        },
+        {
+          "name": "Frederike Hubers",
+          "role": "",
+          "linkedin": "https://www.linkedin.com/in/frederike-hubers-a0662b1b7",
+          "email": "frederike.hubers@youngfinancials.com",
+          "confidence": "medium",
+          "strategy": "email_parsing"
+        },
+        {
+          "name": "Isabelle Pompen",
+          "role": "",
+          "linkedin": "https://www.linkedin.com/in/isabelle-pompen-894890185",
+          "email": "isabelle.pompen@youngfinancials.com",
+          "confidence": "medium",
+          "strategy": "email_parsing"
+        },
+        {
+          "name": "Janna Kohler",
+          "role": "",
+          "linkedin": "",
+          "email": "janna.kohler@youngfinancials.com",
+          "confidence": "medium",
+          "strategy": "email_parsing"
+        },
+        {
+          "name": "Janne Debruin",
+          "role": "",
+          "linkedin": "",
+          "email": "janne.debruin@youngfinancials.com",
+          "confidence": "medium",
+          "strategy": "email_parsing"
+        },
+        {
+          "name": "Jimi Kivit",
+          "role": "",
+          "linkedin": "",
+          "email": "jimi.kivit@younganalytics.com",
+          "confidence": "medium",
+          "strategy": "email_parsing"
+        },
+        {
+          "name": "Lotte Vandendobbelsteen",
+          "role": "",
+          "linkedin": "",
+          "email": "lotte.vandendobbelsteen@youngfinancials.com",
+          "confidence": "medium",
+          "strategy": "email_parsing"
+        },
+        {
+          "name": "Meghan Vanbruggen",
+          "role": "",
+          "linkedin": "",
+          "email": "meghan.vanbruggen@youngfinancials.com",
+          "confidence": "medium",
+          "strategy": "email_parsing"
+        },
+        {
+          "name": "Nicole Bos",
+          "role": "",
+          "linkedin": "",
+          "email": "nicole.bos@youngfinancials.com",
+          "confidence": "medium",
+          "strategy": "email_parsing"
+        },
+        {
+          "name": "Ezra B",
+          "role": "",
+          "linkedin": "https://www.linkedin.com/in/ezra-b-064184150",
+          "email": "",
+          "confidence": "low",
+          "strategy": "url_slug"
+        },
+        {
+          "name": "Floor Van Ligten",
+          "role": "",
+          "linkedin": "https://www.linkedin.com/in/floor-van-ligten",
+          "email": "",
+          "confidence": "low",
+          "strategy": "url_slug"
+        },
+        {
+          "name": "Janne De Bruin",
+          "role": "",
+          "linkedin": "https://www.linkedin.com/in/janne-de-bruin-34ab79225",
+          "email": "",
+          "confidence": "low",
+          "strategy": "url_slug"
+        },
+        {
+          "name": "Lotte Lou Van Den Dobbelsteen",
+          "role": "",
+          "linkedin": "https://www.linkedin.com/in/lotte-lou-van-den-dobbelsteen-07878b2a4",
+          "email": "",
+          "confidence": "low",
+          "strategy": "url_slug"
+        },
+        {
+          "name": "Meghan Van Bruggen",
+          "role": "",
+          "linkedin": "https://www.linkedin.com/in/meghan-van-bruggen",
+          "email": "",
+          "confidence": "low",
+          "strategy": "url_slug"
+        },
+        {
+          "name": "Roos Nijhuis",
+          "role": "",
+          "linkedin": "https://www.linkedin.com/in/roos-nijhuis-30bb80231",
+          "email": "",
+          "confidence": "low",
+          "strategy": "url_slug"
+        }
+      ],
+      "tab": "beta",
+      "row": 20
+    },
+    {
+      "input_website": "https://www.nxchange.com/",
+      "name": "Nxchange B.V.",
+      "linkedin_urls": [
+        "https://www.linkedin.com/company/nxchange"
+      ],
+      "company_linkedin": "https://www.linkedin.com/company/nxchange",
+      "emails": [
+        "jouw@email.com",
+        "jouw@email.nl",
+        "klantenservice@nxchange.com",
+        "m.evertsz@nxchange.com",
+        "r.mos@nxchange.com",
+        "s.dupain@nxchange.com",
+        "support@nxchange.com",
+        "your@email.com"
+      ],
+      "persons": [
+        {
+          "name": "Jack Berk",
+          "role": "Jack Berk Lawyer",
+          "linkedin": "",
+          "email": "",
+          "bio": "",
+          "confidence": "secondary",
+          "strategy": "contactless_grid",
+          "evidence": "uniform_repeated_people_grid",
+          "source_url": "https://www.nxchange.com"
+        },
+        {
+          "name": "Pascal van der Heiden",
+          "role": "Pascal van der Heiden Operational Manager",
+          "linkedin": "",
+          "email": "",
+          "bio": "",
+          "confidence": "secondary",
+          "strategy": "contactless_grid",
+          "evidence": "uniform_repeated_people_grid",
+          "source_url": "https://www.nxchange.com"
+        },
+        {
+          "name": "Peter Houweling",
+          "role": "",
+          "linkedin": "",
+          "email": "",
+          "bio": "",
+          "confidence": "secondary",
+          "strategy": "contactless_grid",
+          "evidence": "uniform_repeated_people_grid",
+          "source_url": "https://www.nxchange.com"
+        },
+        {
+          "name": "Marleen Evertsz",
+          "role": "Marleen Evertsz CEO / Co-Founder",
+          "linkedin": "",
+          "email": "",
+          "bio": "",
+          "confidence": "secondary",
+          "strategy": "contactless_grid",
+          "evidence": "uniform_repeated_people_grid",
+          "source_url": "https://www.nxchange.com/nl/over-ons"
+        },
+        {
+          "name": "Alex Butter",
+          "role": "Alex Butter CTO / Co-Founder",
+          "linkedin": "",
+          "email": "",
+          "bio": "",
+          "confidence": "secondary",
+          "strategy": "contactless_grid",
+          "evidence": "uniform_repeated_people_grid",
+          "source_url": "https://www.nxchange.com/nl/over-ons"
+        },
+        {
+          "name": "Joris de Vor",
+          "role": "Joris de Vor Head of Operations",
+          "linkedin": "",
+          "email": "",
+          "bio": "",
+          "confidence": "secondary",
+          "strategy": "contactless_grid",
+          "evidence": "uniform_repeated_people_grid",
+          "source_url": "https://www.nxchange.com/nl/over-ons"
+        },
+        {
+          "name": "Sanne Dupain",
+          "role": "Sanne Dupain Compliance Officer",
+          "linkedin": "",
+          "email": "",
+          "bio": "",
+          "confidence": "secondary",
+          "strategy": "contactless_grid",
+          "evidence": "uniform_repeated_people_grid",
+          "source_url": "https://www.nxchange.com/nl/over-ons"
+        }
+      ],
+      "tab": "beta",
+      "row": 21
+    }
+  ]
+}
