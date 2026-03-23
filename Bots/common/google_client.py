@@ -1,9 +1,10 @@
 
+import json as _json
 import logging
 import ssl
 import aiohttp
 import httpx
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from common.config import WEBHOOK_URL, WEBHOOK_SECRET, SOURCE_WEBHOOK_URL, OUTPUT_WEBHOOK_URL
 
@@ -12,7 +13,70 @@ logger = logging.getLogger(__name__)
 
 def _webhook_response_is_success(text: str) -> bool:
     lower = (text or "").strip().lower()
+    # Try JSON first (output script now returns JSON)
+    try:
+        data = _json.loads(text)
+        status = (data.get("status") or "").lower()
+        if status in ("ok", "success"):
+            return True
+        if status in ("error", "unauthorized"):
+            return False
+    except Exception:
+        pass
     return any(token in lower for token in ["ok", "success", "added", "duplicate", "updated", "processed"])
+
+
+def _parse_output_response(text: str) -> Optional[Dict]:
+    """Parse the JSON response from the idempotent output script."""
+    try:
+        return _json.loads(text)
+    except Exception:
+        return None
+
+
+def _normalize_output_results(companies: List[dict], parsed: Optional[Dict], raw_text: str) -> Dict[str, Any]:
+    """Return a structured output-write result with per-company statuses."""
+    company_ids = [(c.get("id") or "").strip() for c in companies]
+    if parsed and parsed.get("status") == "ok":
+        results = parsed.get("results") or []
+        result_map = {}
+        for item in results:
+            company_id = (item.get("id") or "").strip()
+            if company_id:
+                result_map[company_id] = item
+        normalized = []
+        for company_id in company_ids:
+            item = result_map.get(company_id) or {"id": company_id, "status": "unknown"}
+            normalized.append(item)
+        ok_statuses = {"inserted", "updated", "duplicate_skipped", "legacy_success"}
+        return {
+            "ok": all((item.get("status") or "") in ok_statuses for item in normalized),
+            "results": normalized,
+            "inserted": parsed.get("inserted", 0),
+            "updated": parsed.get("updated", 0),
+            "raw_text": raw_text,
+            "retryable": False,
+        }
+
+    if _webhook_response_is_success(raw_text):
+        return {
+            "ok": True,
+            "results": [{"id": company_id, "status": "legacy_success"} for company_id in company_ids],
+            "inserted": 0,
+            "updated": 0,
+            "raw_text": raw_text,
+            "retryable": False,
+        }
+
+    return {
+        "ok": False,
+        "results": [{"id": company_id, "status": "failed"} for company_id in company_ids],
+        "inserted": 0,
+        "updated": 0,
+        "raw_text": raw_text,
+        "retryable": False,
+    }
+
 
 class GoogleClient:
     """
@@ -46,30 +110,29 @@ class GoogleClient:
     async def post_async(session: aiohttp.ClientSession, data: Dict[str, Any], webhook_url: str = WEBHOOK_URL) -> bool:
         """Asynchronous post to webhook (for high concurrency)."""
         payload = {
-             "token": WEBHOOK_SECRET, # Redundant for some endpoints but safe
+             "token": WEBHOOK_SECRET,
              **data
         }
-        
+
         try:
-            # Disable SSL verification (macOS Python SSL certificate issue often seen in these envs)
             ssl_context = ssl.create_default_context()
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
-            
+
             async with session.post(webhook_url, json=payload, ssl=ssl_context) as response:
                 if response.status == 200:
                     text = await response.text()
                     if _webhook_response_is_success(text):
-                        logger.info(f"✅ Google Doc Updated: {text}")
+                        logger.info(f"Google Doc Updated: {text[:200]}")
                         return True
                     else:
-                        logger.warning(f"⚠️ Google Script Warning: {text}")
+                        logger.warning(f"Google Script Warning: {text[:200]}")
                         return False
                 else:
-                    logger.error(f"❌ Google Upload Failed: {response.status}")
+                    logger.error(f"Google Upload Failed: {response.status}")
                     return False
         except Exception as e:
-            logger.error(f"❌ Google Async Post Failed: {e}")
+            logger.error(f"Google Async Post Failed: {e}")
             return False
 
     @staticmethod
@@ -118,6 +181,12 @@ class GoogleClient:
     @staticmethod
     async def mark_source_processed(session: aiohttp.ClientSession, updates: List[dict]) -> bool:
         """Mark rows as processed in the source sheet."""
+        result = await GoogleClient.mark_source_processed_detailed(session, updates)
+        return bool(result.get("ok"))
+
+    @staticmethod
+    async def mark_source_processed_detailed(session: aiohttp.ClientSession, updates: List[dict]) -> Dict[str, Any]:
+        """Mark rows as processed in the source sheet and return retry metadata."""
         payload = {
             "token": WEBHOOK_SECRET,
             "action": "mark_processed",
@@ -132,18 +201,40 @@ class GoogleClient:
                 if response.status == 200:
                     text = await response.text()
                     if _webhook_response_is_success(text):
-                        return True
+                        return {"ok": True, "retryable": False, "raw_text": text}
                     logger.warning(f"Source mark response warning: {text}")
-                    return False
+                    return {"ok": False, "retryable": False, "raw_text": text}
                 logger.error(f"Failed to mark source processed: {response.status}")
-                return False
+                return {
+                    "ok": False,
+                    "retryable": response.status == 429 or response.status >= 500,
+                    "raw_text": str(response.status),
+                }
         except Exception as e:
             logger.error(f"Error marking source processed: {e}")
-            return False
+            return {"ok": False, "retryable": True, "raw_text": str(e)}
 
     @staticmethod
     async def post_to_output(session: aiohttp.ClientSession, companies: List[dict]) -> bool:
-        """Post grouped company+person results to the Employee_db output sheet."""
+        """Post grouped company+person results to the Employee_db output sheet.
+
+        The output Apps Script is idempotent: it deduplicates on company ID,
+        returning per-company status (inserted/updated/duplicate_skipped).
+        """
+        payload = {
+            "token": WEBHOOK_SECRET,
+            "companies": companies,
+        }
+        try:
+            result = await GoogleClient.post_to_output_detailed(session, companies)
+            return bool(result.get("ok"))
+        except Exception as e:
+            logger.error(f"Output sheet post failed: {e}")
+            return False
+
+    @staticmethod
+    async def post_to_output_detailed(session: aiohttp.ClientSession, companies: List[dict]) -> Dict[str, Any]:
+        """Post grouped company+person results and return per-company statuses."""
         payload = {
             "token": WEBHOOK_SECRET,
             "companies": companies,
@@ -156,14 +247,32 @@ class GoogleClient:
             async with session.post(OUTPUT_WEBHOOK_URL, json=payload, ssl=ssl_context) as response:
                 if response.status == 200:
                     text = await response.text()
-                    if _webhook_response_is_success(text):
-                        logger.info(f"Output sheet updated: {text}")
-                        return True
-                    logger.warning(f"Output sheet response: {text}")
-                    return False
-                else:
-                    logger.error(f"Output sheet upload failed: {response.status}")
-                    return False
+                    parsed = _parse_output_response(text)
+                    normalized = _normalize_output_results(companies, parsed, text)
+                    if normalized.get("ok"):
+                        logger.info(
+                            f"Output sheet updated: {normalized.get('inserted', 0)} inserted, "
+                            f"{normalized.get('updated', 0)} updated"
+                        )
+                    else:
+                        logger.warning(f"Output sheet response: {text[:200]}")
+                    return normalized
+                logger.error(f"Output sheet upload failed: {response.status}")
+                return {
+                    "ok": False,
+                    "results": [{"id": (c.get('id') or '').strip(), "status": "failed"} for c in companies],
+                    "inserted": 0,
+                    "updated": 0,
+                    "raw_text": str(response.status),
+                    "retryable": response.status == 429 or response.status >= 500,
+                }
         except Exception as e:
             logger.error(f"Output sheet post failed: {e}")
-            return False
+            return {
+                "ok": False,
+                "results": [{"id": (c.get('id') or '').strip(), "status": "failed"} for c in companies],
+                "inserted": 0,
+                "updated": 0,
+                "raw_text": str(e),
+                "retryable": True,
+            }

@@ -1,7 +1,9 @@
 import asyncio
+import fcntl
 import hashlib
 import os
 import re
+import signal
 import time
 import urllib.parse
 import html
@@ -9,7 +11,7 @@ import json
 import logging
 import ssl
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional, Set, Dict, Tuple
 from datetime import datetime
 import aiohttp
@@ -36,6 +38,19 @@ XHR_MAX_BODY_SIZE = 500_000 # 500KB cap on XHR response body inspection
 XHR_TIMEOUT = 2.0           # Max seconds to spend parsing XHR responses
 SITE_PROCESS_TIMEOUT = 180  # Hard ceiling per site so one slow site doesn't stall the batch
 RECOVERY_MODE_TIMEOUT_THRESHOLD = 2  # Repeated Playwright timeouts before site-level recovery mode
+
+# ─── Anti-block constants ─────────────────────────────────────────────────────
+DOMAIN_REQUEST_DELAY = 0.8          # Min seconds between requests to the same domain
+DOMAIN_BLOCK_COOLDOWN = 30.0        # Seconds to cool down after a block is detected
+DOMAIN_MAX_FAILURES = 3             # Consecutive failures before the domain is abandoned for this run
+REDUCED_EXPANSION_AFTER_FAILURES = 1  # After this many failures, cut subpage/L2 limits in half
+
+# ─── Write chunking ──────────────────────────────────────────────────────────
+OUTPUT_WRITE_CHUNK_SIZE = 3         # Companies per output webhook call
+
+# ─── Retry policy ─────────────────────────────────────────────────────────────
+TRANSIENT_RETRY_MAX = 3             # Max retries for transient webhook/network failures
+TRANSIENT_RETRY_BASE_DELAY = 1.0    # Base delay (seconds) for exponential backoff
 
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -219,6 +234,108 @@ AUTH_FAMILY_PRIORITY = (
     "checkout", "cart", "login", "logout", "signin", "signup",
     "register",
 )
+
+
+# ─── Block / CAPTCHA detection patterns ───────────────────────────────────────
+BLOCK_PAGE_SIGNATURES = [
+    "access denied", "access blocked", "403 forbidden",
+    "you have been blocked", "you are blocked",
+    "please verify you are a human", "verify you are human",
+    "captcha", "recaptcha", "hcaptcha",
+    "cloudflare", "checking your browser",
+    "just a moment", "attention required",
+    "ddos protection by", "protection by cloudflare",
+    "sucuri website firewall",
+    "bot detection", "automated access",
+    "too many requests", "rate limit",
+]
+
+
+def _is_block_page(text: str, status_code: int = 200) -> bool:
+    """Detect if a response is a block/CAPTCHA/WAF page."""
+    if status_code in (403, 429, 503):
+        return True
+    if not text:
+        return False
+    lower = text[:3000].lower()
+    matches = sum(1 for sig in BLOCK_PAGE_SIGNATURES if sig in lower)
+    if matches >= 2:
+        return True
+    if status_code != 200 and matches >= 1:
+        return True
+    return False
+
+
+class DomainPacer:
+    """Per-domain request pacing and failure tracking for anti-block control."""
+
+    def __init__(self):
+        self._last_request: Dict[str, float] = {}
+        self._failure_count: Dict[str, int] = {}
+        self._blocked: Set[str] = set()
+        self._lock = asyncio.Lock()
+
+    def _domain_key(self, url: str) -> str:
+        try:
+            return _normalize_domain(urllib.parse.urlparse(url).netloc)
+        except Exception:
+            return ""
+
+    async def pace(self, url: str):
+        """Wait if needed to respect per-domain delay."""
+        domain = self._domain_key(url)
+        if not domain:
+            return
+        async with self._lock:
+            last = self._last_request.get(domain, 0.0)
+            now = time.time()
+            wait = DOMAIN_REQUEST_DELAY - (now - last)
+            if domain in self._blocked:
+                wait = max(wait, DOMAIN_BLOCK_COOLDOWN - (now - last))
+        if wait > 0:
+            await asyncio.sleep(wait)
+        async with self._lock:
+            self._last_request[domain] = time.time()
+
+    async def record_success(self, url: str):
+        domain = self._domain_key(url)
+        if not domain:
+            return
+        async with self._lock:
+            self._failure_count[domain] = 0
+            self._blocked.discard(domain)
+
+    async def record_failure(self, url: str, is_block: bool = False):
+        domain = self._domain_key(url)
+        if not domain:
+            return
+        async with self._lock:
+            self._failure_count[domain] = self._failure_count.get(domain, 0) + 1
+            if is_block:
+                self._blocked.add(domain)
+                self._last_request[domain] = time.time()
+
+    async def should_skip(self, url: str) -> bool:
+        """True if this domain has been abandoned due to too many failures."""
+        domain = self._domain_key(url)
+        if not domain:
+            return False
+        async with self._lock:
+            return self._failure_count.get(domain, 0) >= DOMAIN_MAX_FAILURES
+
+    async def should_reduce_expansion(self, url: str) -> bool:
+        """True if this domain has had enough failures to warrant reduced crawling."""
+        domain = self._domain_key(url)
+        if not domain:
+            return False
+        async with self._lock:
+            return self._failure_count.get(domain, 0) >= REDUCED_EXPANSION_AFTER_FAILURES
+
+    def get_stats(self) -> Dict:
+        return {
+            "blocked_domains": list(self._blocked),
+            "failure_counts": dict(self._failure_count),
+        }
 
 
 def _make_ssl_context():
@@ -1187,10 +1304,11 @@ def find_verified_sections(persons: List[Dict]) -> List[Dict]:
 
 
 class LinkedInFinder:
-    def __init__(self):
+    def __init__(self, pacer: DomainPacer = None):
         self.browser = None
         self.playwright = None
         self._ssl_ctx = _make_ssl_context()
+        self.pacer = pacer or DomainPacer()
 
     async def start(self):
         self.playwright = await async_playwright().start()
@@ -1488,11 +1606,14 @@ class LinkedInFinder:
         state = {
             "paths": [],
             "start_time": time.time(),
+            "closed": False,
+            "tasks": set(),
+            "handler": None,
         }
 
-        async def on_response(response):
+        async def _handle_response(response):
             # Time cap
-            if time.time() - state["start_time"] > XHR_TIMEOUT:
+            if state["closed"] or time.time() - state["start_time"] > XHR_TIMEOUT:
                 return
             try:
                 url = response.url
@@ -1514,25 +1635,57 @@ class LinkedInFinder:
 
                 # Inspect JSON response body for embedded paths (size-capped)
                 if "json" in content_type:
-                    try:
-                        body = await response.body()
-                        if len(body) > XHR_MAX_BODY_SIZE:
-                            return
-                        text = body.decode("utf-8", errors="ignore")
-                        # Extract internal paths from JSON
-                        path_re = re.compile(r'["\'](/[a-zA-Z0-9\-_/]+(?:\.[a-zA-Z]{2,4})?)["\']')
-                        for m in path_re.findall(text):
-                            # Skip assets
-                            if any(m.lower().endswith(ext) for ext in ['.js', '.css', '.png', '.jpg', '.svg', '.woff', '.woff2', '.gif']):
-                                continue
-                            state["paths"].append(m)
-                    except Exception:
-                        pass
+                    body = await response.body()
+                    if len(body) > XHR_MAX_BODY_SIZE:
+                        return
+                    text = body.decode("utf-8", errors="ignore")
+                    # Extract internal paths from JSON
+                    path_re = re.compile(r'["\'](/[a-zA-Z0-9\-_/]+(?:\.[a-zA-Z]{2,4})?)["\']')
+                    for m in path_re.findall(text):
+                        # Skip assets
+                        if any(m.lower().endswith(ext) for ext in ['.js', '.css', '.png', '.jpg', '.svg', '.woff', '.woff2', '.gif']):
+                            continue
+                        state["paths"].append(m)
             except Exception:
                 pass
 
+        def _consume_task_result(task):
+            state["tasks"].discard(task)
+            try:
+                task.exception()
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                pass
+
+        def on_response(response):
+            if state["closed"]:
+                return
+            task = asyncio.create_task(_handle_response(response))
+            state["tasks"].add(task)
+            task.add_done_callback(_consume_task_result)
+
+        state["handler"] = on_response
         page.on("response", on_response)
         return state
+
+    async def _teardown_xhr_interception(self, page, xhr_state: Optional[Dict]):
+        if not xhr_state:
+            return
+        xhr_state["closed"] = True
+        handler = xhr_state.get("handler")
+        if page and handler:
+            try:
+                page.remove_listener("response", handler)
+            except Exception:
+                pass
+        tasks = list(xhr_state.get("tasks") or [])
+        if not tasks:
+            return
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
     # ─── Static fetch (extraction only) ───────────────────────────────────────
 
@@ -1540,6 +1693,9 @@ class LinkedInFinder:
         self, session: aiohttp.ClientSession, url: str
     ) -> Tuple[Set[str], Set[str], Optional[PageArtifact]]:
         """Fetch a page statically. Returns (linkedin_urls, emails, page_artifact)."""
+        if await self.pacer.should_skip(url):
+            return set(), set(), None
+        await self.pacer.pace(url)
         try:
             async with session.get(
                 url,
@@ -1547,18 +1703,26 @@ class LinkedInFinder:
                 timeout=aiohttp.ClientTimeout(total=10),
                 ssl=self._ssl_ctx
             ) as response:
-                if response.status != 200:
-                    return set(), set(), None
+                status = response.status
                 text = await response.text()
+                if _is_block_page(text, status):
+                    logger.warning(f"Block page detected (static) for {url} [HTTP {status}]")
+                    await self.pacer.record_failure(url, is_block=True)
+                    return set(), set(), None
+                if status != 200:
+                    await self.pacer.record_failure(url)
+                    return set(), set(), None
                 soup = BeautifulSoup(text, 'html.parser')
                 final_url = str(response.url)
                 found = self._extract_from_soup(soup, final_url)
                 found.update(self._extract_from_text(text))
                 emails = self._extract_emails_from_text(text)
                 artifact = self._make_page_artifact(final_url, soup, found, emails)
+                await self.pacer.record_success(url)
                 return found, emails, artifact
         except Exception as e:
             logger.warning(f"Static fetch failed for {url}: {e}")
+            await self.pacer.record_failure(url)
             return set(), set(), None
 
     async def _fetch_static(self, session: aiohttp.ClientSession, url: str) -> Tuple[Set[str], Set[str]]:
@@ -1628,6 +1792,13 @@ class LinkedInFinder:
 
         Returns dict with keys: linkedin, internal_links, emails, framework_routes, xhr_paths
         """
+        _empty = {"linkedin": set(), "internal_links": [], "emails": set(),
+                  "framework_routes": [], "xhr_paths": [], "soup": None,
+                  "final_url": url, "timed_out": False, "blocked": False}
+        if await self.pacer.should_skip(url):
+            return {**_empty, "blocked": True}
+        await self.pacer.pace(url)
+
         found = set()
         page = None
         context = None
@@ -1638,6 +1809,7 @@ class LinkedInFinder:
         soup = None
         final_url = url
         timed_out = False
+        xhr_state = None
         try:
             context = await self.browser.new_context(user_agent=USER_AGENT)
             page = await context.new_page()
@@ -1654,8 +1826,15 @@ class LinkedInFinder:
             xhr_state = self._setup_xhr_interception(page, base_domain)
 
             try:
-                await page.goto(url, wait_until="domcontentloaded", timeout=TIMEOUT_SECONDS * 1000)
+                resp = await page.goto(url, wait_until="domcontentloaded", timeout=TIMEOUT_SECONDS * 1000)
                 await self._wait_until_ready(page)
+                # Check for block page via HTTP status
+                if resp and resp.status in (403, 429, 503):
+                    body = await page.content() if page else ""
+                    if _is_block_page(body, resp.status):
+                        logger.warning(f"Block page detected (Playwright) for {url} [HTTP {resp.status}]")
+                        await self.pacer.record_failure(url, is_block=True)
+                        return {**_empty, "blocked": True, "timed_out": False}
             except PlaywrightTimeoutError:
                 timed_out = True
                 logger.warning(f"Timeout loading {url} in Playwright, proceeding with what loaded.")
@@ -1755,8 +1934,14 @@ class LinkedInFinder:
 
             internal_links = dedupe_keep_order(internal_links_ordered)
             if content:
+                # Check rendered content for block page signatures
+                if _is_block_page(content, 200):
+                    logger.warning(f"Block page detected in rendered content for {url}")
+                    await self.pacer.record_failure(url, is_block=True)
+                    return {**_empty, "blocked": True, "timed_out": timed_out}
                 soup = BeautifulSoup(content, 'html.parser')
 
+            await self.pacer.record_success(url)
             return {
                 "linkedin": found,
                 "internal_links": internal_links,
@@ -1766,10 +1951,12 @@ class LinkedInFinder:
                 "soup": soup,
                 "final_url": final_url,
                 "timed_out": timed_out,
+                "blocked": False,
             }
 
         except Exception as e:
             logger.error(f"Playwright error for {url}: {e}")
+            await self.pacer.record_failure(url)
             return {
                 "linkedin": found,
                 "internal_links": [],
@@ -1779,12 +1966,20 @@ class LinkedInFinder:
                 "soup": None,
                 "final_url": final_url,
                 "timed_out": timed_out,
+                "blocked": False,
             }
         finally:
+            await self._teardown_xhr_interception(page, xhr_state)
             if page:
-                await page.close()
+                try:
+                    await page.close()
+                except Exception:
+                    pass
             if context:
-                await context.close()
+                try:
+                    await context.close()
+                except Exception:
+                    pass
 
     # ─── Main orchestration ───────────────────────────────────────────────────
 
@@ -1930,8 +2125,13 @@ class LinkedInFinder:
 
         logger.info(f"Candidate pool: {len(pool._candidates)} unique URLs after all discovery sources")
 
-        # ── Score, rank, and truncate ──
-        final_list = pool.ranked(SUBPAGE_LIMIT)
+        # ── Score, rank, and truncate (reduce if domain is fragile) ──
+        reduce_expansion = await self.pacer.should_reduce_expansion(start_url)
+        effective_subpage_limit = SUBPAGE_LIMIT // 2 if reduce_expansion else SUBPAGE_LIMIT
+        effective_l2_limit = LEVEL2_LIMIT // 2 if reduce_expansion else LEVEL2_LIMIT
+        if reduce_expansion:
+            logger.info(f"  Reduced expansion for {start_url}: subpage={effective_subpage_limit}, L2={effective_l2_limit}")
+        final_list = pool.ranked(effective_subpage_limit)
 
         logger.info(f"Top {len(final_list)} subpages selected for crawling")
         for u in final_list[:5]:
@@ -2010,7 +2210,7 @@ class LinkedInFinder:
                             and l.rstrip('/') != start_url.rstrip('/')
                             and not any(pat in l.lower() for pat in LEVEL2_EXCLUDE_PATTERNS)
                         ]
-                        level2_links = level2_links[:LEVEL2_LIMIT]
+                        level2_links = level2_links[:effective_l2_limit]
                         already_checked.update(level2_links)
 
                     if level2_links:
@@ -3541,6 +3741,8 @@ async def process_single_site(google_session: aiohttp.ClientSession,
                 logger.info(f"Starting: {url}")
                 links, emails, page_artifacts = await finder.find_linkedin_links(url)
                 logger.info(f"Done {url} -> {len(links)} LinkedIn, {len(emails)} emails")
+                pacer_stats = finder.pacer.get_stats()
+                blocked = bool(pacer_stats.get("blocked_domains"))
 
                 persons = []
                 if person_extractor and (links or emails or page_artifacts):
@@ -3564,7 +3766,11 @@ async def process_single_site(google_session: aiohttp.ClientSession,
                     "company_linkedin": company_linkedin,
                     "emails": emails,
                     "persons": persons,
+                    "blocked": blocked,
                 }
+
+                if blocked and not (links or emails or page_artifacts or persons):
+                    result["error"] = "blocked by site firewall"
 
                 if tab and row:
                     result["tab"] = tab
@@ -3578,6 +3784,8 @@ async def process_single_site(google_session: aiohttp.ClientSession,
             return await asyncio.wait_for(_run_site(), timeout=SITE_PROCESS_TIMEOUT)
         except asyncio.TimeoutError:
             logger.error(f"Failed {url}: timed out after {SITE_PROCESS_TIMEOUT}s")
+            pacer_stats = finder.pacer.get_stats()
+            blocked = bool(pacer_stats.get("blocked_domains"))
             result = {
                 "input_website": url,
                 "name": name if not isinstance(site_info, str) else "",
@@ -3585,7 +3793,8 @@ async def process_single_site(google_session: aiohttp.ClientSession,
                 "company_linkedin": "",
                 "emails": [],
                 "persons": [],
-                "error": f"timed out after {SITE_PROCESS_TIMEOUT}s"
+                "error": f"timed out after {SITE_PROCESS_TIMEOUT}s",
+                "blocked": blocked,
             }
             if tab and row:
                 result["tab"] = tab
@@ -3593,6 +3802,8 @@ async def process_single_site(google_session: aiohttp.ClientSession,
             return result
         except Exception as e:
             logger.error(f"Failed {url}: {e}")
+            pacer_stats = finder.pacer.get_stats()
+            blocked = bool(pacer_stats.get("blocked_domains"))
             result = {
                 "input_website": url,
                 "name": name if not isinstance(site_info, str) else "",
@@ -3600,7 +3811,8 @@ async def process_single_site(google_session: aiohttp.ClientSession,
                 "company_linkedin": "",
                 "emails": [],
                 "persons": [],
-                "error": str(e)
+                "error": str(e),
+                "blocked": blocked,
             }
             if tab and row:
                 result["tab"] = tab
@@ -3614,6 +3826,117 @@ async def fetch_urls_from_sheet(session: aiohttp.ClientSession) -> List[dict]:
     return await GoogleClient.fetch_urls(session)
 
 
+# ─── Run lock ─────────────────────────────────────────────────────────────────
+
+class RunLock:
+    """File-based run lock to prevent concurrent batch runs."""
+
+    def __init__(self, lock_path: str, run_id: str):
+        self._path = lock_path
+        self._run_id = run_id
+        self._fd = None
+
+    def acquire(self) -> bool:
+        try:
+            self._fd = open(self._path, "a+")
+            fcntl.flock(self._fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self._fd.seek(0)
+            self._fd.truncate()
+            self._fd.write(json.dumps({
+                "pid": os.getpid(),
+                "run_id": self._run_id,
+                "started": datetime.now().isoformat(),
+            }))
+            self._fd.flush()
+            return True
+        except (IOError, OSError):
+            if self._fd:
+                self._fd.close()
+                self._fd = None
+            return False
+
+    def release(self):
+        if self._fd:
+            try:
+                fcntl.flock(self._fd, fcntl.LOCK_UN)
+                self._fd.close()
+            except Exception:
+                pass
+            self._fd = None
+        try:
+            os.remove(self._path)
+        except OSError:
+            pass
+
+
+# ─── Graceful shutdown ────────────────────────────────────────────────────────
+
+class ShutdownFlag:
+    """Cooperative shutdown flag set by signal handlers."""
+
+    def __init__(self):
+        self.requested = False
+
+    def request(self):
+        self.requested = True
+
+    def install(self, loop: asyncio.AbstractEventLoop):
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(sig, self._handle, sig)
+
+    def _handle(self, sig):
+        logger.info(f"Received {signal.Signals(sig).name} — finishing in-flight sites then exiting")
+        self.requested = True
+
+
+# ─── Retry helper ─────────────────────────────────────────────────────────────
+
+async def _retry_webhook(coro_factory, description: str = "webhook call"):
+    """Retry a webhook call with capped exponential backoff.
+
+    coro_factory: a zero-arg callable that returns a fresh awaitable each time.
+    Returns True on first success, False after all retries are exhausted.
+    """
+    for attempt in range(1, TRANSIENT_RETRY_MAX + 1):
+        try:
+            result = await coro_factory()
+            if result:
+                return True
+            if isinstance(result, dict) and not result.get("retryable", False):
+                logger.warning(f"[retry] {description} — non-retryable failure")
+                return False
+        except Exception as e:
+            logger.warning(f"[retry] {description} attempt {attempt} error: {e}")
+        if attempt < TRANSIENT_RETRY_MAX:
+            delay = min(TRANSIENT_RETRY_BASE_DELAY * (2 ** (attempt - 1)), 10.0)
+            logger.info(f"[retry] {description} — retrying in {delay:.1f}s (attempt {attempt}/{TRANSIENT_RETRY_MAX})")
+            await asyncio.sleep(delay)
+    logger.error(f"[retry] {description} — all {TRANSIENT_RETRY_MAX} attempts failed")
+    return False
+
+
+async def _retry_result(coro_factory, success_fn, description: str = "call"):
+    """Retry a call that returns a structured result object."""
+    last_result = None
+    for attempt in range(1, TRANSIENT_RETRY_MAX + 1):
+        try:
+            result = await coro_factory()
+            last_result = result
+            if success_fn(result):
+                return result
+            if isinstance(result, dict) and not result.get("retryable", False):
+                logger.warning(f"[retry] {description} — non-retryable failure")
+                return result
+        except Exception as e:
+            logger.warning(f"[retry] {description} attempt {attempt} error: {e}")
+        if attempt < TRANSIENT_RETRY_MAX:
+            delay = min(TRANSIENT_RETRY_BASE_DELAY * (2 ** (attempt - 1)), 10.0)
+            logger.info(f"[retry] {description} — retrying in {delay:.1f}s (attempt {attempt}/{TRANSIENT_RETRY_MAX})")
+            await asyncio.sleep(delay)
+    logger.error(f"[retry] {description} — all {TRANSIENT_RETRY_MAX} attempts failed")
+    return last_result
+
+
 async def main_from_sheet(batch_size: int = 50, dry_run: bool = False):
     start_time = time.time()
     logger.info("Fetching URLs from source sheet (alpha/beta/gamma)...")
@@ -3622,182 +3945,349 @@ async def main_from_sheet(batch_size: int = 50, dry_run: bool = False):
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     checkpoint_path = os.path.join(output_dir, "checkpoint_latest.json")
     checkpoint_archive_path = os.path.join(output_dir, f"checkpoint_{run_id}.json")
+    summary_path = os.path.join(output_dir, f"run_summary_{run_id}.json")
+    lock_path = os.path.join(output_dir, ".scraper_run.lock")
+
+    # ── Run lock: refuse to start if another run is active ──
+    run_lock = RunLock(lock_path, run_id)
+    if not run_lock.acquire():
+        logger.error("Another scraper run is already active (lock held). Exiting.")
+        try:
+            with open(lock_path, "r") as f:
+                logger.error(f"Lock info: {f.read().strip()}")
+        except Exception:
+            pass
+        return
+    logger.info(f"Run lock acquired: {run_id} (pid {os.getpid()})")
+
+    # ── Graceful shutdown handler ──
+    shutdown = ShutdownFlag()
+    try:
+        loop = asyncio.get_running_loop()
+        shutdown.install(loop)
+    except Exception:
+        pass
+
     checkpoint_state = _load_checkpoint_state(checkpoint_path)
 
-    async with aiohttp.ClientSession() as session:
-        url_list = await GoogleClient.fetch_source_urls(session)
-        if not url_list:
-            logger.info("No URLs from source sheet, trying legacy endpoint...")
-            url_list = await fetch_urls_from_sheet(session)
-        if not url_list:
-            logger.info("No unprocessed URLs found.")
-            return
+    # Counters for summary
+    posted_count = 0
+    write_failures = 0
+    mark_done_count = 0
+    mark_error_count = 0
+    mark_fail_count = 0
+    timeout_count = 0
+    blocked_count = 0
 
-        if len(url_list) > batch_size:
-            logger.info(f"Processing first {batch_size} of {len(url_list)} URLs")
-            url_list = url_list[:batch_size]
+    try:
+        async with aiohttp.ClientSession() as session:
+            url_list = await GoogleClient.fetch_source_urls(session)
+            if not url_list:
+                logger.info("No URLs from source sheet, trying legacy endpoint...")
+                url_list = await fetch_urls_from_sheet(session)
+            if not url_list:
+                logger.info("No unprocessed URLs found.")
+                return
 
-        resume_mark_only = []
-        pending_sites = []
-        for site_info in url_list:
-            action = _checkpoint_resume_action(site_info, checkpoint_state)
-            if action == "mark_only":
-                resume_mark_only.append(site_info)
-            else:
-                pending_sites.append(site_info)
+            if len(url_list) > batch_size:
+                logger.info(f"Processing first {batch_size} of {len(url_list)} URLs")
+                url_list = url_list[:batch_size]
 
-        for site_info in resume_mark_only:
-            key = _checkpoint_key(site_info)
-            entry = checkpoint_state.get(key, {})
-            mark_ok = False
-            if not dry_run and site_info.get("tab") and site_info.get("row"):
-                mark_ok = await GoogleClient.mark_source_processed(
-                    session, [{"tab": site_info["tab"], "row": site_info["row"], "status": "done"}]
-                )
-            entry.update({
-                "checkpoint_key": key,
-                "website": site_info.get("url") or site_info.get("website") or "",
-                "tab": site_info.get("tab", ""),
-                "row": site_info.get("row", ""),
-                "scrape": entry.get("scrape", "ok"),
-                "write": "ok",
-                "marked": "done" if (mark_ok or dry_run) else "mark_failed",
-                "timestamp": datetime.now().isoformat(),
-            })
-            checkpoint_state[key] = entry
-            _save_checkpoint_state(checkpoint_path, checkpoint_state)
-            logger.info(f"[resume] {entry['website']} — skipped scrape, retried mark-only")
-
-        logger.info(f"Starting batch processing of {len(pending_sites)} sites (concurrency: {CONCURRENT_SITES})")
-        if dry_run:
-            logger.info("DRY RUN: will scrape but NOT write to output sheet")
-
-        person_extractor = PersonExtractor()
-        semaphore = asyncio.Semaphore(CONCURRENT_SITES)
-        all_results = []
-        tasks = [
-            asyncio.create_task(process_single_site(session, site_info, semaphore, person_extractor))
-            for site_info in pending_sites
-        ]
-
-        # ── Per-company checkpointed writes ──────────────────────────
-        checkpoint_log = dict(checkpoint_state)
-        posted_count = 0
-        write_failures = 0
-
-        for task in asyncio.as_completed(tasks):
-            result = await task
-            all_results.append(result)
-            website = result.get("input_website", "unknown")
-            checkpoint_key = _checkpoint_key(result)
-            entry_log = {
-                "checkpoint_key": checkpoint_key,
-                "website": website,
-                "tab": result.get("tab", ""),
-                "row": result.get("row", ""),
-                "scrape": "error" if result.get("error") else "ok",
-                "write": None,
-                "marked": None,
-                "timestamp": datetime.now().isoformat(),
-            }
-
-            # ── Handle scrape errors ──
-            if result.get("error"):
-                entry_log["write"] = "skipped"
-                entry_log["marked"] = "error"
-                if not dry_run and result.get("tab") and result.get("row"):
-                    mark_ok = await GoogleClient.mark_source_processed(
-                        session, [{"tab": result["tab"], "row": result["row"], "status": "error"}]
-                    )
-                    entry_log["marked"] = "error" if mark_ok else "mark_failed"
-                checkpoint_log[checkpoint_key] = entry_log
-                _save_checkpoint_state(checkpoint_path, checkpoint_log)
-                logger.warning(f"[checkpoint] {website} — scrape error, marked error")
-                continue
-
-            # ── Build company payload ──
-            company_name = result.get("name") or urllib.parse.urlparse(website).netloc
-            company_id = generate_company_id(company_name)
-            company_entry = {
-                "id": company_id,
-                "name": company_name,
-                "website": website,
-                "linkedin": result.get("company_linkedin", ""),
-                "class": result.get("tab", ""),
-                "persons": [
-                    {"name": p.get("name", ""), "role": p.get("role", ""),
-                     "email": p.get("email", ""), "linkedin": p.get("linkedin", "")}
-                    for p in result.get("persons", [])
-                ]
-            }
-
-            if dry_run:
-                entry_log["write"] = "dry_run"
-                entry_log["marked"] = "dry_run"
-                checkpoint_log[checkpoint_key] = entry_log
-                _save_checkpoint_state(checkpoint_path, checkpoint_log)
-                posted_count += 1
-                continue
-
-            # ── Write this single company to output sheet ──
-            write_ok = await GoogleClient.post_to_output(session, [company_entry])
-
-            if write_ok:
-                entry_log["write"] = "ok"
-                posted_count += 1
-                logger.info(f"[checkpoint] {website} — written to Employee_db")
-
-                # ── Mark source row done immediately ──
-                if result.get("tab") and result.get("row"):
-                    mark_ok = await GoogleClient.mark_source_processed(
-                        session, [{"tab": result["tab"], "row": result["row"], "status": "done"}]
-                    )
-                    entry_log["marked"] = "done" if mark_ok else "mark_failed"
+            resume_mark_only = []
+            pending_sites = []
+            for site_info in url_list:
+                action = _checkpoint_resume_action(site_info, checkpoint_state)
+                if action == "mark_only":
+                    resume_mark_only.append(site_info)
                 else:
-                    entry_log["marked"] = "no_source_row"
-            else:
-                entry_log["write"] = "failed"
-                entry_log["marked"] = "skipped"
-                write_failures += 1
-                logger.error(f"[checkpoint] {website} — write FAILED, source row NOT marked done")
+                    pending_sites.append(site_info)
 
-            checkpoint_log[checkpoint_key] = entry_log
+            # ── Resume: mark-only for sites already written ──
+            for site_info in resume_mark_only:
+                key = _checkpoint_key(site_info)
+                entry = checkpoint_state.get(key, {})
+                mark_ok = False
+                if not dry_run and site_info.get("tab") and site_info.get("row"):
+                    mark_result = await _retry_result(
+                        lambda si=site_info: GoogleClient.mark_source_processed_detailed(
+                            session, [{"tab": si["tab"], "row": si["row"], "status": "done"}]
+                        ),
+                        lambda res: bool(res and res.get("ok")),
+                        description=f"mark_done resume {site_info.get('url', '')}"
+                    )
+                    mark_ok = bool(mark_result and mark_result.get("ok"))
+                entry.update({
+                    "checkpoint_key": key,
+                    "website": site_info.get("url") or site_info.get("website") or "",
+                    "tab": site_info.get("tab", ""),
+                    "row": site_info.get("row", ""),
+                    "scrape": entry.get("scrape", "ok"),
+                    "write": "ok",
+                    "marked": "done" if (mark_ok or dry_run) else "mark_failed",
+                    "timestamp": datetime.now().isoformat(),
+                })
+                if mark_ok:
+                    mark_done_count += 1
+                checkpoint_state[key] = entry
+                _save_checkpoint_state(checkpoint_path, checkpoint_state)
+                logger.info(f"[resume] {entry['website']} — skipped scrape, retried mark-only")
+
+            logger.info(f"Starting batch processing of {len(pending_sites)} sites (concurrency: {CONCURRENT_SITES})")
+            if dry_run:
+                logger.info("DRY RUN: will scrape but NOT write to output sheet")
+
+            person_extractor = PersonExtractor()
+            semaphore = asyncio.Semaphore(CONCURRENT_SITES)
+            all_results = []
+            site_iter = iter(pending_sites)
+            active_tasks: Dict[asyncio.Task, dict] = {}
+            started_site_count = 0
+            shutdown_announced = False
+
+            # ── Per-company checkpointed writes ──────────────────────────
+            checkpoint_log = dict(checkpoint_state)
+
+            # Buffer for chunked output writes
+            write_buffer = []  # list of (company_entry, result, entry_log, checkpoint_key)
+
+            def _start_next_site() -> bool:
+                nonlocal started_site_count
+                if shutdown.requested:
+                    return False
+                try:
+                    site_info = next(site_iter)
+                except StopIteration:
+                    return False
+                task = asyncio.create_task(process_single_site(session, site_info, semaphore, person_extractor))
+                active_tasks[task] = site_info
+                started_site_count += 1
+                return True
+
+            async def _flush_write_buffer():
+                """Write buffered companies in one chunk, then mark source rows."""
+                nonlocal posted_count, write_failures, mark_done_count, mark_fail_count
+                if not write_buffer:
+                    return
+                chunk_entries = [item[0] for item in write_buffer]
+                chunk_ok_statuses = {"inserted", "updated", "duplicate_skipped", "legacy_success"}
+
+                write_result = await _retry_result(
+                    lambda ce=chunk_entries: GoogleClient.post_to_output_detailed(session, ce),
+                    lambda res: bool(res and res.get("ok")),
+                    description=f"output_write chunk of {len(chunk_entries)}"
+                )
+                result_map = {
+                    (item.get("id") or "").strip(): item
+                    for item in (write_result or {}).get("results", [])
+                }
+
+                for company_entry, result, entry_log, ck in write_buffer:
+                    website = result.get("input_website", "unknown")
+                    company_result = result_map.get(company_entry["id"], {"status": "failed"})
+                    company_status = (company_result.get("status") or "failed").strip()
+                    if company_status in chunk_ok_statuses:
+                        entry_log["write"] = "ok"
+                        posted_count += 1
+                        logger.info(f"[checkpoint] {website} — written to Employee_db ({company_status})")
+                        if result.get("tab") and result.get("row"):
+                            mark_result = await _retry_result(
+                                lambda r=result: GoogleClient.mark_source_processed_detailed(
+                                    session, [{"tab": r["tab"], "row": r["row"], "status": "done"}]
+                                ),
+                                lambda res: bool(res and res.get("ok")),
+                                description=f"mark_done {website}"
+                            )
+                            m_ok = bool(mark_result and mark_result.get("ok"))
+                            entry_log["marked"] = "done" if m_ok else "mark_failed"
+                            if m_ok:
+                                mark_done_count += 1
+                            else:
+                                mark_fail_count += 1
+                        else:
+                            entry_log["marked"] = "no_source_row"
+                    else:
+                        entry_log["write"] = "failed"
+                        entry_log["marked"] = "skipped"
+                        write_failures += 1
+                        logger.error(
+                            f"[checkpoint] {website} — write FAILED ({company_status}), "
+                            f"source row NOT marked done"
+                        )
+                    checkpoint_log[ck] = entry_log
+                _save_checkpoint_state(checkpoint_path, checkpoint_log)
+                write_buffer.clear()
+
+            while len(active_tasks) < CONCURRENT_SITES and _start_next_site():
+                pass
+
+            while active_tasks:
+                done, _pending = await asyncio.wait(
+                    list(active_tasks.keys()),
+                    return_when=asyncio.FIRST_COMPLETED
+                )
+
+                for task in done:
+                    active_tasks.pop(task, None)
+                    try:
+                        result = await task
+                    except asyncio.CancelledError:
+                        continue
+
+                    all_results.append(result)
+                    website = result.get("input_website", "unknown")
+                    checkpoint_key = _checkpoint_key(result)
+                    entry_log = {
+                        "checkpoint_key": checkpoint_key,
+                        "website": website,
+                        "tab": result.get("tab", ""),
+                        "row": result.get("row", ""),
+                        "scrape": "error" if result.get("error") else "ok",
+                        "write": None,
+                        "marked": None,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+
+                    error_msg = result.get("error", "")
+                    if "timed out" in error_msg:
+                        timeout_count += 1
+                    if result.get("blocked") or "block" in error_msg.lower():
+                        blocked_count += 1
+
+                    if result.get("error"):
+                        entry_log["write"] = "skipped"
+                        entry_log["marked"] = "error"
+                        if not dry_run and result.get("tab") and result.get("row"):
+                            mark_result = await _retry_result(
+                                lambda r=result: GoogleClient.mark_source_processed_detailed(
+                                    session, [{"tab": r["tab"], "row": r["row"], "status": "error"}]
+                                ),
+                                lambda res: bool(res and res.get("ok")),
+                                description=f"mark_error {website}"
+                            )
+                            m_ok = bool(mark_result and mark_result.get("ok"))
+                            entry_log["marked"] = "error" if m_ok else "mark_failed"
+                            if m_ok:
+                                mark_error_count += 1
+                            else:
+                                mark_fail_count += 1
+                        checkpoint_log[checkpoint_key] = entry_log
+                        _save_checkpoint_state(checkpoint_path, checkpoint_log)
+                        logger.warning(f"[checkpoint] {website} — scrape error, marked error")
+                        continue
+
+                    company_name = result.get("name") or urllib.parse.urlparse(website).netloc
+                    company_id = generate_company_id(company_name)
+                    company_entry = {
+                        "id": company_id,
+                        "name": company_name,
+                        "website": website,
+                        "linkedin": result.get("company_linkedin", ""),
+                        "class": result.get("tab", ""),
+                        "persons": [
+                            {"name": p.get("name", ""), "role": p.get("role", ""),
+                             "email": p.get("email", ""), "linkedin": p.get("linkedin", "")}
+                            for p in result.get("persons", [])
+                        ]
+                    }
+
+                    if dry_run:
+                        entry_log["write"] = "dry_run"
+                        entry_log["marked"] = "dry_run"
+                        checkpoint_log[checkpoint_key] = entry_log
+                        _save_checkpoint_state(checkpoint_path, checkpoint_log)
+                        posted_count += 1
+                        continue
+
+                    write_buffer.append((company_entry, result, entry_log, checkpoint_key))
+                    if len(write_buffer) >= OUTPUT_WRITE_CHUNK_SIZE:
+                        await _flush_write_buffer()
+
+                if shutdown.requested and not shutdown_announced:
+                    logger.info("[shutdown] Graceful shutdown requested — no new sites will be started")
+                    shutdown_announced = True
+
+                if not shutdown.requested:
+                    while len(active_tasks) < CONCURRENT_SITES and _start_next_site():
+                        pass
+
+            # Flush remaining buffer
+            await _flush_write_buffer()
+
+            # ── Save full scrape results as before ──
+            output_path = os.path.join(output_dir, "linkedin_results.json")
+            with open(output_path, "w") as f:
+                json.dump(all_results, f, indent=2, default=str)
+
+            # ── Final checkpoint write ──
             _save_checkpoint_state(checkpoint_path, checkpoint_log)
+            _save_checkpoint_state(checkpoint_archive_path, checkpoint_log)
 
-        # ── Save full scrape results as before ──
-        output_path = os.path.join(output_dir, "linkedin_results.json")
-        with open(output_path, "w") as f:
-            json.dump(all_results, f, indent=2, default=str)
+            elapsed = time.time() - start_time
+            scrape_ok = sum(1 for r in all_results if not r.get("error"))
+            scrape_err = sum(1 for r in all_results if r.get("error"))
+            total_linkedin = sum(len(r.get("linkedin_urls", [])) for r in all_results)
+            total_emails = sum(len(r.get("emails", [])) for r in all_results)
+            total_persons = sum(len(r.get("persons", [])) for r in all_results)
+            processed_site_count = started_site_count
+            per_site_seconds = (elapsed / processed_site_count) if processed_site_count else 0.0
 
-        # ── Final checkpoint write ──
-        _save_checkpoint_state(checkpoint_path, checkpoint_log)
-        _save_checkpoint_state(checkpoint_archive_path, checkpoint_log)
+            # ── Human-readable log summary ──
+            logger.info("")
+            logger.info(f"{'='*60}")
+            logger.info(f"BATCH COMPLETE — run {run_id}")
+            logger.info(f"{'='*60}")
+            logger.info(f"   Sites attempted:   {processed_site_count}")
+            logger.info(f"   Sites scraped OK:  {scrape_ok}/{processed_site_count}")
+            logger.info(f"   Scrape errors:     {scrape_err}")
+            logger.info(f"   Written to sheet:  {posted_count}")
+            logger.info(f"   Write failures:    {write_failures}")
+            logger.info(f"   Marked done:       {mark_done_count}")
+            logger.info(f"   Marked error:      {mark_error_count}")
+            logger.info(f"   Mark failures:     {mark_fail_count}")
+            logger.info(f"   Timeouts:          {timeout_count}")
+            logger.info(f"   Blocked:           {blocked_count}")
+            logger.info(f"   LinkedIn URLs:     {total_linkedin}")
+            logger.info(f"   Emails:            {total_emails}")
+            logger.info(f"   Persons extracted: {total_persons}")
+            logger.info(f"   Time elapsed:      {elapsed:.1f}s ({per_site_seconds:.1f}s per site)")
+            if shutdown.requested:
+                logger.info(f"   Shutdown:          graceful (active sites drained, no new sites started)")
+            logger.info(f"{'='*60}")
+            logger.info(f"Results:    {output_path}")
+            logger.info(f"Checkpoint: {checkpoint_path}")
+            logger.info(f"Archive:    {checkpoint_archive_path}")
 
-        elapsed = time.time() - start_time
-        scrape_ok = sum(1 for r in all_results if not r.get("error"))
-        scrape_err = sum(1 for r in all_results if r.get("error"))
-        total_linkedin = sum(len(r.get("linkedin_urls", [])) for r in all_results)
-        total_emails = sum(len(r.get("emails", [])) for r in all_results)
-        total_persons = sum(len(r.get("persons", [])) for r in all_results)
-        processed_site_count = len(pending_sites)
-        per_site_seconds = (elapsed / processed_site_count) if processed_site_count else 0.0
+            # ── Machine-readable JSON summary ──
+            run_summary = {
+                "run_id": run_id,
+                "started": datetime.fromtimestamp(start_time).isoformat(),
+                "finished": datetime.now().isoformat(),
+                "elapsed_seconds": round(elapsed, 1),
+                "per_site_seconds": round(per_site_seconds, 1),
+                "dry_run": dry_run,
+                "graceful_shutdown": shutdown.requested,
+                "batch_size": batch_size,
+                "attempted": processed_site_count,
+                "resumed_mark_only": len(resume_mark_only),
+                "scraped_ok": scrape_ok,
+                "scraped_error": scrape_err,
+                "written_ok": posted_count,
+                "write_failed": write_failures,
+                "marked_done": mark_done_count,
+                "marked_error": mark_error_count,
+                "mark_failed": mark_fail_count,
+                "timeout_count": timeout_count,
+                "blocked_count": blocked_count,
+                "linkedin_urls": total_linkedin,
+                "emails": total_emails,
+                "persons_extracted": total_persons,
+            }
+            _save_checkpoint_state(summary_path, run_summary)
+            logger.info(f"Summary:    {summary_path}")
 
-        logger.info("")
-        logger.info(f"{'='*60}")
-        logger.info(f"BATCH COMPLETE — run {run_id}")
-        logger.info(f"{'='*60}")
-        logger.info(f"   Sites scraped OK:  {scrape_ok}/{processed_site_count}")
-        logger.info(f"   Scrape errors:     {scrape_err}")
-        logger.info(f"   Written to sheet:  {posted_count}")
-        logger.info(f"   Write failures:    {write_failures}")
-        logger.info(f"   LinkedIn URLs:     {total_linkedin}")
-        logger.info(f"   Emails:            {total_emails}")
-        logger.info(f"   Persons extracted: {total_persons}")
-        logger.info(f"   Time elapsed:      {elapsed:.1f}s ({per_site_seconds:.1f}s per site)")
-        logger.info(f"{'='*60}")
-        logger.info(f"Results:    {output_path}")
-        logger.info(f"Checkpoint: {checkpoint_path}")
-        logger.info(f"Archive:    {checkpoint_archive_path}")
+    finally:
+        run_lock.release()
+        logger.info(f"Run lock released: {run_id}")
 
 
 async def main(urls: List[str]):

@@ -8,11 +8,13 @@ from bs4 import BeautifulSoup
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from common.google_client import _normalize_output_results
 from enricher.scraper_v3 import (
     CandidatePool,
     COMMON_INTERNAL,
     LinkedInFinder,
     PersonExtractor,
+    RunLock,
     _recovery_filter_urls,
     _checkpoint_key,
     _checkpoint_resume_action,
@@ -564,6 +566,39 @@ class TestPersonExtractorV3(unittest.TestCase):
             self.assertIn("beta:4", state)
             self.assertIn("https://example.org", state)
             self.assertEqual(state["beta:4"]["write"], "ok")
+
+    def test_normalize_output_results_preserves_per_company_statuses(self):
+        companies = [{"id": "a1"}, {"id": "b2"}]
+        parsed = {
+            "status": "ok",
+            "inserted": 1,
+            "updated": 0,
+            "results": [
+                {"id": "a1", "status": "inserted"},
+                {"id": "b2", "status": "error", "reason": "missing_id"},
+            ],
+        }
+        normalized = _normalize_output_results(companies, parsed, json.dumps(parsed))
+        self.assertFalse(normalized["ok"])
+        self.assertEqual(normalized["results"][0]["status"], "inserted")
+        self.assertEqual(normalized["results"][1]["status"], "error")
+
+    def test_run_lock_failed_acquire_does_not_truncate_existing_lock_info(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, ".lock")
+            first = RunLock(path, "run-1")
+            second = RunLock(path, "run-2")
+            self.assertTrue(first.acquire())
+            try:
+                with open(path, "r") as f:
+                    existing = f.read()
+                self.assertFalse(second.acquire())
+                with open(path, "r") as f:
+                    after = f.read()
+                self.assertEqual(existing, after)
+                self.assertIn("run-1", after)
+            finally:
+                first.release()
 
 
 if __name__ == "__main__":
