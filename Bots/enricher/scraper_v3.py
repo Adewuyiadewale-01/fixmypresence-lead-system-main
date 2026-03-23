@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import os
 import re
 import time
 import urllib.parse
@@ -33,6 +34,8 @@ LEVEL2_LIMIT = 30           # Max level-2 links per high-value page
 PW_CONCURRENCY = 3          # Concurrent Playwright contexts for high-value pages
 XHR_MAX_BODY_SIZE = 500_000 # 500KB cap on XHR response body inspection
 XHR_TIMEOUT = 2.0           # Max seconds to spend parsing XHR responses
+SITE_PROCESS_TIMEOUT = 180  # Hard ceiling per site so one slow site doesn't stall the batch
+RECOVERY_MODE_TIMEOUT_THRESHOLD = 2  # Repeated Playwright timeouts before site-level recovery mode
 
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -315,6 +318,12 @@ def _playwright_result_is_sparse(result: Dict) -> bool:
     linkedin_count = len(result.get("linkedin") or [])
     email_count = len(result.get("emails") or [])
     return text_len < 200 and internal_count < 3 and linkedin_count == 0 and email_count == 0
+
+
+def _recovery_filter_urls(urls: List[str]) -> List[str]:
+    """In timeout recovery mode, keep only obvious people pages."""
+    filtered = [url for url in urls if _is_people_page_url(url)]
+    return dedupe_keep_order(filtered)
 
 
 def _url_segments(url: str) -> List[str]:
@@ -1286,6 +1295,20 @@ class LinkedInFinder:
         )
 
     @staticmethod
+    def _artifact_soup_quality_key(artifact: Optional[PageArtifact]) -> Tuple[int, int, int, int, int]:
+        if not artifact or not artifact.soup:
+            return (-1, -1, -1, -1, -1)
+        text_len = len(artifact.soup.get_text(" ", strip=True))
+        anchor_count = len(artifact.soup.find_all("a", href=True))
+        return (
+            artifact.signal_priority,
+            artifact.personal_linkedin_count + artifact.personal_email_count,
+            artifact.profile_link_count,
+            anchor_count,
+            text_len,
+        )
+
+    @staticmethod
     def _merge_page_artifact(artifacts: Dict[str, PageArtifact], artifact: Optional[PageArtifact]):
         if not artifact:
             return
@@ -1295,8 +1318,9 @@ class LinkedInFinder:
             return
         existing.linkedin_urls.update(artifact.linkedin_urls)
         existing.emails.update(artifact.emails)
-        if existing.soup is None and artifact.soup is not None:
+        if LinkedInFinder._artifact_soup_quality_key(artifact) > LinkedInFinder._artifact_soup_quality_key(existing):
             existing.soup = artifact.soup
+            existing.classification = artifact.classification
         existing.personal_linkedin_count = max(existing.personal_linkedin_count, artifact.personal_linkedin_count)
         existing.personal_email_count = max(existing.personal_email_count, artifact.personal_email_count)
         existing.profile_link_count = max(existing.profile_link_count, artifact.profile_link_count)
@@ -1512,8 +1536,10 @@ class LinkedInFinder:
 
     # ─── Static fetch (extraction only) ───────────────────────────────────────
 
-    async def _fetch_static(self, session: aiohttp.ClientSession, url: str) -> Tuple[Set[str], Set[str]]:
-        """Fetch a page statically. Returns (linkedin_urls, emails)."""
+    async def _fetch_static_with_artifact(
+        self, session: aiohttp.ClientSession, url: str
+    ) -> Tuple[Set[str], Set[str], Optional[PageArtifact]]:
+        """Fetch a page statically. Returns (linkedin_urls, emails, page_artifact)."""
         try:
             async with session.get(
                 url,
@@ -1522,16 +1548,23 @@ class LinkedInFinder:
                 ssl=self._ssl_ctx
             ) as response:
                 if response.status != 200:
-                    return set(), set()
+                    return set(), set(), None
                 text = await response.text()
                 soup = BeautifulSoup(text, 'html.parser')
-                found = self._extract_from_soup(soup, str(response.url))
+                final_url = str(response.url)
+                found = self._extract_from_soup(soup, final_url)
                 found.update(self._extract_from_text(text))
                 emails = self._extract_emails_from_text(text)
-                return found, emails
+                artifact = self._make_page_artifact(final_url, soup, found, emails)
+                return found, emails, artifact
         except Exception as e:
             logger.warning(f"Static fetch failed for {url}: {e}")
-            return set(), set()
+            return set(), set(), None
+
+    async def _fetch_static(self, session: aiohttp.ClientSession, url: str) -> Tuple[Set[str], Set[str]]:
+        """Fetch a page statically. Returns (linkedin_urls, emails)."""
+        found, emails, _ = await self._fetch_static_with_artifact(session, url)
+        return found, emails
 
     # ─── Phase 3.9: Adaptive wait ───────────────────────────────────────────────
 
@@ -1604,6 +1637,7 @@ class LinkedInFinder:
         emails = set()
         soup = None
         final_url = url
+        timed_out = False
         try:
             context = await self.browser.new_context(user_agent=USER_AGENT)
             page = await context.new_page()
@@ -1623,6 +1657,7 @@ class LinkedInFinder:
                 await page.goto(url, wait_until="domcontentloaded", timeout=TIMEOUT_SECONDS * 1000)
                 await self._wait_until_ready(page)
             except PlaywrightTimeoutError:
+                timed_out = True
                 logger.warning(f"Timeout loading {url} in Playwright, proceeding with what loaded.")
 
             final_url = page.url or url
@@ -1730,6 +1765,7 @@ class LinkedInFinder:
                 "xhr_paths": xhr_paths,
                 "soup": soup,
                 "final_url": final_url,
+                "timed_out": timed_out,
             }
 
         except Exception as e:
@@ -1742,6 +1778,7 @@ class LinkedInFinder:
                 "xhr_paths": [],
                 "soup": None,
                 "final_url": final_url,
+                "timed_out": timed_out,
             }
         finally:
             if page:
@@ -1914,14 +1951,14 @@ class LinkedInFinder:
             async with static_semaphore:
                 return await self._fetch_static(session, url)
 
-        async def _process_high_value(session, page_url):
+        async def _process_high_value(session, page_url, allow_level2=True):
             """Full treatment for a high-value page: Playwright + static + level-2."""
             async with pw_semaphore:
                 logger.info(f"  -> Full check (Playwright + static): {page_url}")
 
                 pw_res, static_res = await asyncio.gather(
                     self._process_playwright(page_url),
-                    self._fetch_static(session, page_url)
+                    self._fetch_static_with_artifact(session, page_url)
                 )
 
                 if _is_people_page_url(page_url) and _playwright_result_is_sparse(pw_res):
@@ -1931,7 +1968,7 @@ class LinkedInFinder:
                         pw_res = retry_res
 
                 new_links = pw_res["internal_links"]
-                st_li, st_em = static_res
+                st_li, st_em, st_artifact = static_res
 
                 artifact_linkedin = pw_res["linkedin"] | st_li
                 artifact_emails = pw_res["emails"] | st_em
@@ -1953,7 +1990,7 @@ class LinkedInFinder:
 
                 # Level-2 crawl: check new internal links from this page
                 # Skip if classifier says auth/article dominates people
-                if not suppress_l2:
+                if allow_level2 and not suppress_l2:
                     # Strip fragments and query params for canonical dedup
                     cleaned_links = []
                     for l in new_links:
@@ -1985,10 +2022,17 @@ class LinkedInFinder:
                             page_emails.update(l2_em)
 
                 artifact_soup = None if hard_auth_page else page_soup
+                if artifact_soup is not None and st_artifact and st_artifact.soup:
+                    pw_artifact = self._make_page_artifact(page_url, artifact_soup, pw_res["linkedin"], pw_res["emails"])
+                    if self._artifact_soup_quality_key(st_artifact) > self._artifact_soup_quality_key(pw_artifact):
+                        artifact_soup = st_artifact.soup
+                elif artifact_soup is None and st_artifact and st_artifact.soup and not hard_auth_page:
+                    artifact_soup = st_artifact.soup
+
                 artifact = self._make_page_artifact(page_url, artifact_soup, artifact_linkedin, artifact_emails)
                 if artifact and page_classification:
                     artifact.classification = page_classification
-                return page_linkedin, page_emails, artifact
+                return page_linkedin, page_emails, artifact, bool(pw_res.get("timed_out"))
 
         async with aiohttp.ClientSession() as session:
             # Split final_list into high-value (Playwright) and static-only
@@ -2008,18 +2052,50 @@ class LinkedInFinder:
 
             logger.info(f"  {len(high_value_urls)} high-value (Playwright), {len(static_urls)} static-only")
 
-            # Run high-value pages concurrently (bounded by PW_CONCURRENCY)
-            # and static-only pages concurrently (bounded by static_semaphore)
-            # Both groups run in parallel with each other
-            hv_tasks = [_process_high_value(session, u) for u in high_value_urls]
-            st_tasks = [_bounded_static(session, u) for u in static_urls]
+            recovery_mode = bool(pw_result.get("timed_out"))
+            site_playwright_timeouts = 1 if pw_result.get("timed_out") else 0
+            remaining_high_value_urls = list(high_value_urls)
+            hv_results = []
 
-            hv_results, st_results = await asyncio.gather(
-                asyncio.gather(*hv_tasks),
-                asyncio.gather(*st_tasks)
-            )
+            while remaining_high_value_urls:
+                if recovery_mode:
+                    narrowed = _recovery_filter_urls(remaining_high_value_urls)
+                    if len(narrowed) != len(remaining_high_value_urls):
+                        logger.info(
+                            f"  Recovery mode active: narrowing remaining high-value pages "
+                            f"from {len(remaining_high_value_urls)} to {len(narrowed)} obvious people pages"
+                        )
+                    remaining_high_value_urls = narrowed
+                    if not remaining_high_value_urls:
+                        break
 
-            for hv_li, hv_em, hv_artifact in hv_results:
+                wave = remaining_high_value_urls[:PW_CONCURRENCY]
+                remaining_high_value_urls = remaining_high_value_urls[PW_CONCURRENCY:]
+                wave_results = await asyncio.gather(
+                    *[_process_high_value(session, u, allow_level2=not recovery_mode) for u in wave]
+                )
+                hv_results.extend(wave_results)
+
+                site_playwright_timeouts += sum(1 for _, _, _, pw_timed_out in wave_results if pw_timed_out)
+                if not recovery_mode and site_playwright_timeouts >= RECOVERY_MODE_TIMEOUT_THRESHOLD:
+                    recovery_mode = True
+                    logger.info(
+                        f"  Recovery mode activated for {start_url} after {site_playwright_timeouts} "
+                        f"Playwright timeouts; remaining crawl will focus on people pages only"
+                    )
+
+            if recovery_mode:
+                narrowed_static_urls = _recovery_filter_urls(static_urls)
+                if len(narrowed_static_urls) != len(static_urls):
+                    logger.info(
+                        f"  Recovery mode active: narrowing static-only pages "
+                        f"from {len(static_urls)} to {len(narrowed_static_urls)} obvious people pages"
+                    )
+                static_urls = narrowed_static_urls
+
+            st_results = await asyncio.gather(*[_bounded_static(session, u) for u in static_urls])
+
+            for hv_li, hv_em, hv_artifact, _ in hv_results:
                 all_found.update(hv_li)
                 all_emails.update(hv_em)
                 self._merge_page_artifact(page_artifacts, hv_artifact)
@@ -3388,7 +3464,61 @@ async def upload_to_google(session: aiohttp.ClientSession, website: str, links: 
     await GoogleClient.post_async(session, payload)
 
 
-async def process_single_site(finder: LinkedInFinder, google_session: aiohttp.ClientSession,
+def _checkpoint_key(site_info: dict) -> str:
+    tab = (site_info.get("tab") or "").strip().lower()
+    row = site_info.get("row")
+    if tab and row not in (None, ""):
+        return f"{tab}:{row}"
+    url = site_info.get("url") or site_info.get("website") or site_info.get("input_website") or ""
+    return url.rstrip("/")
+
+
+def _load_checkpoint_state(path: str) -> Dict[str, Dict]:
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r") as f:
+            raw = json.load(f)
+    except Exception:
+        return {}
+    if isinstance(raw, dict):
+        return raw
+    if not isinstance(raw, list):
+        return {}
+    state = {}
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        key = entry.get("checkpoint_key")
+        if not key:
+            tab = (entry.get("tab") or "").strip().lower()
+            row = entry.get("row")
+            if tab and row not in (None, ""):
+                key = f"{tab}:{row}"
+            else:
+                key = (entry.get("website") or "").rstrip("/")
+        if key:
+            state[key] = entry
+    return state
+
+
+def _save_checkpoint_state(path: str, state: Dict[str, Dict]):
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w") as f:
+        json.dump(state, f, indent=2, default=str)
+    os.replace(tmp_path, path)
+
+
+def _checkpoint_resume_action(site_info: dict, checkpoint_state: Dict[str, Dict]) -> str:
+    entry = checkpoint_state.get(_checkpoint_key(site_info))
+    if not entry:
+        return "process"
+    if entry.get("write") == "ok":
+        return "mark_only"
+    return "process"
+
+
+async def process_single_site(google_session: aiohttp.ClientSession,
                                site_info: dict, semaphore: asyncio.Semaphore,
                                person_extractor: PersonExtractor = None) -> dict:
     async with semaphore:
@@ -3403,45 +3533,67 @@ async def process_single_site(finder: LinkedInFinder, google_session: aiohttp.Cl
             tab = site_info.get("tab")
             row = site_info.get("row")
 
+        finder = LinkedInFinder()
         try:
-            logger.info(f"Starting: {url}")
-            links, emails, page_artifacts = await finder.find_linkedin_links(url)
-            logger.info(f"Done {url} -> {len(links)} LinkedIn, {len(emails)} emails")
+            await finder.start()
 
-            persons = []
-            if person_extractor and (links or emails or page_artifacts):
-                persons = await person_extractor.extract_persons(
-                    google_session, page_artifacts, links, emails,
-                    site_domain=urllib.parse.urlparse(url).netloc
-                )
-                logger.info(f"  Extracted {len(persons)} persons from {url}")
+            async def _run_site():
+                logger.info(f"Starting: {url}")
+                links, emails, page_artifacts = await finder.find_linkedin_links(url)
+                logger.info(f"Done {url} -> {len(links)} LinkedIn, {len(emails)} emails")
 
-            company_linkedin = ""
-            for li_url in links:
-                if '/company/' in li_url:
-                    company_linkedin = li_url
-                    break
+                persons = []
+                if person_extractor and (links or emails or page_artifacts):
+                    async with aiohttp.ClientSession() as site_session:
+                        persons = await person_extractor.extract_persons(
+                            site_session, page_artifacts, links, emails,
+                            site_domain=urllib.parse.urlparse(url).netloc
+                        )
+                    logger.info(f"  Extracted {len(persons)} persons from {url}")
 
+                company_linkedin = ""
+                for li_url in links:
+                    if '/company/' in li_url:
+                        company_linkedin = li_url
+                        break
+
+                result = {
+                    "input_website": url,
+                    "name": name,
+                    "linkedin_urls": links,
+                    "company_linkedin": company_linkedin,
+                    "emails": emails,
+                    "persons": persons,
+                }
+
+                if tab and row:
+                    result["tab"] = tab
+                    result["row"] = row
+
+                if not tab:
+                    await upload_to_google(google_session, url, links, emails, tab, row)
+
+                return result
+
+            return await asyncio.wait_for(_run_site(), timeout=SITE_PROCESS_TIMEOUT)
+        except asyncio.TimeoutError:
+            logger.error(f"Failed {url}: timed out after {SITE_PROCESS_TIMEOUT}s")
             result = {
                 "input_website": url,
-                "name": name,
-                "linkedin_urls": links,
-                "company_linkedin": company_linkedin,
-                "emails": emails,
-                "persons": persons,
+                "name": name if not isinstance(site_info, str) else "",
+                "linkedin_urls": [],
+                "company_linkedin": "",
+                "emails": [],
+                "persons": [],
+                "error": f"timed out after {SITE_PROCESS_TIMEOUT}s"
             }
-
             if tab and row:
                 result["tab"] = tab
                 result["row"] = row
-
-            if not tab:
-                await upload_to_google(google_session, url, links, emails, tab, row)
-
             return result
         except Exception as e:
             logger.error(f"Failed {url}: {e}")
-            return {
+            result = {
                 "input_website": url,
                 "name": name if not isinstance(site_info, str) else "",
                 "linkedin_urls": [],
@@ -3450,6 +3602,12 @@ async def process_single_site(finder: LinkedInFinder, google_session: aiohttp.Cl
                 "persons": [],
                 "error": str(e)
             }
+            if tab and row:
+                result["tab"] = tab
+                result["row"] = row
+            return result
+        finally:
+            await finder.stop()
 
 
 async def fetch_urls_from_sheet(session: aiohttp.ClientSession) -> List[dict]:
@@ -3458,7 +3616,13 @@ async def fetch_urls_from_sheet(session: aiohttp.ClientSession) -> List[dict]:
 
 async def main_from_sheet(batch_size: int = 50, dry_run: bool = False):
     start_time = time.time()
-    logger.info("Fetching URLs from source sheet (Alpha/Beta/Gamma)...")
+    logger.info("Fetching URLs from source sheet (alpha/beta/gamma)...")
+
+    output_dir = os.path.dirname(os.path.abspath(__file__))
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    checkpoint_path = os.path.join(output_dir, "checkpoint_latest.json")
+    checkpoint_archive_path = os.path.join(output_dir, f"checkpoint_{run_id}.json")
+    checkpoint_state = _load_checkpoint_state(checkpoint_path)
 
     async with aiohttp.ClientSession() as session:
         url_list = await GoogleClient.fetch_source_urls(session)
@@ -3473,38 +3637,91 @@ async def main_from_sheet(batch_size: int = 50, dry_run: bool = False):
             logger.info(f"Processing first {batch_size} of {len(url_list)} URLs")
             url_list = url_list[:batch_size]
 
-        logger.info(f"Starting batch processing of {len(url_list)} sites (concurrency: {CONCURRENT_SITES})")
+        resume_mark_only = []
+        pending_sites = []
+        for site_info in url_list:
+            action = _checkpoint_resume_action(site_info, checkpoint_state)
+            if action == "mark_only":
+                resume_mark_only.append(site_info)
+            else:
+                pending_sites.append(site_info)
+
+        for site_info in resume_mark_only:
+            key = _checkpoint_key(site_info)
+            entry = checkpoint_state.get(key, {})
+            mark_ok = False
+            if not dry_run and site_info.get("tab") and site_info.get("row"):
+                mark_ok = await GoogleClient.mark_source_processed(
+                    session, [{"tab": site_info["tab"], "row": site_info["row"], "status": "done"}]
+                )
+            entry.update({
+                "checkpoint_key": key,
+                "website": site_info.get("url") or site_info.get("website") or "",
+                "tab": site_info.get("tab", ""),
+                "row": site_info.get("row", ""),
+                "scrape": entry.get("scrape", "ok"),
+                "write": "ok",
+                "marked": "done" if (mark_ok or dry_run) else "mark_failed",
+                "timestamp": datetime.now().isoformat(),
+            })
+            checkpoint_state[key] = entry
+            _save_checkpoint_state(checkpoint_path, checkpoint_state)
+            logger.info(f"[resume] {entry['website']} — skipped scrape, retried mark-only")
+
+        logger.info(f"Starting batch processing of {len(pending_sites)} sites (concurrency: {CONCURRENT_SITES})")
         if dry_run:
             logger.info("DRY RUN: will scrape but NOT write to output sheet")
 
-        finder = LinkedInFinder()
-        await finder.start()
         person_extractor = PersonExtractor()
         semaphore = asyncio.Semaphore(CONCURRENT_SITES)
+        all_results = []
+        tasks = [
+            asyncio.create_task(process_single_site(session, site_info, semaphore, person_extractor))
+            for site_info in pending_sites
+        ]
 
-        try:
-            tasks = [
-                process_single_site(finder, session, site_info, semaphore, person_extractor)
-                for site_info in url_list
-            ]
-            all_results = await asyncio.gather(*tasks)
-        finally:
-            await finder.stop()
+        # ── Per-company checkpointed writes ──────────────────────────
+        checkpoint_log = dict(checkpoint_state)
+        posted_count = 0
+        write_failures = 0
 
-        companies_payload = []
-        error_updates = []
-        done_updates = []
-        for result in all_results:
+        for task in asyncio.as_completed(tasks):
+            result = await task
+            all_results.append(result)
+            website = result.get("input_website", "unknown")
+            checkpoint_key = _checkpoint_key(result)
+            entry_log = {
+                "checkpoint_key": checkpoint_key,
+                "website": website,
+                "tab": result.get("tab", ""),
+                "row": result.get("row", ""),
+                "scrape": "error" if result.get("error") else "ok",
+                "write": None,
+                "marked": None,
+                "timestamp": datetime.now().isoformat(),
+            }
+
+            # ── Handle scrape errors ──
             if result.get("error"):
-                if result.get("tab") and result.get("row"):
-                    error_updates.append({"tab": result["tab"], "row": result["row"], "status": "error"})
+                entry_log["write"] = "skipped"
+                entry_log["marked"] = "error"
+                if not dry_run and result.get("tab") and result.get("row"):
+                    mark_ok = await GoogleClient.mark_source_processed(
+                        session, [{"tab": result["tab"], "row": result["row"], "status": "error"}]
+                    )
+                    entry_log["marked"] = "error" if mark_ok else "mark_failed"
+                checkpoint_log[checkpoint_key] = entry_log
+                _save_checkpoint_state(checkpoint_path, checkpoint_log)
+                logger.warning(f"[checkpoint] {website} — scrape error, marked error")
                 continue
-            company_name = result.get("name") or urllib.parse.urlparse(result["input_website"]).netloc
+
+            # ── Build company payload ──
+            company_name = result.get("name") or urllib.parse.urlparse(website).netloc
             company_id = generate_company_id(company_name)
             company_entry = {
                 "id": company_id,
                 "name": company_name,
-                "website": result["input_website"],
+                "website": website,
                 "linkedin": result.get("company_linkedin", ""),
                 "class": result.get("tab", ""),
                 "persons": [
@@ -3513,72 +3730,89 @@ async def main_from_sheet(batch_size: int = 50, dry_run: bool = False):
                     for p in result.get("persons", [])
                 ]
             }
-            companies_payload.append(company_entry)
-            if result.get("tab") and result.get("row"):
-                done_updates.append({"tab": result["tab"], "row": result["row"], "status": "done"})
 
-        if not dry_run:
-            # Always send error updates regardless of output write success
-            if error_updates:
-                await GoogleClient.mark_source_processed(session, error_updates)
-                logger.info(f"Marked {len(error_updates)} error rows in source sheet")
+            if dry_run:
+                entry_log["write"] = "dry_run"
+                entry_log["marked"] = "dry_run"
+                checkpoint_log[checkpoint_key] = entry_log
+                _save_checkpoint_state(checkpoint_path, checkpoint_log)
+                posted_count += 1
+                continue
 
-            if companies_payload:
-                success = await GoogleClient.post_to_output(session, companies_payload)
-                if success:
-                    logger.info(f"Posted {len(companies_payload)} companies to Employee_db")
-                    if done_updates:
-                        await GoogleClient.mark_source_processed(session, done_updates)
-                        logger.info(f"Marked {len(done_updates)} rows as done in source sheet")
+            # ── Write this single company to output sheet ──
+            write_ok = await GoogleClient.post_to_output(session, [company_entry])
+
+            if write_ok:
+                entry_log["write"] = "ok"
+                posted_count += 1
+                logger.info(f"[checkpoint] {website} — written to Employee_db")
+
+                # ── Mark source row done immediately ──
+                if result.get("tab") and result.get("row"):
+                    mark_ok = await GoogleClient.mark_source_processed(
+                        session, [{"tab": result["tab"], "row": result["row"], "status": "done"}]
+                    )
+                    entry_log["marked"] = "done" if mark_ok else "mark_failed"
                 else:
-                    logger.error("Failed to post to Employee_db — source rows NOT marked done")
-        else:
-            logger.info(f"DRY RUN: Would post {len(companies_payload)} companies to Employee_db")
+                    entry_log["marked"] = "no_source_row"
+            else:
+                entry_log["write"] = "failed"
+                entry_log["marked"] = "skipped"
+                write_failures += 1
+                logger.error(f"[checkpoint] {website} — write FAILED, source row NOT marked done")
 
-        import os
-        output_dir = os.path.dirname(os.path.abspath(__file__))
+            checkpoint_log[checkpoint_key] = entry_log
+            _save_checkpoint_state(checkpoint_path, checkpoint_log)
+
+        # ── Save full scrape results as before ──
         output_path = os.path.join(output_dir, "linkedin_results.json")
         with open(output_path, "w") as f:
             json.dump(all_results, f, indent=2, default=str)
 
+        # ── Final checkpoint write ──
+        _save_checkpoint_state(checkpoint_path, checkpoint_log)
+        _save_checkpoint_state(checkpoint_archive_path, checkpoint_log)
+
         elapsed = time.time() - start_time
-        successful = sum(1 for r in all_results if not r.get("error"))
+        scrape_ok = sum(1 for r in all_results if not r.get("error"))
+        scrape_err = sum(1 for r in all_results if r.get("error"))
         total_linkedin = sum(len(r.get("linkedin_urls", [])) for r in all_results)
         total_emails = sum(len(r.get("emails", [])) for r in all_results)
         total_persons = sum(len(r.get("persons", [])) for r in all_results)
+        processed_site_count = len(pending_sites)
+        per_site_seconds = (elapsed / processed_site_count) if processed_site_count else 0.0
 
         logger.info("")
         logger.info(f"{'='*60}")
-        logger.info(f"BATCH COMPLETE")
+        logger.info(f"BATCH COMPLETE — run {run_id}")
         logger.info(f"{'='*60}")
-        logger.info(f"   Sites processed: {successful}/{len(url_list)}")
-        logger.info(f"   LinkedIn URLs found: {total_linkedin}")
-        logger.info(f"   Emails found: {total_emails}")
+        logger.info(f"   Sites scraped OK:  {scrape_ok}/{processed_site_count}")
+        logger.info(f"   Scrape errors:     {scrape_err}")
+        logger.info(f"   Written to sheet:  {posted_count}")
+        logger.info(f"   Write failures:    {write_failures}")
+        logger.info(f"   LinkedIn URLs:     {total_linkedin}")
+        logger.info(f"   Emails:            {total_emails}")
         logger.info(f"   Persons extracted: {total_persons}")
-        logger.info(f"   Companies posted: {len(companies_payload)}")
-        logger.info(f"   Time elapsed: {elapsed:.1f}s ({elapsed/len(url_list):.1f}s per site)")
+        logger.info(f"   Time elapsed:      {elapsed:.1f}s ({per_site_seconds:.1f}s per site)")
         logger.info(f"{'='*60}")
-        logger.info(f"Results saved to {output_path}")
+        logger.info(f"Results:    {output_path}")
+        logger.info(f"Checkpoint: {checkpoint_path}")
+        logger.info(f"Archive:    {checkpoint_archive_path}")
 
 
 async def main(urls: List[str]):
     start_time = time.time()
     logger.info(f"Starting batch processing of {len(urls)} sites (concurrency: {CONCURRENT_SITES})")
 
-    finder = LinkedInFinder()
-    await finder.start()
     person_extractor = PersonExtractor()
     semaphore = asyncio.Semaphore(CONCURRENT_SITES)
 
     async with aiohttp.ClientSession() as google_session:
-        try:
-            tasks = [
-                process_single_site(finder, google_session, url, semaphore, person_extractor)
-                for url in urls
-            ]
-            all_results = await asyncio.gather(*tasks)
-        finally:
-            await finder.stop()
+        tasks = [
+            process_single_site(google_session, url, semaphore, person_extractor)
+            for url in urls
+        ]
+        all_results = await asyncio.gather(*tasks)
 
     import os
     output_dir = os.path.dirname(os.path.abspath(__file__))

@@ -1,0 +1,502 @@
+{
+  "beta:3": {
+    "checkpoint_key": "beta:3",
+    "website": "https://www.facilitytradegroup.nl/",
+    "tab": "beta",
+    "row": 3,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:12:37.027081"
+  },
+  "beta:2": {
+    "checkpoint_key": "beta:2",
+    "website": "http://www.webbtraders.nl/",
+    "tab": "beta",
+    "row": 2,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:12:42.619878"
+  },
+  "beta:4": {
+    "checkpoint_key": "beta:4",
+    "website": "http://www.bots.io/",
+    "tab": "beta",
+    "row": 4,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:12:50.985220"
+  },
+  "beta:6": {
+    "checkpoint_key": "beta:6",
+    "website": "http://www.sustainablecapitalgroup.com/",
+    "tab": "beta",
+    "row": 6,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:12:58.287200"
+  },
+  "beta:5": {
+    "checkpoint_key": "beta:5",
+    "website": "http://www.flowertradeconsult.nl/",
+    "tab": "beta",
+    "row": 5,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:13:23.701550"
+  },
+  "beta:8": {
+    "checkpoint_key": "beta:8",
+    "website": "https://www.altera.nl/",
+    "tab": "beta",
+    "row": 8,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:13:29.605472"
+  },
+  "beta:7": {
+    "checkpoint_key": "beta:7",
+    "website": "http://www.propertynl.com/",
+    "tab": "beta",
+    "row": 7,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:13:35.516114"
+  },
+  "beta:11": {
+    "checkpoint_key": "beta:11",
+    "website": "https://www.amcventuresholding.nl/contact/",
+    "tab": "beta",
+    "row": 11,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:13:42.523984"
+  },
+  "beta:9": {
+    "checkpoint_key": "beta:9",
+    "website": "https://altix.nl/",
+    "tab": "beta",
+    "row": 9,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:13:50.831766"
+  },
+  "beta:12": {
+    "checkpoint_key": "beta:12",
+    "website": "https://broadstreet.nl/?utm_source=Google%20my%20busines&utm_medium=organic&utm_campaign=GMB",
+    "tab": "beta",
+    "row": 12,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:13:59.965011"
+  },
+  "beta:10": {
+    "checkpoint_key": "beta:10",
+    "website": "http://www.hollandcapital.nl/",
+    "tab": "beta",
+    "row": 10,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:14:10.242097"
+  },
+  "beta:13": {
+    "checkpoint_key": "beta:13",
+    "website": "https://www.etpa.nl/",
+    "tab": "beta",
+    "row": 13,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:14:30.368676"
+  },
+  "beta:15": {
+    "checkpoint_key": "beta:15",
+    "website": "http://www.bpao.nl/",
+    "tab": "beta",
+    "row": 15,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:14:57.950922"
+  },
+  "beta:14": {
+    "checkpoint_key": "beta:14",
+    "website": "http://www.aesinternational.eu/",
+    "tab": "beta",
+    "row": 14,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:15:23.174208"
+  },
+  "beta:16": {
+    "checkpoint_key": "beta:16",
+    "website": "https://www.wordans.nl/",
+    "tab": "beta",
+    "row": 16,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:15:44.002485"
+  },
+  "beta:18": {
+    "checkpoint_key": "beta:18",
+    "website": "http://www.npex.nl/",
+    "tab": "beta",
+    "row": 18,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:16:01.023010"
+  },
+  "beta:19": {
+    "checkpoint_key": "beta:19",
+    "website": "http://www.xotels.com/",
+    "tab": "beta",
+    "row": 19,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:16:08.619818"
+  },
+  "beta:21": {
+    "checkpoint_key": "beta:21",
+    "website": "https://www.nxchange.com/",
+    "tab": "beta",
+    "row": 21,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:16:17.403469"
+  },
+  "beta:20": {
+    "checkpoint_key": "beta:20",
+    "website": "http://youngfinancials.nl/",
+    "tab": "beta",
+    "row": 20,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:16:32.017542"
+  },
+  "beta:17": {
+    "checkpoint_key": "beta:17",
+    "website": "http://www.vbadvisory.nl/",
+    "tab": "beta",
+    "row": 17,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:16:53.102288"
+  },
+  "beta:23": {
+    "checkpoint_key": "beta:23",
+    "website": "http://www.priogen.com/",
+    "tab": "beta",
+    "row": 23,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:17:00.813263"
+  },
+  "beta:22": {
+    "checkpoint_key": "beta:22",
+    "website": "http://www.eggerding.com/",
+    "tab": "beta",
+    "row": 22,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:17:24.984921"
+  },
+  "beta:26": {
+    "checkpoint_key": "beta:26",
+    "website": "http://www.activecapitalcompany.com/",
+    "tab": "beta",
+    "row": 26,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:17:40.129860"
+  },
+  "beta:24": {
+    "checkpoint_key": "beta:24",
+    "website": "https://delta-equitypartners.com/",
+    "tab": "beta",
+    "row": 24,
+    "scrape": "ok",
+    "write": "failed",
+    "marked": "skipped",
+    "timestamp": "2026-03-23T02:17:49.601928"
+  },
+  "beta:25": {
+    "checkpoint_key": "beta:25",
+    "website": "https://aromaclub.nl/",
+    "tab": "beta",
+    "row": 25,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:19:35.766459"
+  },
+  "http://www.poundwise.nl": {
+    "checkpoint_key": "http://www.poundwise.nl",
+    "website": "http://www.poundwise.nl/",
+    "tab": "",
+    "row": "",
+    "scrape": "error",
+    "write": "skipped",
+    "marked": "error",
+    "timestamp": "2026-03-23T02:20:49.603886"
+  },
+  "https://www.brookz.nl/?utm_source=google&utm_medium=organic&utm_campaign=gmb-listing": {
+    "checkpoint_key": "https://www.brookz.nl/?utm_source=google&utm_medium=organic&utm_campaign=gmb-listing",
+    "website": "https://www.brookz.nl/?utm_source=google&utm_medium=organic&utm_campaign=gmb-listing",
+    "tab": "",
+    "row": "",
+    "scrape": "error",
+    "write": "skipped",
+    "marked": "error",
+    "timestamp": "2026-03-23T02:20:49.604637"
+  },
+  "http://www.chestnut.nl": {
+    "checkpoint_key": "http://www.chestnut.nl",
+    "website": "http://www.chestnut.nl/",
+    "tab": "",
+    "row": "",
+    "scrape": "error",
+    "write": "skipped",
+    "marked": "error",
+    "timestamp": "2026-03-23T02:20:49.605259"
+  },
+  "beta:32": {
+    "checkpoint_key": "beta:32",
+    "website": "https://www.uvaventures.nl/onderneming/ace-incubator-bv/",
+    "tab": "beta",
+    "row": 32,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:20:59.169870"
+  },
+  "beta:30": {
+    "checkpoint_key": "beta:30",
+    "website": "http://www.startgreen.nl/",
+    "tab": "beta",
+    "row": 30,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:21:13.442201"
+  },
+  "beta:33": {
+    "checkpoint_key": "beta:33",
+    "website": "https://www.apf-international.nl/",
+    "tab": "beta",
+    "row": 33,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:21:21.559866"
+  },
+  "beta:31": {
+    "checkpoint_key": "beta:31",
+    "website": "https://www.vangoolelburg.com/",
+    "tab": "beta",
+    "row": 31,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:21:28.330459"
+  },
+  "beta:53": {
+    "checkpoint_key": "beta:53",
+    "website": "http://www.momentum.ventures/",
+    "tab": "beta",
+    "row": 53,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:21:35.856541"
+  },
+  "beta:54": {
+    "checkpoint_key": "beta:54",
+    "website": "https://www.common-fund.org/",
+    "tab": "beta",
+    "row": 54,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:21:47.649591"
+  },
+  "beta:55": {
+    "checkpoint_key": "beta:55",
+    "website": "http://waterland.co.nl/",
+    "tab": "beta",
+    "row": 55,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:21:56.538165"
+  },
+  "beta:58": {
+    "checkpoint_key": "beta:58",
+    "website": "http://www.thefamily.nl/",
+    "tab": "beta",
+    "row": 58,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:22:20.988742"
+  },
+  "beta:57": {
+    "checkpoint_key": "beta:57",
+    "website": "http://www.standard.nl/",
+    "tab": "beta",
+    "row": 57,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:22:28.188142"
+  },
+  "beta:59": {
+    "checkpoint_key": "beta:59",
+    "website": "http://stadiumcapitalpartners.nl/",
+    "tab": "beta",
+    "row": 59,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:22:46.413680"
+  },
+  "beta:60": {
+    "checkpoint_key": "beta:60",
+    "website": "http://endeit.com/",
+    "tab": "beta",
+    "row": 60,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:22:54.963237"
+  },
+  "beta:56": {
+    "checkpoint_key": "beta:56",
+    "website": "http://www.socfin.nl/",
+    "tab": "beta",
+    "row": 56,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:23:01.553392"
+  },
+  "beta:61": {
+    "checkpoint_key": "beta:61",
+    "website": "http://www.pridecapital.nl/",
+    "tab": "beta",
+    "row": 61,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:23:07.950802"
+  },
+  "beta:62": {
+    "checkpoint_key": "beta:62",
+    "website": "https://stecc.com/",
+    "tab": "beta",
+    "row": 62,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:23:13.196048"
+  },
+  "beta:65": {
+    "checkpoint_key": "beta:65",
+    "website": "http://www.troviq.com/",
+    "tab": "beta",
+    "row": 65,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:23:19.012966"
+  },
+  "beta:63": {
+    "checkpoint_key": "beta:63",
+    "website": "https://www.curiosityvc.com/",
+    "tab": "beta",
+    "row": 63,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:23:27.979332"
+  },
+  "beta:64": {
+    "checkpoint_key": "beta:64",
+    "website": "http://www.goodwell.nl/",
+    "tab": "beta",
+    "row": 64,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:23:34.046678"
+  },
+  "beta:66": {
+    "checkpoint_key": "beta:66",
+    "website": "http://www.thetacapital.com/",
+    "tab": "beta",
+    "row": 66,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:23:39.313455"
+  },
+  "beta:67": {
+    "checkpoint_key": "beta:67",
+    "website": "http://www.ohv.nl/",
+    "tab": "beta",
+    "row": 67,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:23:46.070262"
+  },
+  "beta:69": {
+    "checkpoint_key": "beta:69",
+    "website": "https://rivervp.com/",
+    "tab": "beta",
+    "row": 69,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:23:52.453062"
+  },
+  "beta:68": {
+    "checkpoint_key": "beta:68",
+    "website": "http://www.forward.one/",
+    "tab": "beta",
+    "row": 68,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:23:57.421819"
+  },
+  "beta:70": {
+    "checkpoint_key": "beta:70",
+    "website": "http://www.anterracapital.com/",
+    "tab": "beta",
+    "row": 70,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-23T02:24:04.226085"
+  }
+}

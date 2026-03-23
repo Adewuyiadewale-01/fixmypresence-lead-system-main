@@ -9,6 +9,11 @@ from common.config import WEBHOOK_URL, WEBHOOK_SECRET, SOURCE_WEBHOOK_URL, OUTPU
 
 logger = logging.getLogger(__name__)
 
+
+def _webhook_response_is_success(text: str) -> bool:
+    lower = (text or "").strip().lower()
+    return any(token in lower for token in ["ok", "success", "added", "duplicate", "updated", "processed"])
+
 class GoogleClient:
     """
     Unified client for interacting with the Google Apps Script Webhook.
@@ -28,15 +33,11 @@ class GoogleClient:
                 resp = client.post(webhook_url, headers={"Content-Type": "application/json"}, json=payload)
                 resp.raise_for_status()
                 text = resp.text.strip()
-                
-                if text.lower() not in ("ok", "duplicate", "success", "added"):
-                    # Apps script might return "Success", "Added", or "ok: ..." depending on endpoint logic
-                    # We accept these as positive.
-                     if any(x in text.lower() for x in ["success", "added", "ok"]):
-                         return True
-                     logger.warning(f"Google Script Response: {text}")
-                     return False
-                return True
+
+                if _webhook_response_is_success(text):
+                    return True
+                logger.warning(f"Google Script Response: {text}")
+                return False
         except Exception as e:
             logger.error(f"Google Sync Post Failed: {e}")
             return False
@@ -58,7 +59,7 @@ class GoogleClient:
             async with session.post(webhook_url, json=payload, ssl=ssl_context) as response:
                 if response.status == 200:
                     text = await response.text()
-                    if any(x in text.lower() for x in ["success", "added", "ok", "duplicate"]):
+                    if _webhook_response_is_success(text):
                         logger.info(f"✅ Google Doc Updated: {text}")
                         return True
                     else:
@@ -94,7 +95,7 @@ class GoogleClient:
 
     @staticmethod
     async def fetch_source_urls(session: aiohttp.ClientSession) -> List[dict]:
-        """Fetch unprocessed URLs from Alpha/Beta/Gamma tabs via source webhook."""
+        """Fetch unprocessed URLs from alpha/beta/gamma tabs via source webhook."""
         try:
             ssl_context = ssl.create_default_context()
             ssl_context.check_hostname = False
@@ -129,7 +130,11 @@ class GoogleClient:
 
             async with session.post(SOURCE_WEBHOOK_URL, json=payload, ssl=ssl_context) as response:
                 if response.status == 200:
-                    return True
+                    text = await response.text()
+                    if _webhook_response_is_success(text):
+                        return True
+                    logger.warning(f"Source mark response warning: {text}")
+                    return False
                 logger.error(f"Failed to mark source processed: {response.status}")
                 return False
         except Exception as e:
@@ -151,7 +156,7 @@ class GoogleClient:
             async with session.post(OUTPUT_WEBHOOK_URL, json=payload, ssl=ssl_context) as response:
                 if response.status == 200:
                     text = await response.text()
-                    if any(x in text.lower() for x in ["ok", "success"]):
+                    if _webhook_response_is_success(text):
                         logger.info(f"Output sheet updated: {text}")
                         return True
                     logger.warning(f"Output sheet response: {text}")

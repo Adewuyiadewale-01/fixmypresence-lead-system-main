@@ -7,7 +7,7 @@ WEBHOOK_SECRET = "FMP-Scraper"
 WEBHOOK_SPREADSHEET_ID = "1KrKoeun-h6eEzSK6-cc4_MUHriuabg8GyAR9b8NR7fc"
 WEBHOOK_TAB_NAME = "Leads"
 
-# Source sheet webhook (Alpha/Beta/Gamma tabs)
+# Source sheet webhook (alpha/beta/gamma tabs)
 # Deploy source_apps_script.js on sheet 1YF8WvLTPu... and paste the URL here.
 # Handles: GET (fetch URLs), POST action=mark_processed (update Scrape Status)
 SOURCE_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwFHK6yToabfEPucGMVtGKtqwEIG0lWokrZLDn-J23aUahGq0-_sn5xo5rgw15AEHH79g/exec"

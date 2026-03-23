@@ -1,5 +1,7 @@
+import json
 import os
 import sys
+import tempfile
 import unittest
 
 from bs4 import BeautifulSoup
@@ -11,6 +13,10 @@ from enricher.scraper_v3 import (
     COMMON_INTERNAL,
     LinkedInFinder,
     PersonExtractor,
+    _recovery_filter_urls,
+    _checkpoint_key,
+    _checkpoint_resume_action,
+    _load_checkpoint_state,
     _is_people_page_url,
     _playwright_result_is_sparse,
     _same_brand_homepage_redirect,
@@ -426,6 +432,28 @@ class TestPersonExtractorV3(unittest.TestCase):
         ordered = sorted([weak, strong], key=finder._artifact_priority_key, reverse=True)
         self.assertEqual(ordered[0].url, "https://example.com/people")
 
+    def test_merge_page_artifact_prefers_richer_soup_for_same_url(self):
+        finder = LinkedInFinder()
+        artifacts = {}
+        weak = finder._make_page_artifact(
+            "https://example.com/team",
+            BeautifulSoup(HEURISTIC_ONLY_PAGE, "html.parser"),
+            set(),
+            set(),
+        )
+        strong = finder._make_page_artifact(
+            "https://example.com/team",
+            BeautifulSoup(SIGNAL_RICH_PAGE, "html.parser"),
+            {"https://linkedin.com/in/alice-smith"},
+            {"alice@company.nl"},
+        )
+        finder._merge_page_artifact(artifacts, weak)
+        finder._merge_page_artifact(artifacts, strong)
+        merged = artifacts["https://example.com/team"]
+        self.assertIn("alice@company.nl", merged.soup.get_text(" ", strip=True))
+        self.assertEqual(merged.personal_email_count, 1)
+        self.assertEqual(merged.personal_linkedin_count, 1)
+
     def test_contactless_uniform_grid_is_promoted(self):
         persons = self._extract(CONTACTLESS_UNIFORM_GRID)
         names = {p["name"] for p in persons}
@@ -460,6 +488,23 @@ class TestPersonExtractorV3(unittest.TestCase):
         self.assertTrue(_is_people_page_url("https://example.com/about/management"))
         self.assertFalse(_is_people_page_url("https://example.com/privacy-policy"))
 
+    def test_recovery_filter_urls_keeps_only_people_pages(self):
+        urls = [
+            "https://example.com/team",
+            "https://example.com/about",
+            "https://example.com/privacy-policy",
+            "https://example.com/blog/post",
+            "https://example.com/contact",
+        ]
+        self.assertEqual(
+            _recovery_filter_urls(urls),
+            [
+                "https://example.com/team",
+                "https://example.com/about",
+                "https://example.com/contact",
+            ],
+        )
+
     def test_common_internal_includes_our_team(self):
         self.assertIn("/our-team", COMMON_INTERNAL)
 
@@ -479,6 +524,46 @@ class TestPersonExtractorV3(unittest.TestCase):
             "linkedin": set(),
             "emails": set(),
         }))
+
+    def test_checkpoint_key_prefers_tab_and_row(self):
+        self.assertEqual(
+            _checkpoint_key({"tab": "beta", "row": 12, "url": "https://example.com"}),
+            "beta:12",
+        )
+        self.assertEqual(
+            _checkpoint_key({"input_website": "https://example.com/"}),
+            "https://example.com",
+        )
+
+    def test_checkpoint_resume_action_marks_written_rows_without_rescrape(self):
+        state = {
+            "beta:12": {
+                "checkpoint_key": "beta:12",
+                "write": "ok",
+                "marked": "mark_failed",
+            }
+        }
+        self.assertEqual(
+            _checkpoint_resume_action({"tab": "beta", "row": 12, "url": "https://example.com"}, state),
+            "mark_only",
+        )
+        self.assertEqual(
+            _checkpoint_resume_action({"tab": "beta", "row": 13, "url": "https://example.com/other"}, state),
+            "process",
+        )
+
+    def test_load_checkpoint_state_supports_legacy_list_format(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "checkpoint.json")
+            with open(path, "w") as f:
+                json.dump([
+                    {"tab": "beta", "row": 4, "website": "https://example.com", "write": "ok"},
+                    {"website": "https://example.org/", "write": "failed"},
+                ], f)
+            state = _load_checkpoint_state(path)
+            self.assertIn("beta:4", state)
+            self.assertIn("https://example.org", state)
+            self.assertEqual(state["beta:4"]["write"], "ok")
 
 
 if __name__ == "__main__":
