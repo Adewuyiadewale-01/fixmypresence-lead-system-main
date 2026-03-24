@@ -33,6 +33,8 @@ CONCURRENT_SITES = 3       # Sites processed simultaneously
 PLAYWRIGHT_LIMIT = 6       # Max high-value pages getting full Playwright treatment
 SUBPAGE_LIMIT = 40          # Max subpages to check after scoring
 LEVEL2_LIMIT = 30           # Max level-2 links per high-value page
+EVIDENCE_PROBE_LIMIT = 50   # Max ranked candidates receiving cheap static evidence probe
+EVIDENCE_PROBE_CONCURRENCY = 6  # Concurrent static evidence probes
 PW_CONCURRENCY = 3          # Concurrent Playwright contexts for high-value pages
 XHR_MAX_BODY_SIZE = 500_000 # 500KB cap on XHR response body inspection
 XHR_TIMEOUT = 2.0           # Max seconds to spend parsing XHR responses
@@ -51,6 +53,12 @@ OUTPUT_WRITE_CHUNK_SIZE = 3         # Companies per output webhook call
 # ─── Retry policy ─────────────────────────────────────────────────────────────
 TRANSIENT_RETRY_MAX = 3             # Max retries for transient webhook/network failures
 TRANSIENT_RETRY_BASE_DELAY = 1.0    # Base delay (seconds) for exponential backoff
+
+# ─── SPA bundle scanning ──────────────────────────────────────────────────────
+BUNDLE_SCAN_SCRIPT_LIMIT = 6         # Max same-origin JS bundles scanned from a page
+BUNDLE_SCAN_MAX_BYTES = 2_000_000    # Max bytes read per JS bundle
+BUNDLE_SCAN_TIMEOUT = 8              # Per-bundle timeout in seconds
+SPA_SHELL_TEXT_THRESHOLD = 200       # Thin-body threshold suggesting JS shell
 
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -237,17 +245,20 @@ AUTH_FAMILY_PRIORITY = (
 
 
 # ─── Block / CAPTCHA detection patterns ───────────────────────────────────────
-BLOCK_PAGE_SIGNATURES = [
+HARD_BLOCK_PAGE_SIGNATURES = [
     "access denied", "access blocked", "403 forbidden",
     "you have been blocked", "you are blocked",
     "please verify you are a human", "verify you are human",
-    "captcha", "recaptcha", "hcaptcha",
-    "cloudflare", "checking your browser",
+    "checking your browser",
     "just a moment", "attention required",
     "ddos protection by", "protection by cloudflare",
     "sucuri website firewall",
     "bot detection", "automated access",
     "too many requests", "rate limit",
+]
+
+SOFT_BLOCK_PAGE_SIGNATURES = [
+    "captcha", "recaptcha", "hcaptcha", "cloudflare",
 ]
 
 
@@ -258,12 +269,22 @@ def _is_block_page(text: str, status_code: int = 200) -> bool:
     if not text:
         return False
     lower = text[:3000].lower()
-    matches = sum(1 for sig in BLOCK_PAGE_SIGNATURES if sig in lower)
-    if matches >= 2:
+    hard_matches = sum(1 for sig in HARD_BLOCK_PAGE_SIGNATURES if sig in lower)
+    soft_matches = sum(1 for sig in SOFT_BLOCK_PAGE_SIGNATURES if sig in lower)
+    if hard_matches >= 1:
         return True
-    if status_code != 200 and matches >= 1:
+    if status_code >= 400 and status_code != 404 and soft_matches >= 2:
         return True
     return False
+
+
+def _extract_visible_text_from_html(text: str) -> str:
+    if not text:
+        return ""
+    soup = BeautifulSoup(text, "html.parser")
+    for node in soup.find_all(["script", "style", "noscript"]):
+        node.decompose()
+    return soup.get_text(" ", strip=True)
 
 
 class DomainPacer:
@@ -561,6 +582,48 @@ def _page_people_evidence(soup: BeautifulSoup, url: str, classification: Optiona
         "localized_profile_cluster": localized_profile_cluster,
         "has_person_jsonld": 1 if has_person_jsonld else 0,
     }
+
+
+def _artifact_has_promotable_people_evidence(artifact: Optional["PageArtifact"]) -> bool:
+    if not artifact:
+        return False
+    if artifact.personal_linkedin_count + artifact.personal_email_count >= 1:
+        return True
+    return artifact.profile_link_count >= 3 or artifact.signal_priority >= 10
+
+
+def _promote_ranked_candidates(
+    ranked_urls: List[str],
+    pool: "CandidatePool",
+    evidence_artifacts: Dict[str, Optional["PageArtifact"]],
+    limit: int,
+) -> List[str]:
+    """Promote already-ranked candidates when cheap static probing finds stronger people evidence."""
+    original_index = {url: idx for idx, url in enumerate(ranked_urls)}
+
+    def sort_key(url: str) -> Tuple[int, int, int, int, int, int]:
+        artifact = evidence_artifacts.get(url)
+        if artifact:
+            personal_signal_count = artifact.personal_linkedin_count + artifact.personal_email_count
+            profile_cluster = artifact.profile_link_count
+            signal_priority = artifact.signal_priority
+            promotable = 1 if _artifact_has_promotable_people_evidence(artifact) else 0
+        else:
+            personal_signal_count = 0
+            profile_cluster = 0
+            signal_priority = 0
+            promotable = 0
+        return (
+            promotable,
+            personal_signal_count,
+            profile_cluster,
+            signal_priority,
+            pool.get_score(url),
+            -original_index[url],
+        )
+
+    promoted = sorted(ranked_urls, key=sort_key, reverse=True)
+    return promoted[:limit]
 
 
 # ─── PathCandidate: multi-signal evidence accumulator ─────────────────────────
@@ -1599,6 +1662,95 @@ class LinkedInFinder:
             logger.info(f"Framework globals: discovered {len(routes)} routes")
         return routes or []
 
+    @staticmethod
+    def _looks_like_spa_shell(soup: Optional[BeautifulSoup], text: str) -> bool:
+        if not soup:
+            return False
+        body_text = soup.get_text(" ", strip=True)
+        has_root = bool(
+            soup.find(id=re.compile(r"^(root|__next|__nuxt|app)$", re.I))
+            or soup.find(attrs={"data-reactroot": True})
+        )
+        has_bundle_script = any(
+            (script.get("src") or "").lower().endswith(".js")
+            for script in soup.find_all("script", src=True)
+        )
+        return has_bundle_script and (has_root or len(body_text or text or "") <= SPA_SHELL_TEXT_THRESHOLD)
+
+    @staticmethod
+    def _extract_same_origin_bundle_urls(soup: Optional[BeautifulSoup], page_url: str) -> List[str]:
+        if not soup:
+            return []
+        page_domain = _normalize_domain(urllib.parse.urlparse(page_url).netloc)
+        bundle_urls = []
+        for script in soup.find_all("script", src=True):
+            src = (script.get("src") or "").strip()
+            if not src:
+                continue
+            full = urllib.parse.urljoin(page_url, src)
+            parsed = urllib.parse.urlparse(full)
+            if not parsed.path.lower().endswith(".js"):
+                continue
+            if not _same_site_family(_normalize_domain(parsed.netloc), page_domain):
+                continue
+            bundle_urls.append(full)
+        return dedupe_keep_order(bundle_urls)[:BUNDLE_SCAN_SCRIPT_LIMIT]
+
+    @staticmethod
+    def _extract_bundle_route_hints(bundle_text: str, base_url: str) -> List[str]:
+        if not bundle_text:
+            return []
+        seen = []
+        for match in re.findall(r'["\'](\/[A-Za-z0-9%\-_.\/]{2,120})["\']', bundle_text):
+            lowered = match.lower()
+            if any(lowered.endswith(ext) for ext in (
+                ".js", ".css", ".png", ".jpg", ".jpeg", ".svg", ".woff", ".woff2", ".gif", ".pdf", ".json"
+            )):
+                continue
+            if len(_url_segments(match)) > 5:
+                continue
+            full = urllib.parse.urljoin(base_url, match)
+            if _is_people_page_url(full) or any(
+                keyword in lowered for keyword in (INTERNAL_LINK_KEYWORDS + ["our-story", "meet-the-team", "who-we-are"])
+            ):
+                seen.append(full)
+        return dedupe_keep_order(seen)
+
+    async def _scan_spa_bundles(
+        self, session: aiohttp.ClientSession, page_url: str, soup: Optional[BeautifulSoup], text: str
+    ) -> Tuple[Set[str], Set[str], List[str]]:
+        """Scan same-origin JS bundles for LinkedIn/email signals on SPA shell pages."""
+        if not self._looks_like_spa_shell(soup, text):
+            return set(), set(), []
+        bundle_urls = self._extract_same_origin_bundle_urls(soup, page_url)
+        if not bundle_urls:
+            return set(), set(), []
+
+        logger.info(f"SPA bundle scan: probing {len(bundle_urls)} scripts from {page_url}")
+        found: Set[str] = set()
+        emails: Set[str] = set()
+        route_hints: List[str] = []
+
+        for bundle_url in bundle_urls:
+            try:
+                async with session.get(
+                    bundle_url,
+                    headers={"User-Agent": USER_AGENT},
+                    timeout=aiohttp.ClientTimeout(total=BUNDLE_SCAN_TIMEOUT),
+                    ssl=self._ssl_ctx,
+                ) as response:
+                    if response.status != 200:
+                        continue
+                    body = await response.text()
+                    body = body[:BUNDLE_SCAN_MAX_BYTES]
+                    found.update(self._extract_from_text(body))
+                    emails.update(self._extract_emails_from_text(body))
+                    route_hints.extend(self._extract_bundle_route_hints(body, page_url))
+            except Exception:
+                continue
+
+        return found, emails, dedupe_keep_order(route_hints)
+
     # ─── Phase 1: XHR/response interception ───────────────────────────────────
 
     def _setup_xhr_interception(self, page, base_domain: str) -> Dict:
@@ -1691,10 +1843,10 @@ class LinkedInFinder:
 
     async def _fetch_static_with_artifact(
         self, session: aiohttp.ClientSession, url: str
-    ) -> Tuple[Set[str], Set[str], Optional[PageArtifact]]:
-        """Fetch a page statically. Returns (linkedin_urls, emails, page_artifact)."""
+    ) -> Tuple[Set[str], Set[str], Optional[PageArtifact], List[str]]:
+        """Fetch a page statically. Returns (linkedin_urls, emails, page_artifact, bundle_routes)."""
         if await self.pacer.should_skip(url):
-            return set(), set(), None
+            return set(), set(), None, []
         await self.pacer.pace(url)
         try:
             async with session.get(
@@ -1708,26 +1860,30 @@ class LinkedInFinder:
                 if _is_block_page(text, status):
                     logger.warning(f"Block page detected (static) for {url} [HTTP {status}]")
                     await self.pacer.record_failure(url, is_block=True)
-                    return set(), set(), None
+                    return set(), set(), None, []
                 if status != 200:
                     await self.pacer.record_failure(url)
-                    return set(), set(), None
+                    return set(), set(), None, []
                 soup = BeautifulSoup(text, 'html.parser')
                 final_url = str(response.url)
                 found = self._extract_from_soup(soup, final_url)
                 found.update(self._extract_from_text(text))
                 emails = self._extract_emails_from_text(text)
+                bundle_routes: List[str] = []
+                bundle_found, bundle_emails, bundle_routes = await self._scan_spa_bundles(session, final_url, soup, text)
+                found.update(bundle_found)
+                emails.update(bundle_emails)
                 artifact = self._make_page_artifact(final_url, soup, found, emails)
                 await self.pacer.record_success(url)
-                return found, emails, artifact
+                return found, emails, artifact, bundle_routes
         except Exception as e:
             logger.warning(f"Static fetch failed for {url}: {e}")
             await self.pacer.record_failure(url)
-            return set(), set(), None
+            return set(), set(), None, []
 
     async def _fetch_static(self, session: aiohttp.ClientSession, url: str) -> Tuple[Set[str], Set[str]]:
         """Fetch a page statically. Returns (linkedin_urls, emails)."""
-        found, emails, _ = await self._fetch_static_with_artifact(session, url)
+        found, emails, _, _ = await self._fetch_static_with_artifact(session, url)
         return found, emails
 
     # ─── Phase 3.9: Adaptive wait ───────────────────────────────────────────────
@@ -1830,8 +1986,8 @@ class LinkedInFinder:
                 await self._wait_until_ready(page)
                 # Check for block page via HTTP status
                 if resp and resp.status in (403, 429, 503):
-                    body = await page.content() if page else ""
-                    if _is_block_page(body, resp.status):
+                    body_text = await page.evaluate("() => (document.body && document.body.innerText) || ''") if page else ""
+                    if _is_block_page(body_text, resp.status):
                         logger.warning(f"Block page detected (Playwright) for {url} [HTTP {resp.status}]")
                         await self.pacer.record_failure(url, is_block=True)
                         return {**_empty, "blocked": True, "timed_out": False}
@@ -1911,6 +2067,10 @@ class LinkedInFinder:
             except Exception as e:
                 logger.warning(f"Content extraction failed for {url}: {e}")
                 content = ""
+            try:
+                visible_text = await page.evaluate("() => (document.body && document.body.innerText) || ''")
+            except Exception:
+                visible_text = _extract_visible_text_from_html(content)
 
             if content:
                 found.update(self._extract_from_text(content))
@@ -1935,7 +2095,7 @@ class LinkedInFinder:
             internal_links = dedupe_keep_order(internal_links_ordered)
             if content:
                 # Check rendered content for block page signatures
-                if _is_block_page(content, 200):
+                if _is_block_page(visible_text, 200):
                     logger.warning(f"Block page detected in rendered content for {url}")
                     await self.pacer.record_failure(url, is_block=True)
                     return {**_empty, "blocked": True, "timed_out": timed_out}
@@ -2002,23 +2162,12 @@ class LinkedInFinder:
         async def _homepage_static(target_url: str):
             try:
                 async with aiohttp.ClientSession() as tmp_session:
-                    async with tmp_session.get(
-                        target_url,
-                        headers={"User-Agent": USER_AGENT},
-                        timeout=aiohttp.ClientTimeout(total=15),
-                        ssl=self._ssl_ctx
-                    ) as resp:
-                        if resp.status == 200:
-                            text = await resp.text()
-                            soup = BeautifulSoup(text, 'html.parser')
-                            li = self._extract_from_soup(soup, str(resp.url))
-                            li.update(self._extract_from_text(text))
-                            emails = self._extract_emails_from_text(text)
-                            artifact = self._make_page_artifact(str(resp.url), soup, li, emails)
-                            return li, emails, soup, artifact
+                    li, emails, artifact, bundle_routes = await self._fetch_static_with_artifact(tmp_session, target_url)
+                    if artifact:
+                        return li, emails, artifact.soup, artifact, bundle_routes
             except Exception:
                 pass
-            return set(), set(), None, None
+            return set(), set(), None, None, []
 
         async def _homepage_sitemap(target_url: str):
             try:
@@ -2044,10 +2193,17 @@ class LinkedInFinder:
         pw_result = {"linkedin": set(), "emails": set(), "internal_links": [], "framework_routes": [], "xhr_paths": [], "soup": None, "final_url": start_url}
         static_result = (set(), set(), None, None)
         sitemap_urls = []
+        static_bundle_routes: List[str] = []
 
         for idx, target_url in enumerate(homepage_targets):
             bundle_pw_result, bundle_static_result, bundle_sitemap_urls = await _run_homepage_bundle(target_url)
-            bundle_static_linkedin, bundle_static_emails, bundle_homepage_soup, bundle_homepage_artifact = bundle_static_result
+            (
+                bundle_static_linkedin,
+                bundle_static_emails,
+                bundle_homepage_soup,
+                bundle_homepage_artifact,
+                bundle_static_bundle_routes,
+            ) = bundle_static_result
             bundle_viable = (
                 not _playwright_result_is_sparse(bundle_pw_result)
                 or bundle_homepage_artifact is not None
@@ -2062,6 +2218,7 @@ class LinkedInFinder:
                 static_emails = bundle_static_emails
                 homepage_soup = bundle_homepage_soup
                 homepage_static_artifact = bundle_homepage_artifact
+                static_bundle_routes = bundle_static_bundle_routes
                 break
 
         start_url = selected_start_url
@@ -2087,7 +2244,7 @@ class LinkedInFinder:
         all_found.update(pw_result["linkedin"])
         all_emails.update(pw_result["emails"])
         discovered_internal_links = pw_result["internal_links"]
-        framework_routes = pw_result["framework_routes"]
+        framework_routes = dedupe_keep_order(pw_result["framework_routes"] + static_bundle_routes)
         xhr_paths = pw_result["xhr_paths"]
         self._merge_page_artifact(
             page_artifacts,
@@ -2131,7 +2288,33 @@ class LinkedInFinder:
         effective_l2_limit = LEVEL2_LIMIT // 2 if reduce_expansion else LEVEL2_LIMIT
         if reduce_expansion:
             logger.info(f"  Reduced expansion for {start_url}: subpage={effective_subpage_limit}, L2={effective_l2_limit}")
-        final_list = pool.ranked(effective_subpage_limit)
+        coarse_ranked = pool.ranked(max(effective_subpage_limit, EVIDENCE_PROBE_LIMIT))
+        evidence_probe_urls = coarse_ranked[:EVIDENCE_PROBE_LIMIT]
+        evidence_cache: Dict[str, Tuple[Set[str], Set[str], Optional[PageArtifact], List[str]]] = {}
+        evidence_artifacts: Dict[str, Optional[PageArtifact]] = {}
+
+        probe_semaphore = asyncio.Semaphore(EVIDENCE_PROBE_CONCURRENCY)
+
+        async def _probe_candidate(session, candidate_url):
+            async with probe_semaphore:
+                return await self._fetch_static_with_artifact(session, candidate_url)
+
+        async with aiohttp.ClientSession() as probe_session:
+            probe_results = await asyncio.gather(
+                *[_probe_candidate(probe_session, candidate_url) for candidate_url in evidence_probe_urls]
+            )
+        for candidate_url, probe_result in zip(evidence_probe_urls, probe_results):
+            evidence_cache[candidate_url] = probe_result
+            evidence_artifacts[candidate_url] = probe_result[2]
+
+        promoted_probe_urls = _promote_ranked_candidates(
+            evidence_probe_urls,
+            pool,
+            evidence_artifacts,
+            len(evidence_probe_urls),
+        )
+        final_ranked = promoted_probe_urls + [url for url in coarse_ranked if url not in promoted_probe_urls]
+        final_list = final_ranked[:effective_subpage_limit]
 
         logger.info(f"Top {len(final_list)} subpages selected for crawling")
         for u in final_list[:5]:
@@ -2149,6 +2332,9 @@ class LinkedInFinder:
 
         async def _bounded_static(session, url):
             async with static_semaphore:
+                cached = evidence_cache.get(url)
+                if cached is not None:
+                    return cached[0], cached[1]
                 return await self._fetch_static(session, url)
 
         async def _process_high_value(session, page_url, allow_level2=True):
@@ -2156,9 +2342,12 @@ class LinkedInFinder:
             async with pw_semaphore:
                 logger.info(f"  -> Full check (Playwright + static): {page_url}")
 
+                cached_static_res = evidence_cache.get(page_url)
                 pw_res, static_res = await asyncio.gather(
                     self._process_playwright(page_url),
-                    self._fetch_static_with_artifact(session, page_url)
+                    asyncio.sleep(0, result=cached_static_res)
+                    if cached_static_res is not None
+                    else self._fetch_static_with_artifact(session, page_url)
                 )
 
                 if _is_people_page_url(page_url) and _playwright_result_is_sparse(pw_res):
@@ -2168,7 +2357,7 @@ class LinkedInFinder:
                         pw_res = retry_res
 
                 new_links = pw_res["internal_links"]
-                st_li, st_em, st_artifact = static_res
+                st_li, st_em, st_artifact, _ = static_res
 
                 artifact_linkedin = pw_res["linkedin"] | st_li
                 artifact_emails = pw_res["emails"] | st_em
@@ -3941,12 +4130,20 @@ async def main_from_sheet(batch_size: int = 50, dry_run: bool = False):
     start_time = time.time()
     logger.info("Fetching URLs from source sheet (alpha/beta/gamma)...")
 
-    output_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    output_dir = os.path.join(base_dir, "outputs")
+    checkpoint_dir = os.path.join(output_dir, "checkpoints")
+    results_dir = os.path.join(output_dir, "results")
+    summary_dir = os.path.join(output_dir, "summaries")
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    os.makedirs(results_dir, exist_ok=True)
+    os.makedirs(summary_dir, exist_ok=True)
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    checkpoint_path = os.path.join(output_dir, "checkpoint_latest.json")
-    checkpoint_archive_path = os.path.join(output_dir, f"checkpoint_{run_id}.json")
-    summary_path = os.path.join(output_dir, f"run_summary_{run_id}.json")
-    lock_path = os.path.join(output_dir, ".scraper_run.lock")
+    checkpoint_path = os.path.join(checkpoint_dir, "checkpoint_latest.json")
+    checkpoint_archive_path = os.path.join(checkpoint_dir, f"checkpoint_{run_id}.json")
+    summary_path = os.path.join(summary_dir, f"run_summary_{run_id}.json")
+    lock_path = os.path.join(base_dir, ".scraper_run.lock")
 
     # ── Run lock: refuse to start if another run is active ──
     run_lock = RunLock(lock_path, run_id)
@@ -4214,7 +4411,7 @@ async def main_from_sheet(batch_size: int = 50, dry_run: bool = False):
             await _flush_write_buffer()
 
             # ── Save full scrape results as before ──
-            output_path = os.path.join(output_dir, "linkedin_results.json")
+            output_path = os.path.join(results_dir, "linkedin_results.json")
             with open(output_path, "w") as f:
                 json.dump(all_results, f, indent=2, default=str)
 
@@ -4306,6 +4503,8 @@ async def main(urls: List[str]):
 
     import os
     output_dir = os.path.dirname(os.path.abspath(__file__))
+    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs", "results")
+    os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, "linkedin_results.json")
     with open(output_path, "w") as f:
         json.dump(all_results, f, indent=2, default=str)

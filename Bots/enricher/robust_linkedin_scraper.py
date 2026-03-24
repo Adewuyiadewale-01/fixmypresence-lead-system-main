@@ -1039,7 +1039,9 @@ async def main_from_sheet(batch_size: int = 50, dry_run: bool = False):
 
         # Step 5: Save local backup
         import os
-        output_dir = os.path.dirname(os.path.abspath(__file__))
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        output_dir = os.path.join(base_dir, "outputs", "results")
+        os.makedirs(output_dir, exist_ok=True)
         output_path = os.path.join(output_dir, "linkedin_results.json")
         with open(output_path, "w") as f:
             json.dump(all_results, f, indent=2, default=str)
@@ -1086,7 +1088,9 @@ async def main(urls: List[str]):
             await finder.stop()
 
     import os
-    output_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    output_dir = os.path.join(base_dir, "outputs", "results")
+    os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, "linkedin_results.json")
     with open(output_path, "w") as f:
         json.dump(all_results, f, indent=2, default=str)
@@ -1129,4 +1133,3 @@ if __name__ == "__main__":
             "https://www.axento.nl/"
         ]
         asyncio.run(main(test_urls))
-

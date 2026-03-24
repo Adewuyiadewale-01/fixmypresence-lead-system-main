@@ -1,0 +1,1002 @@
+{
+  "alpha:3": {
+    "checkpoint_key": "alpha:3",
+    "website": "http://fxminds.nl/",
+    "tab": "Alpha",
+    "row": 3,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:48:23.540419"
+  },
+  "alpha:2": {
+    "checkpoint_key": "alpha:2",
+    "website": "http://tradingstrategie.nl/",
+    "tab": "Alpha",
+    "row": 2,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:48:23.821630"
+  },
+  "alpha:5": {
+    "checkpoint_key": "alpha:5",
+    "website": "https://www.orbitaltrading.nl/",
+    "tab": "Alpha",
+    "row": 5,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:48:31.375104"
+  },
+  "alpha:4": {
+    "checkpoint_key": "alpha:4",
+    "website": "https://www.deltaquant.nl/",
+    "tab": "Alpha",
+    "row": 4,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:49:19.683145"
+  },
+  "alpha:6": {
+    "checkpoint_key": "alpha:6",
+    "website": "https://mercuryredstone.com/",
+    "tab": "Alpha",
+    "row": 6,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:49:34.438866"
+  },
+  "alpha:8": {
+    "checkpoint_key": "alpha:8",
+    "website": "https://www.tradermath.org/",
+    "tab": "Alpha",
+    "row": 8,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:49:47.382209"
+  },
+  "alpha:7": {
+    "checkpoint_key": "alpha:7",
+    "website": "https://www.theinstituteoftrading.com/",
+    "tab": "Alpha",
+    "row": 7,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:50:18.169991"
+  },
+  "alpha:11": {
+    "checkpoint_key": "alpha:11",
+    "website": "https://www.metstrade.com/",
+    "tab": "Alpha",
+    "row": 11,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:50:59.502600"
+  },
+  "alpha:10": {
+    "checkpoint_key": "alpha:10",
+    "website": "https://www.startupvillage.nl/",
+    "tab": "Alpha",
+    "row": 10,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:51:00.934226"
+  },
+  "alpha:13": {
+    "checkpoint_key": "alpha:13",
+    "website": "http://www.energyquants.com/about-us/",
+    "tab": "Alpha",
+    "row": 13,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:51:36.743074"
+  },
+  "alpha:9": {
+    "checkpoint_key": "alpha:9",
+    "website": "http://thriven.nl/",
+    "tab": "Alpha",
+    "row": 9,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:51:51.377333"
+  },
+  "alpha:14": {
+    "checkpoint_key": "alpha:14",
+    "website": "http://www.bbolt.com/",
+    "tab": "Alpha",
+    "row": 14,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:52:09.818837"
+  },
+  "alpha:12": {
+    "checkpoint_key": "alpha:12",
+    "website": "http://www.unitytrading.nl/",
+    "tab": "Alpha",
+    "row": 12,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:52:29.634463"
+  },
+  "alpha:15": {
+    "checkpoint_key": "alpha:15",
+    "website": "http://www.ams-green.com/",
+    "tab": "Alpha",
+    "row": 15,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:54:00.632699"
+  },
+  "alpha:17": {
+    "checkpoint_key": "alpha:17",
+    "website": "http://www.greenstar-capital.com/",
+    "tab": "Alpha",
+    "row": 17,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:54:36.913553"
+  },
+  "alpha:16": {
+    "checkpoint_key": "alpha:16",
+    "website": "http://loanclear.com/",
+    "tab": "Alpha",
+    "row": 16,
+    "scrape": "error",
+    "write": "skipped",
+    "marked": "error",
+    "timestamp": "2026-03-24T08:55:54.146322"
+  },
+  "alpha:18": {
+    "checkpoint_key": "alpha:18",
+    "website": "https://fvbdeboer.nl/?utm_source=google%20my%20business&utm_medium=Organic",
+    "tab": "Alpha",
+    "row": 18,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:55:54.146117"
+  },
+  "alpha:20": {
+    "checkpoint_key": "alpha:20",
+    "website": "http://www.darwinplatform.com/",
+    "tab": "Alpha",
+    "row": 20,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:56:22.237675"
+  },
+  "alpha:21": {
+    "checkpoint_key": "alpha:21",
+    "website": "https://makokoro.nl/",
+    "tab": "Alpha",
+    "row": 21,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:56:45.859968"
+  },
+  "alpha:19": {
+    "checkpoint_key": "alpha:19",
+    "website": "http://www.huygenstax.com/",
+    "tab": "Alpha",
+    "row": 19,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:57:13.578767"
+  },
+  "alpha:22": {
+    "checkpoint_key": "alpha:22",
+    "website": "http://www.thedynamicway.com/",
+    "tab": "Alpha",
+    "row": 22,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:57:24.799052"
+  },
+  "alpha:23": {
+    "checkpoint_key": "alpha:23",
+    "website": "http://www.eenhoorn.nl/",
+    "tab": "Alpha",
+    "row": 23,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:57:36.564508"
+  },
+  "alpha:25": {
+    "checkpoint_key": "alpha:25",
+    "website": "https://yieldfund.com/",
+    "tab": "Alpha",
+    "row": 25,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:58:22.159731"
+  },
+  "alpha:24": {
+    "checkpoint_key": "alpha:24",
+    "website": "https://www.tbtb.nl/",
+    "tab": "Alpha",
+    "row": 24,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:58:40.708584"
+  },
+  "alpha:28": {
+    "checkpoint_key": "alpha:28",
+    "website": "http://www.massarius.com/",
+    "tab": "Alpha",
+    "row": 28,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:58:58.339709"
+  },
+  "alpha:26": {
+    "checkpoint_key": "alpha:26",
+    "website": "http://www.expathousing.com/",
+    "tab": "Alpha",
+    "row": 26,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:59:19.951572"
+  },
+  "alpha:27": {
+    "checkpoint_key": "alpha:27",
+    "website": "http://www.sky-hostess.com/",
+    "tab": "Alpha",
+    "row": 27,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T08:59:21.646670"
+  },
+  "alpha:31": {
+    "checkpoint_key": "alpha:31",
+    "website": "http://www.centerpp.nl/",
+    "tab": "Alpha",
+    "row": 31,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:00:30.585751"
+  },
+  "alpha:29": {
+    "checkpoint_key": "alpha:29",
+    "website": "https://growthmedics.com/",
+    "tab": "Alpha",
+    "row": 29,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:01:00.071847"
+  },
+  "alpha:33": {
+    "checkpoint_key": "alpha:33",
+    "website": "https://www.nloug.nl/",
+    "tab": "Alpha",
+    "row": 33,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:01:20.822386"
+  },
+  "alpha:32": {
+    "checkpoint_key": "alpha:32",
+    "website": "http://www.cyber.capital/",
+    "tab": "Alpha",
+    "row": 32,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:01:25.975841"
+  },
+  "alpha:30": {
+    "checkpoint_key": "alpha:30",
+    "website": "https://www.wearebeyond.work/beyond-gouden-bocht",
+    "tab": "Alpha",
+    "row": 30,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:02:13.171028"
+  },
+  "alpha:35": {
+    "checkpoint_key": "alpha:35",
+    "website": "http://www.vanolde.com/",
+    "tab": "Alpha",
+    "row": 35,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:02:22.651915"
+  },
+  "alpha:34": {
+    "checkpoint_key": "alpha:34",
+    "website": "https://www.misterb.com/",
+    "tab": "Alpha",
+    "row": 34,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:02:40.869324"
+  },
+  "alpha:37": {
+    "checkpoint_key": "alpha:37",
+    "website": "https://nevron.io/",
+    "tab": "Alpha",
+    "row": 37,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:03:06.753741"
+  },
+  "alpha:49": {
+    "checkpoint_key": "alpha:49",
+    "website": "http://www.blackswancapital.eu/",
+    "tab": "Alpha",
+    "row": 49,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:03:42.179488"
+  },
+  "alpha:36": {
+    "checkpoint_key": "alpha:36",
+    "website": "http://www.amsterdamsciencepark.nl/",
+    "tab": "Alpha",
+    "row": 36,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:03:46.547357"
+  },
+  "alpha:50": {
+    "checkpoint_key": "alpha:50",
+    "website": "http://freshfunds.nl/",
+    "tab": "Alpha",
+    "row": 50,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:04:15.637890"
+  },
+  "alpha:48": {
+    "checkpoint_key": "alpha:48",
+    "website": "https://lenderkit.com/",
+    "tab": "Alpha",
+    "row": 48,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:04:26.248603"
+  },
+  "alpha:51": {
+    "checkpoint_key": "alpha:51",
+    "website": "https://www.corum.nl/",
+    "tab": "Alpha",
+    "row": 51,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:04:41.563670"
+  },
+  "alpha:52": {
+    "checkpoint_key": "alpha:52",
+    "website": "http://www.laaken.nl/",
+    "tab": "Alpha",
+    "row": 52,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:05:02.701997"
+  },
+  "alpha:55": {
+    "checkpoint_key": "alpha:55",
+    "website": "http://www.rbfamilycapital.nl/",
+    "tab": "Alpha",
+    "row": 55,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:05:12.654392"
+  },
+  "alpha:53": {
+    "checkpoint_key": "alpha:53",
+    "website": "https://www.ipropertyam.com/",
+    "tab": "Alpha",
+    "row": 53,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:05:19.622058"
+  },
+  "alpha:54": {
+    "checkpoint_key": "alpha:54",
+    "website": "http://www.familycapitaltrust.nl/",
+    "tab": "Alpha",
+    "row": 54,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:05:42.763755"
+  },
+  "alpha:56": {
+    "checkpoint_key": "alpha:56",
+    "website": "https://www.kosmosimpact.nl/",
+    "tab": "Alpha",
+    "row": 56,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:05:43.853953"
+  },
+  "alpha:59": {
+    "checkpoint_key": "alpha:59",
+    "website": "http://www.sdgcapital.nl/",
+    "tab": "Alpha",
+    "row": 59,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:05:55.770968"
+  },
+  "alpha:58": {
+    "checkpoint_key": "alpha:58",
+    "website": "http://www.connectedcapital.nl/",
+    "tab": "Alpha",
+    "row": 58,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:06:17.278055"
+  },
+  "alpha:61": {
+    "checkpoint_key": "alpha:61",
+    "website": "http://www.pma-amsterdam.nl/",
+    "tab": "Alpha",
+    "row": 61,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:06:30.552823"
+  },
+  "alpha:60": {
+    "checkpoint_key": "alpha:60",
+    "website": "http://www.assetpartners.nl/",
+    "tab": "Alpha",
+    "row": 60,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:06:34.097231"
+  },
+  "alpha:57": {
+    "checkpoint_key": "alpha:57",
+    "website": "http://familyofficedenhaag.nl/",
+    "tab": "Alpha",
+    "row": 57,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:06:54.750960"
+  },
+  "alpha:62": {
+    "checkpoint_key": "alpha:62",
+    "website": "https://www.healthinvestmentpartners.nl/",
+    "tab": "Alpha",
+    "row": 62,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:59:50.243836"
+  },
+  "alpha:64": {
+    "checkpoint_key": "alpha:64",
+    "website": "http://www.solidventures.vc/",
+    "tab": "Alpha",
+    "row": 64,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T09:59:53.084967"
+  },
+  "alpha:63": {
+    "checkpoint_key": "alpha:63",
+    "website": "http://www.finchcapital.com/",
+    "tab": "Alpha",
+    "row": 63,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:00:09.332691"
+  },
+  "alpha:66": {
+    "checkpoint_key": "alpha:66",
+    "website": "http://www.famadvocaten.nl/",
+    "tab": "Alpha",
+    "row": 66,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:00:31.131131"
+  },
+  "alpha:68": {
+    "checkpoint_key": "alpha:68",
+    "website": "http://www.creativecapitalstudio.com/",
+    "tab": "Alpha",
+    "row": 68,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:00:50.172031"
+  },
+  "alpha:65": {
+    "checkpoint_key": "alpha:65",
+    "website": "https://newstateventures.co/",
+    "tab": "Alpha",
+    "row": 65,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:01:10.671839"
+  },
+  "alpha:67": {
+    "checkpoint_key": "alpha:67",
+    "website": "https://www.1530.nl/",
+    "tab": "Alpha",
+    "row": 67,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:01:31.774083"
+  },
+  "alpha:69": {
+    "checkpoint_key": "alpha:69",
+    "website": "https://www.vectrix.nl/",
+    "tab": "Alpha",
+    "row": 69,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:01:31.774306"
+  },
+  "alpha:72": {
+    "checkpoint_key": "alpha:72",
+    "website": "https://m1-capital.com/",
+    "tab": "Alpha",
+    "row": 72,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:01:40.384541"
+  },
+  "alpha:71": {
+    "checkpoint_key": "alpha:71",
+    "website": "http://www.rockitfinance.io/",
+    "tab": "Alpha",
+    "row": 71,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:02:02.830967"
+  },
+  "alpha:70": {
+    "checkpoint_key": "alpha:70",
+    "website": "https://www.iqfondsbeheer.nl/",
+    "tab": "Alpha",
+    "row": 70,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:02:02.831180"
+  },
+  "alpha:73": {
+    "checkpoint_key": "alpha:73",
+    "website": "http://www.vincicapital.nl/",
+    "tab": "Alpha",
+    "row": 73,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:02:14.328236"
+  },
+  "alpha:75": {
+    "checkpoint_key": "alpha:75",
+    "website": "http://www.evaluationcapital.com/",
+    "tab": "Alpha",
+    "row": 75,
+    "scrape": "error",
+    "write": "skipped",
+    "marked": "error",
+    "timestamp": "2026-03-24T10:02:36.831849"
+  },
+  "alpha:74": {
+    "checkpoint_key": "alpha:74",
+    "website": "https://verenigdondernemersfonds.nl/",
+    "tab": "Alpha",
+    "row": 74,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:03:13.965339"
+  },
+  "alpha:77": {
+    "checkpoint_key": "alpha:77",
+    "website": "https://www.innovatiefondsnoordholland.nl/",
+    "tab": "Alpha",
+    "row": 77,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:03:26.279179"
+  },
+  "alpha:79": {
+    "checkpoint_key": "alpha:79",
+    "website": "http://www.baseinvestments.nl/",
+    "tab": "Alpha",
+    "row": 79,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:03:34.438461"
+  },
+  "alpha:78": {
+    "checkpoint_key": "alpha:78",
+    "website": "https://www.allpropertymanagement.nl/",
+    "tab": "Alpha",
+    "row": 78,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:03:56.062104"
+  },
+  "alpha:76": {
+    "checkpoint_key": "alpha:76",
+    "website": "http://www.amstelius.nl/",
+    "tab": "Alpha",
+    "row": 76,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:04:02.338369"
+  },
+  "alpha:81": {
+    "checkpoint_key": "alpha:81",
+    "website": "http://www.fondskwadraat.nl/",
+    "tab": "Alpha",
+    "row": 81,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:04:29.940530"
+  },
+  "alpha:80": {
+    "checkpoint_key": "alpha:80",
+    "website": "https://www.comrads.nl/",
+    "tab": "Alpha",
+    "row": 80,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:04:52.985226"
+  },
+  "alpha:82": {
+    "checkpoint_key": "alpha:82",
+    "website": "https://exelerating.com/",
+    "tab": "Alpha",
+    "row": 82,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:04:52.985624"
+  },
+  "alpha:83": {
+    "checkpoint_key": "alpha:83",
+    "website": "http://www.ventureiq.nl/",
+    "tab": "Alpha",
+    "row": 83,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:05:21.408412"
+  },
+  "alpha:85": {
+    "checkpoint_key": "alpha:85",
+    "website": "https://www.mkbpartmij.nl/",
+    "tab": "Alpha",
+    "row": 85,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:05:44.698207"
+  },
+  "alpha:84": {
+    "checkpoint_key": "alpha:84",
+    "website": "https://investormatch.nl/",
+    "tab": "Alpha",
+    "row": 84,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:05:52.597888"
+  },
+  "alpha:87": {
+    "checkpoint_key": "alpha:87",
+    "website": "https://www.cash-vision.nl/",
+    "tab": "Alpha",
+    "row": 87,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:05:59.342433"
+  },
+  "alpha:86": {
+    "checkpoint_key": "alpha:86",
+    "website": "http://www.silvercross-im.com/",
+    "tab": "Alpha",
+    "row": 86,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:06:22.134638"
+  },
+  "alpha:88": {
+    "checkpoint_key": "alpha:88",
+    "website": "http://nobelcapital.com/",
+    "tab": "Alpha",
+    "row": 88,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:06:22.134952"
+  },
+  "alpha:90": {
+    "checkpoint_key": "alpha:90",
+    "website": "https://besmart.nl/",
+    "tab": "Alpha",
+    "row": 90,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:06:37.261282"
+  },
+  "alpha:89": {
+    "checkpoint_key": "alpha:89",
+    "website": "https://www.fundbuddy.nl/",
+    "tab": "Alpha",
+    "row": 89,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:07:02.730478"
+  },
+  "alpha:91": {
+    "checkpoint_key": "alpha:91",
+    "website": "https://www.m-partners.nl/",
+    "tab": "Alpha",
+    "row": 91,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:07:02.730860"
+  },
+  "alpha:94": {
+    "checkpoint_key": "alpha:94",
+    "website": "https://www.financial-lease.nl/",
+    "tab": "Alpha",
+    "row": 94,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:08:06.869544"
+  },
+  "alpha:93": {
+    "checkpoint_key": "alpha:93",
+    "website": "https://familiezaken.nl/",
+    "tab": "Alpha",
+    "row": 93,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:08:28.083074"
+  },
+  "alpha:92": {
+    "checkpoint_key": "alpha:92",
+    "website": "http://www.fambizz.nl/",
+    "tab": "Alpha",
+    "row": 92,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:08:28.083511"
+  },
+  "alpha:96": {
+    "checkpoint_key": "alpha:96",
+    "website": "http://www.berkpartners.nl/",
+    "tab": "Alpha",
+    "row": 96,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:09:05.009370"
+  },
+  "alpha:95": {
+    "checkpoint_key": "alpha:95",
+    "website": "http://groen-lease.nl/",
+    "tab": "Alpha",
+    "row": 95,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:09:26.804052"
+  },
+  "alpha:98": {
+    "checkpoint_key": "alpha:98",
+    "website": "https://www.capitalbox.nl/",
+    "tab": "Alpha",
+    "row": 98,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:10:04.661906"
+  },
+  "alpha:100": {
+    "checkpoint_key": "alpha:100",
+    "website": "https://north-financials.com/",
+    "tab": "Alpha",
+    "row": 100,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:10:22.508229"
+  },
+  "alpha:97": {
+    "checkpoint_key": "alpha:97",
+    "website": "https://expatsamsterdam.com/",
+    "tab": "Alpha",
+    "row": 97,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:10:44.162432"
+  },
+  "alpha:99": {
+    "checkpoint_key": "alpha:99",
+    "website": "http://www.brugkrediet.nl/",
+    "tab": "Alpha",
+    "row": 99,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:10:44.162608"
+  },
+  "alpha:101": {
+    "checkpoint_key": "alpha:101",
+    "website": "http://www.rpslegal.nl/",
+    "tab": "Alpha",
+    "row": 101,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:10:53.477485"
+  },
+  "alpha:102": {
+    "checkpoint_key": "alpha:102",
+    "website": "https://acrobator.vc/",
+    "tab": "Alpha",
+    "row": 102,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:11:15.601675"
+  },
+  "alpha:103": {
+    "checkpoint_key": "alpha:103",
+    "website": "http://www.heerenvb.nl/",
+    "tab": "Alpha",
+    "row": 103,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:11:15.601926"
+  },
+  "alpha:106": {
+    "checkpoint_key": "alpha:106",
+    "website": "http://www.basecapital.nl/",
+    "tab": "Alpha",
+    "row": 106,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:11:28.366200"
+  },
+  "alpha:105": {
+    "checkpoint_key": "alpha:105",
+    "website": "https://www.mistermortgage.nl/",
+    "tab": "Alpha",
+    "row": 105,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:11:54.777975"
+  },
+  "alpha:104": {
+    "checkpoint_key": "alpha:104",
+    "website": "http://www.lauriermanagement.com/",
+    "tab": "Alpha",
+    "row": 104,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:12:07.421182"
+  },
+  "alpha:108": {
+    "checkpoint_key": "alpha:108",
+    "website": "http://buxeros.com/",
+    "tab": "Alpha",
+    "row": 108,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:12:13.613181"
+  },
+  "alpha:109": {
+    "checkpoint_key": "alpha:109",
+    "website": "http://gini.capital/",
+    "tab": "Alpha",
+    "row": 109,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:12:35.599108"
+  },
+  "alpha:107": {
+    "checkpoint_key": "alpha:107",
+    "website": "https://www.invesdor.nl/#/",
+    "tab": "Alpha",
+    "row": 107,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:12:35.599436"
+  },
+  "alpha:111": {
+    "checkpoint_key": "alpha:111",
+    "website": "http://www.gp-house.com/",
+    "tab": "Alpha",
+    "row": 111,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:12:42.760233"
+  },
+  "alpha:110": {
+    "checkpoint_key": "alpha:110",
+    "website": "https://c-corp.nl/",
+    "tab": "Alpha",
+    "row": 110,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-03-24T10:13:07.546319"
+  }
+}

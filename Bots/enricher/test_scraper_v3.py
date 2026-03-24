@@ -15,6 +15,8 @@ from enricher.scraper_v3 import (
     LinkedInFinder,
     PersonExtractor,
     RunLock,
+    _is_block_page,
+    _promote_ranked_candidates,
     _recovery_filter_urls,
     _checkpoint_key,
     _checkpoint_resume_action,
@@ -599,6 +601,101 @@ class TestPersonExtractorV3(unittest.TestCase):
                 self.assertIn("run-1", after)
             finally:
                 first.release()
+
+    def test_block_detection_ignores_soft_signals_on_200(self):
+        text = "<html><body><style>.g-recaptcha{display:block}.recaptcha-badge{opacity:1}</style></body></html>"
+        self.assertFalse(_is_block_page(text, 200))
+
+    def test_block_detection_accepts_hard_signal_on_200(self):
+        text = "<html><body>Access denied. Please verify you are a human.</body></html>"
+        self.assertTrue(_is_block_page(text, 200))
+
+    def test_block_detection_accepts_soft_signals_on_non_200(self):
+        text = "<html><body>captcha recaptcha</body></html>"
+        self.assertTrue(_is_block_page(text, 401))
+
+    def test_block_detection_ignores_soft_signals_on_404(self):
+        text = "<html><body>captcha recaptcha</body></html>"
+        self.assertFalse(_is_block_page(text, 404))
+
+    def test_evidence_promotion_can_rescue_buried_candidate(self):
+        pool = CandidatePool("https://example.com")
+        ranked_urls = [
+            "https://example.com/white-paper",
+            "https://example.com/case-study",
+            "https://example.com/our-story",
+        ]
+        for url in ranked_urls:
+            pool.add(url, "sitemap")
+        weak = LinkedInFinder._make_page_artifact(
+            "https://example.com/white-paper",
+            BeautifulSoup("<html><body><article>News</article></body></html>", "html.parser"),
+            set(),
+            set(),
+        )
+        strong = LinkedInFinder._make_page_artifact(
+            "https://example.com/our-story",
+            BeautifulSoup(
+                """
+                <html><body>
+                  <section class="team">
+                    <a href="https://www.linkedin.com/in/alice-smith/">Alice</a>
+                    <a href="https://www.linkedin.com/in/bob-jones/">Bob</a>
+                    <a href="https://www.linkedin.com/in/chris-evans/">Chris</a>
+                  </section>
+                </body></html>
+                """,
+                "html.parser",
+            ),
+            {
+                "https://www.linkedin.com/in/alice-smith/",
+                "https://www.linkedin.com/in/bob-jones/",
+                "https://www.linkedin.com/in/chris-evans/",
+            },
+            set(),
+        )
+        promoted = _promote_ranked_candidates(
+            ranked_urls,
+            pool,
+            {
+                "https://example.com/white-paper": weak,
+                "https://example.com/our-story": strong,
+            },
+            len(ranked_urls),
+        )
+        self.assertEqual(promoted[0], "https://example.com/our-story")
+
+    def test_spa_shell_detection_and_bundle_url_extraction(self):
+        finder = LinkedInFinder()
+        soup = BeautifulSoup(
+            """
+            <html><body>
+              <div id="root"></div>
+              <script src="/assets/index-abc123.js"></script>
+              <script src="https://cdn.other-site.com/skip.js"></script>
+            </body></html>
+            """,
+            "html.parser",
+        )
+        self.assertTrue(finder._looks_like_spa_shell(soup, soup.get_text(" ", strip=True)))
+        self.assertEqual(
+            finder._extract_same_origin_bundle_urls(soup, "https://example.com/team"),
+            ["https://example.com/assets/index-abc123.js"],
+        )
+
+    def test_bundle_route_hints_keep_people_like_paths(self):
+        finder = LinkedInFinder()
+        bundle_text = '''
+        window.__ROUTES__=["/team","/about","/research","/our-story","/assets/logo.svg"];
+        '''
+        self.assertEqual(
+            finder._extract_bundle_route_hints(bundle_text, "https://example.com"),
+            [
+                "https://example.com/team",
+                "https://example.com/about",
+                "https://example.com/our-story",
+            ],
+        )
 
 
 if __name__ == "__main__":
