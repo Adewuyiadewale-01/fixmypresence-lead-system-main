@@ -11,7 +11,7 @@ except Exception:
     PlaywrightTimeoutError = Exception
 
 # ------------------ config ------------------
-BATCH_SIZE = 7
+BATCH_SIZE = 25
 TIMEOUT    = 12
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36")
@@ -212,35 +212,91 @@ class LinkedInCompanyInspector:
         except Exception:
             return None
 
-    def fetch(self, company_url: str):
-        if not company_url:
-            return None
-        if "linkedin.com" not in company_url.lower():
-            return None
-        if not self._ensure(fresh=True):
-            return None
+    def find_linkedin_link(self, site_url: str) -> str:
+        """Robust search for LinkedIn URL: Static -> Playwright -> Subpages."""
+        base = _normalize_site_url(site_url)
+        if not base: return ""
+
+        # 1. Static Check (Fast)
+        r = _fetch(base)
+        if r:
+            cands = _extract_candidates_from_html(r.text, r.url)
+            if cands: return cands[0]
+
+        # 2. Playwright Check (Dynamic - handles JS footers)
+        if self._ensure(fresh=False):
+            try:
+                self._page.goto(base, wait_until="domcontentloaded", timeout=12000)
+                try: self._page.wait_for_timeout(1500) # Wait for JS hydration
+                except: pass
+                
+                # Check rendered content (regex + scrape)
+                content = self._page.content()
+                cands = _extract_candidates_from_html(content, base)
+                if cands: return cands[0]
+                
+                # Check JS-generated anchors specifically
+                hrefs = self._page.evaluate("Array.from(document.links).map(a => a.href)")
+                for h in hrefs:
+                     norm = _clean_and_normalize_linkedin(h)
+                     if norm: return norm
+            except Exception:
+                pass
+
+        # 3. Subpages Check (Static fallback - check common internal pages)
         try:
-            self._page.goto(company_url, wait_until="domcontentloaded")
-            locator = self._page.locator("a").filter(has_text=re.compile("employees?", re.I)).first
-            locator.wait_for(state="visible")
-            text = locator.inner_text().strip()
-            href = locator.get_attribute("href") or ""
-            decoded = self._deep_unquote(href)
-            company_id = self._extract_company_id(decoded) or self._extract_company_id(company_url)
-            people_url = self._extract_people_url(decoded, href, company_id=company_id)
-            return {
-                "employee_text": text,
-                "employee_count": self._parse_employee_count(text),
-                "company_id": company_id,
-                "people_url": people_url,
-            }
-        except PlaywrightTimeoutError:
-            return None
-        except Exception as exc:
-            print(f"⚠️ Employee scrape failed for {company_url}: {exc}")
-            return None
-        finally:
-            self.close()
+            parts = urllib.parse.urlsplit(base)
+            root = f"{parts.scheme}://{parts.netloc}"
+        except:
+            root = base
+            
+        queue = [root + p for p in COMMON_INTERNAL if p != "/"]
+        # Limit to top 12 to balance speed/coverage
+        for p in queue[:12]:
+             r = _fetch(p)
+             if r:
+                 cands = _extract_candidates_from_html(r.text, r.url)
+                 if cands: return cands[0]
+        return ""
+
+    def fetch(self, company_url: str):
+        if not company_url: return None
+        if "linkedin.com" not in company_url.lower(): return None
+        
+        # Retry logic: Try reusing browser first (False), then force fresh (True) if it fails
+        for force_fresh in [False, True]:
+            if not self._ensure(fresh=force_fresh): continue
+            
+            try:
+                self._page.goto(company_url, wait_until="domcontentloaded", timeout=15000)
+                
+                # Look for employee count link
+                locator = self._page.locator("a").filter(has_text=re.compile("employees?", re.I)).first
+                try:
+                    locator.wait_for(state="visible", timeout=6000)
+                except:
+                    # If extraction failed and we haven't tried fresh yet, raise to trigger retry
+                    if not force_fresh: raise Exception("Retry with fresh browser")
+                    return None
+
+                text = locator.inner_text().strip()
+                href = locator.get_attribute("href") or ""
+                decoded = self._deep_unquote(href)
+                company_id = self._extract_company_id(decoded) or self._extract_company_id(company_url)
+                people_url = self._extract_people_url(decoded, href, company_id=company_id)
+                
+                return {
+                    "employee_text": text,
+                    "employee_count": self._parse_employee_count(text),
+                    "company_id": company_id,
+                    "people_url": people_url,
+                }
+            except Exception as e:
+                if force_fresh:
+                    print(f"⚠️ Employee scrape failed for {company_url}: {e}")
+                # Loop continues to next attempt (fresh=True)
+        
+        return None
 
 # =========== LINKEDIN FINDER CORE ===========
 REQ_HEADERS = {
@@ -367,7 +423,11 @@ def _fetch(url: str) -> requests.Response | None:
 COMMON_INTERNAL = [
     "/", "/about", "/about-us", "/over", "/over-ons", "/team", "/contact",
     "/contact-us", "/company", "/who-we-are", "/wie-zijn-wij", "/overons",
-    "/ons-team", "/social", "/connect", "/footer"
+    "/ons-team", "/social", "/connect", "/footer", "/imprint", "/legal",
+    "/team-van", "/onze-mensen", "/organisatie", "/medewerkers",
+    "/over-ons/team", "/over-ons/onze-mensen", "/over-ons/medewerkers", "/over-ons/adviseurs",
+    "/our-team", "/the-team", "/people", "/staff", "/employees", "/leadership",
+    "/management", "/partners", "/advisors", "/professionals"
 ]
 
 def find_linkedin_on_site(site_url: str) -> str:
@@ -526,7 +586,7 @@ def main() -> bool:
             a1 = gspread.utils.rowcol_to_a1(row_num, col_num)
             updates.append({"range": f"{ws.title}!{a1}", "values": [[value]]})
 
-        now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         last_touched = work_rows[-1]
 
         for r in work_rows:
@@ -550,7 +610,8 @@ def main() -> bool:
             looked_up = False
 
             if not has_real_li and not is_none:
-                li = find_linkedin_on_site(website)
+                # Use robust inspector method (Static -> Playwright -> Broad Search)
+                li = inspector.find_linkedin_link(website)
                 looked_up = True
                 if li:
                     queue_cell(r, col_linkedin, li)
@@ -580,7 +641,7 @@ def main() -> bool:
                     queue_cell(r, col_company_id, stats.get("company_id") or "")
                     print(f"  -> employees: {stats.get('employee_text') or stats.get('employee_count','?')} | people link: {stats.get('people_url','')}")
                 else:
-                    print("  -> employee stats unavailable (Playwright or page issue).")
+                    print("  -> employee stats unavailable")
 
             queue_cell(r, col_checked, now)
             time.sleep(0.25)
@@ -602,6 +663,7 @@ def main() -> bool:
 # Optional: loop + reset controls
 if __name__ == "__main__":
     import argparse, os, sys, time
+    from pathlib import Path
     import gspread
     from google.oauth2 import service_account
 
@@ -613,6 +675,7 @@ if __name__ == "__main__":
                    help="set _meta.next_row back to 2 (start from top)")
     p.add_argument("--reset-hard", action="store_true",
                    help="also clear LinkedIn status/Last checked (does NOT touch company/website)")
+
     args = p.parse_args()
 
     if args.loop and args.drain:
@@ -674,6 +737,7 @@ if __name__ == "__main__":
         # if we only wanted to reset and not loop, stop here
         if not args.loop and not args.drain:
             sys.exit(0)
+
 
     # Normal execution
     if args.loop:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import random
 import time
 from dataclasses import dataclass
@@ -15,6 +16,29 @@ import tldextract
 from config import AGGREGATOR_DOMAINS
 
 
+def generate_lead_id(name: str, website: Optional[str]) -> str:
+    """Generate a deterministic unique ID for a lead.
+    
+    Uses MD5 hash of normalized domain + normalized business name.
+    This allows cross-source deduplication - same business from 
+    different scrapers will get the same ID.
+    """
+    # Normalize business name
+    name_normalized = name.strip().lower() if name else ""
+    
+    # Get normalized domain, fall back to empty string
+    domain = normalize_domain(website) if website else ""
+    
+    # Create composite key: domain takes priority, name as secondary identifier
+    if domain:
+        composite_key = f"{domain}|{name_normalized}"
+    else:
+        composite_key = f"nosite|{name_normalized}"
+    
+    # Generate short hash (first 12 chars of MD5 = 48 bits = ~281 trillion combinations)
+    return hashlib.md5(composite_key.encode('utf-8')).hexdigest()[:12]
+
+
 @dataclass(frozen=True)
 class Lead:
     """Canonical representation of a scraped lead."""
@@ -25,6 +49,11 @@ class Lead:
     keyword: str
     place_url: Optional[str]
     status: str = ""
+
+    @property
+    def lead_id(self) -> str:
+        """Deterministic unique ID for cross-source deduplication."""
+        return generate_lead_id(self.name, self.website)
 
     @property
     def domain(self) -> Optional[str]:
@@ -69,10 +98,10 @@ def is_aggregator(url: Optional[str]) -> bool:
 
 
 def dedupe_leads(leads: Iterable[Lead], seen_domains: Set[str], seen_names: Set[str]):
-    """Yield leads that are new by domain (primary) and name (secondary)."""
+    """Yield leads that are new by domain (primary) and name+location (secondary)."""
     for lead in leads:
         domain = lead.domain
-        name_key = lead.name.strip().lower()
+        name_key = f"{lead.name.strip().lower()}|{lead.location.strip().lower()}"
         if domain:
             if domain in seen_domains:
                 continue
@@ -88,9 +117,10 @@ def export_batch(batch: Iterable[Lead], destination: Path):
     destination.parent.mkdir(parents=True, exist_ok=True)
     with destination.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.writer(fh)
-        writer.writerow(["name", "website", "location", "keyword", "place_url", "status"])
+        writer.writerow(["lead_id", "name", "website", "location", "keyword", "place_url", "status"])
         for lead in batch:
             writer.writerow([
+                lead.lead_id,
                 lead.name,
                 lead.website or "",
                 lead.location,
@@ -106,9 +136,10 @@ def append_to_master(master: Path, batch: Iterable[Lead]):
     with master.open("a", newline="", encoding="utf-8") as fh:
         writer = csv.writer(fh)
         if write_header:
-            writer.writerow(["name", "website", "location", "keyword", "place_url", "status"])
+            writer.writerow(["lead_id", "name", "website", "location", "keyword", "place_url", "status"])
         for lead in batch:
             writer.writerow([
+                lead.lead_id,
                 lead.name,
                 lead.website or "",
                 lead.location,

@@ -1,0 +1,615 @@
+/**
+ * FixMyPresence Control Center - Light Theme
+ * Brand colors: Dark green (#1E5631) + Near-black (#0D1B0E)
+ * Typography: Geist (similar to factory.ai's Söhne-style font)
+ */
+
+/* =============================================================================
+   FONTS - Geist (Vercel's font, similar to factory.ai)
+   ============================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
+
+/* =============================================================================
+   CSS VARIABLES
+   ============================================================================= */
+
+:root {
+    /* Brand Colors */
+    --brand-primary: #1E5631;
+    /* Dark green */
+    --brand-dark: #0D1B0E;
+    /* Near-black */
+    --brand-light: #2D7A47;
+    /* Lighter green for hover */
+
+    /* Light Theme Base */
+    --bg-primary: #FFFFFF;
+    --bg-secondary: #F8F9FA;
+    --bg-panel: #FFFFFF;
+    --bg-hover: #F1F3F5;
+
+    /* Text */
+    --text-primary: #0D1B0E;
+    /* Near-black from brand */
+    --text-secondary: #495057;
+    --text-muted: #868E96;
+
+    /* Semantic Colors */
+    --accent-primary: #1E5631;
+    /* Brand green */
+    --accent-success: #1E5631;
+    /* Use brand green for success */
+    --accent-warning: #F59F00;
+    --accent-danger: #E03131;
+    --accent-info: #1971C2;
+
+    /* Borders & Effects */
+    --border-color: #DEE2E6;
+    --border-radius: 8px;
+    --border-radius-sm: 6px;
+
+    --shadow-sm: 0 1px 3px rgba(13, 27, 14, 0.08);
+    --shadow: 0 4px 12px rgba(13, 27, 14, 0.1);
+    --shadow-lg: 0 8px 24px rgba(13, 27, 14, 0.12);
+
+    --transition: all 0.15s ease;
+}
+
+/* =============================================================================
+   BASE STYLES
+   ============================================================================= */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    line-height: 1.5;
+    min-height: 100vh;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 32px;
+}
+
+/* =============================================================================
+   HEADER
+   ============================================================================= */
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding: 20px 24px;
+    background: var(--bg-panel);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.header h1 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--brand-dark);
+    letter-spacing: -0.02em;
+}
+
+/* Status Indicator */
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 100px;
+    font-weight: 500;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.status-indicator .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-indicator.running {
+    background: rgba(30, 86, 49, 0.1);
+    color: var(--brand-primary);
+}
+
+.status-indicator.running .dot {
+    background: var(--brand-primary);
+    box-shadow: 0 0 8px var(--brand-primary);
+    animation: pulse 2s infinite;
+}
+
+.status-indicator.resting {
+    background: rgba(245, 159, 0, 0.1);
+    color: var(--accent-warning);
+}
+
+.status-indicator.resting .dot {
+    background: var(--accent-warning);
+    animation: pulse-slow 3s infinite;
+}
+
+.status-indicator.stopped {
+    background: rgba(224, 49, 49, 0.1);
+    color: var(--accent-danger);
+}
+
+.status-indicator.stopped .dot {
+    background: var(--accent-danger);
+    animation: none;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes pulse-slow {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.6;
+        transform: scale(0.9);
+    }
+}
+
+/* =============================================================================
+   MAIN GRID
+   ============================================================================= */
+
+.main-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+/* =============================================================================
+   PANELS
+   ============================================================================= */
+
+.panel {
+    background: var(--bg-panel);
+    border-radius: var(--border-radius);
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.panel h2 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.panel h3 {
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin: 16px 0 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* =============================================================================
+   BUTTONS
+   ============================================================================= */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    font-family: 'Geist', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+    min-width: fit-content;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn-primary {
+    background: var(--brand-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--brand-light);
+}
+
+.btn-success {
+    background: var(--brand-primary);
+    color: white;
+}
+
+.btn-success:hover {
+    background: var(--brand-light);
+}
+
+.btn-warning {
+    background: var(--accent-warning);
+    color: white;
+}
+
+.btn-warning:hover {
+    background: #E59500;
+}
+
+.btn-danger {
+    background: var(--accent-danger);
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #C92A2A;
+}
+
+.btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-hover);
+    border-color: var(--text-muted);
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+}
+
+.btn:disabled,
+.btn.btn-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.btn:disabled:hover,
+.btn.btn-disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.button-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.btn svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+/* =============================================================================
+   CONTROL PANEL
+   ============================================================================= */
+
+.clean-options {
+    display: flex;
+    gap: 8px;
+}
+
+.clean-options select {
+    flex: 1;
+    padding: 10px 36px 10px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    color: var(--text-primary);
+    font-family: 'Geist', sans-serif;
+    font-size: 0.85rem;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23495057' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    cursor: pointer;
+}
+
+.clean-options select:focus {
+    outline: none;
+    border-color: var(--brand-primary);
+}
+
+/* =============================================================================
+   SCHEDULER PANEL
+   ============================================================================= */
+
+.cycle-status {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.cycle-info {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-sm);
+    font-size: 0.85rem;
+}
+
+.cycle-config {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.input-group label {
+    flex: 0 0 90px;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.input-group input {
+    flex: 1;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: var(--brand-primary);
+}
+
+/* =============================================================================
+   PROGRESS PANEL
+   ============================================================================= */
+
+.progress-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.85rem;
+}
+
+.progress-item:last-child {
+    border-bottom: none;
+}
+
+.progress-item .label {
+    color: var(--text-muted);
+    flex-shrink: 0;
+    min-width: 80px;
+}
+
+.progress-item .value {
+    color: var(--text-primary);
+    font-weight: 500;
+    text-align: right;
+    word-break: break-word;
+}
+
+/* Status styling */
+.status-paused {
+    color: var(--accent-warning) !important;
+    font-weight: 600;
+}
+
+.cycle-enabled {
+    color: var(--brand-primary);
+    font-weight: 600;
+}
+
+/* =============================================================================
+   PROCESS PANEL
+   ============================================================================= */
+
+.process-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-sm);
+    font-size: 0.85rem;
+}
+
+/* =============================================================================
+   LOGS PANEL
+   ============================================================================= */
+
+.logs-panel {
+    grid-column: 1 / -1;
+}
+
+.logs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.logs-header h2 {
+    margin-bottom: 0;
+}
+
+.logs-controls {
+    display: flex;
+    gap: 6px;
+}
+
+.log-viewer {
+    background: var(--brand-dark);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    height: 280px;
+    overflow-y: auto;
+    padding: 14px;
+}
+
+.log-viewer pre {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: #ADB5BD;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* =============================================================================
+   TOAST NOTIFICATIONS
+   ============================================================================= */
+
+.toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 1000;
+}
+
+.toast {
+    padding: 12px 16px;
+    border-radius: var(--border-radius-sm);
+    font-size: 0.85rem;
+    font-weight: 500;
+    min-width: 240px;
+    box-shadow: var(--shadow-lg);
+    animation: slide-in 0.25s ease;
+}
+
+.toast-success {
+    background: var(--brand-primary);
+    color: white;
+}
+
+.toast-error {
+    background: var(--accent-danger);
+    color: white;
+}
+
+.toast-warning {
+    background: var(--accent-warning);
+    color: white;
+}
+
+.toast-info {
+    background: var(--accent-info);
+    color: white;
+}
+
+.toast.fade-out {
+    animation: slide-out 0.25s ease forwards;
+}
+
+@keyframes slide-in {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slide-out {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+/* =============================================================================
+   RESPONSIVE
+   ============================================================================= */
+
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        gap: 12px;
+        text-align: center;
+    }
+
+    .button-group {
+        grid-template-columns: 1fr;
+    }
+
+    .clean-options {
+        flex-direction: column;
+    }
+
+    .container {
+        padding: 16px;
+    }
+}

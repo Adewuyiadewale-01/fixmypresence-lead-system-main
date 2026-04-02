@@ -14,27 +14,36 @@ from typing import Tuple
 REPO_ROOT = Path(__file__).parent.parent
 SCRAPER_DIR = REPO_ROOT / "Bots" / "maps_scraper"
 SCRAPER_MAIN = SCRAPER_DIR / "main.py"
+PARALLEL_SCRAPER = SCRAPER_DIR / "parallel_scraper.py"
 
 
-def run_scraper(next_category: bool = False, headless: bool = False) -> Tuple[int, str]:
+def run_scraper(next_category: bool = False, headless: bool = False, parallel: bool = True) -> Tuple[int, str]:
     """
     Run the maps scraper as a subprocess.
     
     Args:
         next_category: If True, pass --next-category flag
         headless: If True, run browser in headless mode
+        parallel: If True, use parallel_scraper.py (6 workers)
     
     Returns:
         (exit_code, status_message)
     """
-    cmd = [sys.executable, str(SCRAPER_MAIN)]
+    # Use parallel scraper by default
+    script = PARALLEL_SCRAPER if parallel and PARALLEL_SCRAPER.exists() else SCRAPER_MAIN
+    cmd = [sys.executable, str(script)]
+    
+    # For parallel scraper, always add --continuous for non-interactive mode
+    if script == PARALLEL_SCRAPER:
+        cmd.append("--continuous")
     
     if next_category:
         cmd.append("--next-category")
     if headless:
         cmd.append("--headless")
     
-    print(f"\n🚀 Starting scraper: {' '.join(cmd)}")
+    mode = "parallel (6 workers)" if script == PARALLEL_SCRAPER else "single-threaded"
+    print(f"\n🚀 Starting scraper ({mode}): {' '.join(cmd)}")
     print("-" * 50)
     
     try:
@@ -64,10 +73,12 @@ def run_scraper(next_category: bool = False, headless: bool = False) -> Tuple[in
 
 def check_scraper_ready() -> bool:
     """Check if the scraper can be started."""
-    if not SCRAPER_MAIN.exists():
-        print(f"❌ Scraper not found at: {SCRAPER_MAIN}")
-        return False
-    return True
+    if PARALLEL_SCRAPER.exists():
+        return True
+    if SCRAPER_MAIN.exists():
+        return True
+    print(f"❌ Scraper not found at: {SCRAPER_MAIN} or {PARALLEL_SCRAPER}")
+    return False
 
 
 if __name__ == "__main__":

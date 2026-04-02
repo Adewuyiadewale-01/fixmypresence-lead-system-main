@@ -70,3 +70,10 @@ location_generator/out/
 # Temp files
 *.tmp
 *.temp
+
+# Playwright browser profiles (per-worker)
+.playwright-profile-worker-*/
+.playwright-profile/
+
+# Runtime state files
+controller/enrichment_batch_counter.txt

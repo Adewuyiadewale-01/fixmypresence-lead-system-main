@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FixMyPresence Control Center</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>FixMyPresence Control Center</h1>
+            <div id="status-indicator" class="status-indicator stopped">
+                <span class="dot"></span>
+                <span id="status-text">STOPPED</span>
+            </div>
+        </header>
+
+        <!-- Main Grid -->
+        <main class="main-grid">
+            <!-- Control Panel -->
+            <section class="panel control-panel">
+                <h2>Controls</h2>
+                <div class="button-group">
+                    <button id="btn-start-manual" class="btn btn-primary">
+                        <i data-lucide="play"></i>
+                        Start (Manual)
+                    </button>
+                    <button id="btn-start-cycle" class="btn btn-success">
+                        <i data-lucide="refresh-cw"></i>
+                        Start Cycle
+                    </button>
+                    <button id="btn-stop" class="btn btn-warning">
+                        <i data-lucide="square"></i>
+                        Stop
+                    </button>
+                    <button id="btn-kill" class="btn btn-danger">
+                        <i data-lucide="zap-off"></i>
+                        Force Kill
+                    </button>
+                </div>
+
+                <h3>Cleaning</h3>
+                <div class="clean-options">
+                    <select id="clean-mode">
+                        <option value="logs">Logs Only</option>
+                        <option value="progress">Progress Only</option>
+                        <option value="outputs">Outputs Only</option>
+                        <option value="full">Full Clean (Safe)</option>
+                        <option value="nuclear">Nuclear (Everything)</option>
+                    </select>
+                    <button id="btn-clean" class="btn btn-secondary">
+                        <i data-lucide="trash-2"></i>
+                        Clean
+                    </button>
+                </div>
+            </section>
+
+            <!-- Scheduler Panel -->
+            <section class="panel scheduler-panel">
+                <h2>Auto-Cycle</h2>
+                <div class="cycle-status">
+                    <div class="cycle-info">
+                        <span class="label">Status</span>
+                        <span id="cycle-phase" class="value">DISABLED</span>
+                    </div>
+                    <div class="cycle-info">
+                        <span class="label">Next Change</span>
+                        <span id="cycle-next" class="value">--</span>
+                    </div>
+                </div>
+                <div class="cycle-config">
+                    <div class="input-group">
+                        <label>Run Hours</label>
+                        <input type="number" id="run-hours" value="4" min="1" max="24">
+                    </div>
+                    <div class="input-group">
+                        <label>Rest Hours</label>
+                        <input type="number" id="rest-hours" value="2" min="1" max="24">
+                    </div>
+                    <button id="btn-save-config" class="btn btn-secondary">
+                        <i data-lucide="save"></i>
+                        Save
+                    </button>
+                </div>
+            </section>
+
+            <!-- Progress Panel -->
+            <section class="panel progress-panel">
+                <h2>Scraper Progress</h2>
+                <div id="progress-content">
+                    <div class="progress-item">
+                        <span class="label">Status</span>
+                        <span id="scraper-status" class="value">--</span>
+                    </div>
+                    <div class="progress-item">
+                        <span class="label">Category</span>
+                        <span id="scraper-category" class="value">--</span>
+                    </div>
+                    <div class="progress-item">
+                        <span class="label">Location</span>
+                        <span id="scraper-location" class="value">--</span>
+                    </div>
+                    <div class="progress-item">
+                        <span class="label">Keyword</span>
+                        <span id="scraper-keyword" class="value">--</span>
+                    </div>
+                    <div class="progress-item">
+                        <span class="label">Searches</span>
+                        <span id="scraper-searches" class="value">--</span>
+                    </div>
+                    <div class="progress-item">
+                        <span class="label">Leads</span>
+                        <span id="scraper-leads" class="value">--</span>
+                    </div>
+                    <div class="progress-item">
+                        <span class="label">Last Saved</span>
+                        <span id="scraper-last-saved" class="value">--</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Process Info Panel -->
+            <section class="panel process-panel">
+                <h2>Process</h2>
+                <div class="process-info">
+                    <div class="info-item">
+                        <span class="label">PID</span>
+                        <span id="process-pid" class="value">--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Uptime</span>
+                        <span id="process-uptime" class="value">--</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Logs Section -->
+        <section class="panel logs-panel">
+            <div class="logs-header">
+                <h2>Logs</h2>
+                <div class="logs-controls">
+                    <button id="btn-refresh-logs" class="btn btn-small btn-secondary">
+                        <i data-lucide="refresh-cw"></i>
+                        Refresh
+                    </button>
+                    <button id="btn-download-logs" class="btn btn-small btn-secondary">
+                        <i data-lucide="download"></i>
+                        Download
+                    </button>
+                </div>
+            </div>
+            <div id="log-viewer" class="log-viewer">
+                <pre id="log-content">Loading logs...</pre>
+            </div>
+        </section>
+
+        <!-- Toast Notifications -->
+        <div id="toast-container" class="toast-container"></div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

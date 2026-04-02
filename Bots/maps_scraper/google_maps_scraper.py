@@ -11,10 +11,13 @@ from playwright.sync_api import Playwright, TimeoutError as PlaywrightTimeoutErr
 from tenacity import RetryError, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from config import (
+    CARD_CLICK_TIMEOUT_MS,
     CAPTCHA_BACKOFF_S,
     MAX_DELAY_S,
     MIN_DELAY_S,
     PLAYWRIGHT_USER_DATA,
+    SCROLL_WAIT_MS,
+    SIDEBAR_AFTER_CLICK_WAIT_MS,
 )
 from utils import Lead, human_throttle, is_aggregator
 
@@ -26,8 +29,9 @@ class CaptchaDetected(RuntimeError):
 class GoogleMapsScraper:
     """Encapsulates the browser automation for scraping Google Maps listings."""
 
-    def __init__(self, headless: bool = False):
+    def __init__(self, headless: bool = False, user_data_dir: str = None):
         self.headless = headless
+        self._user_data_dir = user_data_dir or str(PLAYWRIGHT_USER_DATA)
         self._play: Optional[Playwright] = None
         self._browser = None
         self._context = None
@@ -42,7 +46,7 @@ class GoogleMapsScraper:
             return
         self._play = sync_playwright().start()
         self._browser = self._play.chromium.launch_persistent_context(
-            user_data_dir=str(PLAYWRIGHT_USER_DATA),
+            user_data_dir=self._user_data_dir,
             headless=self.headless,
             viewport={"width": 1400, "height": 900},
             args=["--disable-blink-features=AutomationControlled"],
@@ -52,10 +56,10 @@ class GoogleMapsScraper:
         self._page = self._context.pages[0] if self._context.pages else self._context.new_page()
 
     def stop(self):
-        with contextlib.suppress(Exception):
+        with contextlib.suppress(Exception, KeyboardInterrupt):
             if self._context:
                 self._context.close()
-        with contextlib.suppress(Exception):
+        with contextlib.suppress(Exception, KeyboardInterrupt):
             if self._play:
                 self._play.stop()
         self._play = None
@@ -75,9 +79,13 @@ class GoogleMapsScraper:
         url = f"https://www.google.com/maps/search/{quote_plus(query)}?hl=en&gl=nl"
 
         try:
-            self._attempt_navigation(url)
+            has_results = self._attempt_navigation(url)
         except RetryError as exc:
             raise RuntimeError(f"Navigation failed for query '{query}': {exc}") from exc
+        
+        # Early return if no results found for this query
+        if not has_results:
+            return []
 
         leads: List[Lead] = []
         processed = 0
@@ -121,10 +129,11 @@ class GoogleMapsScraper:
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type(PlaywrightTimeoutError),
     )
-    def _attempt_navigation(self, url: str):
+    def _attempt_navigation(self, url: str) -> bool:
+        """Navigate to URL and wait for feed. Returns False if no results."""
         self._page.goto(url, wait_until="domcontentloaded", timeout=60000)
         self._accept_cookies()
-        self._wait_for_feed()
+        return self._wait_for_feed()
 
     def _accept_cookies(self):
         selectors = [
@@ -142,11 +151,40 @@ class GoogleMapsScraper:
                     self._page.wait_for_timeout(500)
                     break
 
-    def _wait_for_feed(self):
-        self._page.wait_for_selector(
-            'div[role="feed"], div[aria-label*="Results"], section[aria-label*="Results"]',
-            timeout=40000,
-        )
+    def _wait_for_feed(self) -> bool:
+        """Wait for results feed to load. Returns False if no results found."""
+        # First, wait for either the results feed OR a "no results" indicator
+        try:
+            self._page.wait_for_selector(
+                ', '.join([
+                    'div[role="feed"]',
+                    'div[aria-label*="Results"]',
+                    'section[aria-label*="Results"]',
+                    # "No results" indicators
+                    'div.fontBodyMedium:has-text("No results found")',
+                    'div:has-text("didn\'t match any")',
+                    'div[class*="section-no-result"]',
+                ]),
+                timeout=20000,  # Reduced from 40s since we detect no-results early
+            )
+        except Exception:
+            return False
+        
+        # Check if we got a "no results" page
+        no_results_markers = [
+            "No results found",
+            "didn't match any",
+            "couldn't find",
+            "0 results",
+        ]
+        try:
+            page_text = self._page.inner_text('body')
+            if any(marker.lower() in page_text.lower() for marker in no_results_markers):
+                return False
+        except Exception:
+            pass
+        
+        return True
 
     def _cards_locator(self):
         return self._page.locator('div[role="feed"] div.Nv2PK')
@@ -156,7 +194,7 @@ class GoogleMapsScraper:
             cards_locator.first.scroll_into_view_if_needed()
         with contextlib.suppress(Exception):
             self._page.mouse.wheel(0, 1600)
-        self._page.wait_for_timeout(1200)
+        self._page.wait_for_timeout(SCROLL_WAIT_MS)
 
     # ------------------------------------------------------------------
     # Extraction
@@ -172,8 +210,8 @@ class GoogleMapsScraper:
             website = self._extract_card_website(card)
 
             if not website:
-                card.click(timeout=6000)
-                self._page.wait_for_timeout(1200)
+                card.click(timeout=CARD_CLICK_TIMEOUT_MS)
+                self._page.wait_for_timeout(SIDEBAR_AFTER_CLICK_WAIT_MS)
                 website = self._extract_sidebar_website()
 
             if website:

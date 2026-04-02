@@ -1,6 +1,6 @@
-
 import httpx
-import logging
+from concurrent.futures import ThreadPoolExecutor
+from typing import Iterable, List
 
 def get_website_status(url: str) -> str:
     """
@@ -36,3 +36,13 @@ def get_website_status(url: str) -> str:
                 return "Dead" # Dead link (404, 500, etc)
     except Exception:
         return "Dead" # Connection failed (DNS error, timeout)
+
+
+def get_website_statuses(urls: Iterable[str], max_workers: int = 8) -> List[str]:
+    """Resolve multiple website statuses concurrently while preserving order."""
+    url_list = list(urls)
+    if not url_list:
+        return []
+    workers = max(1, min(max_workers, len(url_list)))
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        return list(executor.map(get_website_status, url_list))
