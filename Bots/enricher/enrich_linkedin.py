@@ -1,5 +1,8 @@
 # enrich_linkedin.py
 import os, re, sys, time, random, json, urllib.parse, html, datetime, contextlib
+import threading
+from queue import Queue, Empty
+from dataclasses import dataclass
 import requests
 from bs4 import BeautifulSoup
 import gspread
@@ -12,6 +15,7 @@ except Exception:
 
 # ------------------ config ------------------
 BATCH_SIZE = 25
+WRITE_FLUSH_EVERY = 5
 TIMEOUT    = 12
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36")
@@ -46,7 +50,23 @@ COL_COMPANY_ID     = "LinkedIn company ID"
 
 STATUS_FOUND = "FOUND"
 STATUS_NONE  = "NONE"
+STATUS_PERSON_PROFILE = "PERSON_PROFILE_ONLY"
+
+# Pipeline concurrency
+WEBSITE_WORKERS       = 2
+LINKEDIN_WORKERS      = 1
+WRITER_FLUSH_INTERVAL = 10.0   # seconds between forced flushes
+WRITER_FLUSH_BATCH    = 5      # rows before each flush
+LI_DELAY_MIN          = 2.0    # min seconds between LinkedIn requests
+LI_DELAY_MAX          = 6.0    # max seconds (randomized jitter)
+MAX_BROWSERS          = 3      # hard cap on concurrent Playwright instances
+_SENTINEL = object()           # poison pill for queue shutdown (not None)
 # --------------------------------------------
+
+with contextlib.suppress(Exception):
+    sys.stdout.reconfigure(line_buffering=True)
+with contextlib.suppress(Exception):
+    sys.stderr.reconfigure(line_buffering=True)
 
 def err_exit(msg: str):
     print(f"ERROR: {msg}", file=sys.stderr)
@@ -121,15 +141,46 @@ def meta_set_next_row(meta, next_row: int):
         meta.append_row([META_KEY_NEXTROW, str(max(2, next_row))])
 
 
+_browser_semaphore = threading.Semaphore(MAX_BROWSERS)
+
+
+@dataclass
+class RowTask:
+    seq_num: int           # 0-based index in work_rows (for ordered commit tracking)
+    row_num: int           # 1-indexed actual sheet row
+    company_name: str
+    website: str
+    linkedin_val: str
+    status_val: str
+    emp_count_v: str
+    emp_link_v: str
+    company_id_v: str
+    company_cell_a1: str   # e.g. "A12" — for Google search formula
+    has_real_li: bool
+    needs_link_lookup: bool
+    needs_backfill: bool
+
+
+@dataclass
+class RowResult:
+    seq_num: int           # matches RowTask.seq_num — used for ordered buffer
+    row_num: int           # actual sheet row — used for _meta.next_row
+    cells: list            # list of (col_num, value) tuples; empty list on failure
+    meta_label: str = ""   # for logging
+    advance_pointer: bool = True
+
+
 class LinkedInCompanyInspector:
     """Lightweight wrapper around Playwright to extract employee stats."""
 
     _warned = False
 
-    def __init__(self):
+    def __init__(self, browser_semaphore=None):
         self._play = None
         self._browser = None
         self._page = None
+        self._semaphore = browser_semaphore
+        self._semaphore_acquired = False
 
     def _ensure(self, fresh: bool = False) -> bool:
         if fresh:
@@ -142,6 +193,9 @@ class LinkedInCompanyInspector:
         if self._page:
             return True
         try:
+            if self._semaphore and not self._semaphore_acquired:
+                self._semaphore.acquire()
+                self._semaphore_acquired = True
             self._play = sync_playwright().start()
             self._browser = self._play.chromium.launch(headless=True)
             self._page = self._browser.new_page()
@@ -167,6 +221,9 @@ class LinkedInCompanyInspector:
             with contextlib.suppress(Exception):
                 self._play.stop()
             self._play = None
+        if self._semaphore and self._semaphore_acquired:
+            self._semaphore.release()
+            self._semaphore_acquired = False
 
     @staticmethod
     def _deep_unquote(value: str, rounds: int = 3) -> str:
@@ -182,17 +239,54 @@ class LinkedInCompanyInspector:
     def _extract_company_id(text: str) -> str:
         if not text:
             return ""
-        match = re.search(r"(?:currentCompany|facetCurrentCompany)=%5B(\d+)%5D", text)
-        if match:
-            return match.group(1)
-        match = re.search(r"(?:currentCompany|facetCurrentCompany)=\[(\d+)\]", text)
-        return match.group(1) if match else ""
+        decoded = LinkedInCompanyInspector._deep_unquote(text)
+
+        def first_id(blob: str) -> str:
+            match = re.search(r"\d+", blob or "")
+            return match.group(0) if match else ""
+
+        for value in (text, decoded):
+            match = re.search(r"(?:currentCompany|facetCurrentCompany)=%5B([^\]]+)%5D", value)
+            if match:
+                found = first_id(match.group(1))
+                if found:
+                    return found
+
+            match = re.search(r"(?:currentCompany|facetCurrentCompany)=\[([^\]]+)\]", value)
+            if match:
+                found = first_id(match.group(1))
+                if found:
+                    return found
+
+            match = re.search(r"/(?:company|showcase)/(\d+)(?:[/?#]|$)", value)
+            if match:
+                return match.group(1)
+
+            match = re.search(r"(?:companyId|companyUrn)=(\d+)", value)
+            if match:
+                return match.group(1)
+
+        try:
+            parsed = urllib.parse.urlsplit(decoded)
+            params = urllib.parse.parse_qs(parsed.query)
+            for key in ("session_redirect", "url", "redirect"):
+                for candidate in params.get(key, []):
+                    found = LinkedInCompanyInspector._extract_company_id(candidate)
+                    if found:
+                        return found
+        except Exception:
+            pass
+
+        return ""
 
     @staticmethod
     def _extract_people_url(*candidates: str, company_id: str = "") -> str:
         for c in candidates:
-            if c and "linkedin.com/search/results/people" in c:
-                return c
+            if not c:
+                continue
+            decoded = LinkedInCompanyInspector._deep_unquote(c)
+            if "linkedin.com/search/results/people" in decoded:
+                return decoded
         if company_id:
             return f"https://www.linkedin.com/search/results/people/?currentCompany=%5B{company_id}%5D"
         return ""
@@ -201,7 +295,17 @@ class LinkedInCompanyInspector:
     def _parse_employee_count(text: str):
         if not text:
             return None
-        match = re.search(r"([\d.,]+)\s+employee", text, flags=re.I)
+        # Range format: "51-200 employees" → return upper bound (200)
+        range_match = re.search(r"[\d.,]+-(\s*[\d.,]+)\s*\+?\s*employees?", text, flags=re.I)
+        if range_match:
+            digits = re.sub(r"[^\d]", "", range_match.group(1))
+            if digits:
+                try:
+                    return int(digits)
+                except Exception:
+                    pass
+        # Exact or "10,001+" format: "782 employees", "10,001+ employees"
+        match = re.search(r"([\d.,]+)\+?\s+employees?", text, flags=re.I)
         if not match:
             return None
         digits = re.sub(r"[^\d]", "", match.group(1))
@@ -211,6 +315,47 @@ class LinkedInCompanyInspector:
             return int(digits)
         except Exception:
             return None
+
+    @staticmethod
+    def _extract_employee_text(text: str) -> str:
+        if not text:
+            return ""
+        for pattern in (
+            r"(?:View|Discover)\s+all\s+[\d.,]+\s+employees?",
+            # Standard LinkedIn bucket formats: "51-200 employees", "10,001+ employees", "782 employees"
+            r"[\d.,]+(?:-[\d.,]+)?\+?\s+employees?",
+        ):
+            match = re.search(pattern, text, flags=re.I)
+            if match:
+                return match.group(0).strip()
+        return ""
+
+    @staticmethod
+    def _classify_employee_gap(
+        page_html: str,
+        body_text: str,
+        links,
+        company_id: str,
+        people_url: str,
+    ) -> str:
+        page_html = page_html or ""
+        body_text = body_text or ""
+        combined = f"{page_html}\n{body_text}".lower()
+        login_markers = (
+            "join linkedin",
+            "sign in",
+            "sign in to linkedin",
+            "authwall",
+            "session_redirect",
+            "login",
+        )
+        if not (company_id or people_url):
+            if any(marker in combined for marker in login_markers):
+                return "AUTH_WALL_OR_LOGIN"
+            if not body_text.strip() and not (links or []):
+                return "EMPTY_GUEST_PAGE"
+            return "NO_EMPLOYEE_MODULE"
+        return "NO_PUBLIC_EMPLOYEE_TEXT"
 
     def find_linkedin_link(self, site_url: str) -> str:
         """Robust search for LinkedIn URL: Static -> Playwright -> Subpages."""
@@ -269,27 +414,99 @@ class LinkedInCompanyInspector:
             
             try:
                 self._page.goto(company_url, wait_until="domcontentloaded", timeout=15000)
-                
+                try:
+                    self._page.wait_for_timeout(1200)
+                except Exception:
+                    pass
+                page_html = ""
+                body_text = ""
+                with contextlib.suppress(Exception):
+                    page_html = self._page.content()
+                with contextlib.suppress(Exception):
+                    body_text = self._page.locator("body").inner_text(timeout=2000)
+
+                links = self._page.evaluate(
+                    """
+                    Array.from(document.links).map(a => ({
+                      href: a.href || "",
+                      text: (a.innerText || a.textContent || "").trim()
+                    }))
+                    """
+                )
+
                 # Look for employee count link
                 locator = self._page.locator("a").filter(has_text=re.compile("employees?", re.I)).first
                 try:
                     locator.wait_for(state="visible", timeout=6000)
+                    text = locator.inner_text().strip()
+                    href = locator.get_attribute("href") or ""
                 except:
-                    # If extraction failed and we haven't tried fresh yet, raise to trigger retry
-                    if not force_fresh: raise Exception("Retry with fresh browser")
-                    return None
+                    text = ""
+                    href = ""
+                    for link in links or []:
+                        link_href = str(link.get("href") or "")
+                        link_text = str(link.get("text") or "").strip()
+                        if re.search(r"employees?", link_text, flags=re.I):
+                            text = link_text
+                            href = link_href
+                            break
+                        if not href and any(
+                            token in link_href
+                            for token in ("search/results/people", "facetCurrentCompany", "currentCompany")
+                        ):
+                            href = link_href
+                            text = link_text
+                    if not text:
+                        text = self._extract_employee_text(body_text)
 
-                text = locator.inner_text().strip()
-                href = locator.get_attribute("href") or ""
+                    # If extraction failed and we haven't tried fresh yet, raise to trigger retry
+                    if not (text or href):
+                        if not force_fresh:
+                            raise Exception("Retry with fresh browser")
+                        # Fall through — still extract what we can from URL and page source
+
                 decoded = self._deep_unquote(href)
-                company_id = self._extract_company_id(decoded) or self._extract_company_id(company_url)
-                people_url = self._extract_people_url(decoded, href, company_id=company_id)
-                
+                company_id = (
+                    self._extract_company_id(decoded)
+                    or self._extract_company_id(href)
+                    or self._extract_company_id(company_url)
+                )
+                # Fallback: scan page HTML for urn:li:organization:{id} (present on guest pages)
+                if not company_id:
+                    with contextlib.suppress(Exception):
+                        page_html = self._page.content()
+                        urn_match = re.search(r"urn:li:organization:(\d+)", page_html)
+                        if urn_match:
+                            company_id = urn_match.group(1)
+
+                people_url = self._extract_people_url(decoded, href, company_url, company_id=company_id)
+                employee_text = text or self._extract_employee_text(decoded)
+                failure_reason = ""
+                if not employee_text:
+                    failure_reason = self._classify_employee_gap(
+                        page_html=page_html,
+                        body_text=body_text,
+                        links=links,
+                        company_id=company_id,
+                        people_url=people_url,
+                    )
+
+                # Return partial data if we got anything useful
+                if not (employee_text or company_id or people_url):
+                    return {
+                        "employee_text": "",
+                        "employee_count": None,
+                        "company_id": "",
+                        "people_url": "",
+                        "failure_reason": failure_reason or "UNKNOWN",
+                    }
+
                 return {
-                    "employee_text": text,
-                    "employee_count": self._parse_employee_count(text),
+                    "employee_text": employee_text,
+                    "employee_count": self._parse_employee_count(employee_text),
                     "company_id": company_id,
                     "people_url": people_url,
+                    "failure_reason": failure_reason,
                 }
             except Exception as e:
                 if force_fresh:
@@ -361,6 +578,118 @@ def _clean_and_normalize_linkedin(raw: str) -> str:
             else:
                 clean_path = "/" + "/".join(parts[:idx + 1])
     return urllib.parse.urlunsplit(("https", "www.linkedin.com", clean_path, "", ""))
+
+
+def _linkedin_url_kind(raw: str) -> str:
+    norm = _clean_and_normalize_linkedin(raw)
+    if not norm:
+        return ""
+    path = urllib.parse.urlsplit(norm).path.lower()
+    if "/company/" in path:
+        return "company"
+    if "/showcase/" in path:
+        return "showcase"
+    if "/in/" in path:
+        return "person"
+    return "other"
+
+
+COMMON_NAME_TOKENS = {
+    "bv", "b", "v", "nv", "vof", "cv", "co", "company", "holding", "holdings",
+    "group", "groep", "capital", "partners", "partner", "finance", "financial",
+    "services", "service", "solutions", "solution", "international", "global",
+    "europe", "european", "netherlands", "amsterdam", "nl", "the", "and",
+}
+
+STRONG_FOREIGN_SLUG_TOKENS = {
+    "agency", "marketing", "media", "studio", "design", "creative",
+    "communication", "communications", "advertising", "digital", "seo",
+    "branding",
+}
+
+
+def _normalize_name_text(value: str) -> str:
+    value = (value or "").lower()
+    value = html.unescape(value)
+    value = re.sub(r"[^a-z0-9]+", " ", value)
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def _name_tokens(value: str) -> list[str]:
+    tokens = []
+    for token in _normalize_name_text(value).split():
+        if len(token) <= 1 or token in COMMON_NAME_TOKENS:
+            continue
+        tokens.append(token)
+    return tokens
+
+
+def _domain_keywords(website: str) -> list[str]:
+    norm = _normalize_site_url(website)
+    if not norm:
+        return []
+    try:
+        host = urllib.parse.urlsplit(norm).netloc.lower()
+    except Exception:
+        return []
+    parts = [p for p in re.split(r"[.\-]+", host) if p and p not in {"www", "com", "net", "org", "io", "eu", "nl"}]
+    return [p for p in parts if len(p) > 1 and p not in COMMON_NAME_TOKENS]
+
+
+def _name_acronym(tokens: list[str]) -> str:
+    letters = "".join(token[0] for token in tokens if token)
+    return letters if len(letters) >= 2 else ""
+
+
+def _is_plausible_linkedin_match(company_name: str, website: str, linkedin_url: str) -> bool:
+    kind = _linkedin_url_kind(linkedin_url)
+    if kind not in {"company", "showcase"}:
+        return True
+
+    path = urllib.parse.urlsplit(_clean_and_normalize_linkedin(linkedin_url)).path
+    parts = [p for p in path.split("/") if p]
+    slug = parts[-1] if parts else ""
+    if not slug or slug.isdigit():
+        return True
+
+    slug_tokens = [t for t in re.split(r"[^a-z0-9]+", slug.lower()) if t]
+    slug_tokens = [t for t in slug_tokens if len(t) > 1 and t not in COMMON_NAME_TOKENS]
+    if not slug_tokens:
+        return True
+
+    company_tokens = _name_tokens(company_name)
+    domain_tokens = _domain_keywords(website)
+    evidence_tokens = set(company_tokens) | set(domain_tokens)
+    slug_set = set(slug_tokens)
+    score = 0
+    if evidence_tokens & slug_set:
+        score += 2
+
+    company_compact = "".join(company_tokens)
+    domain_compact = "".join(domain_tokens)
+    slug_compact = "".join(slug_tokens)
+    if company_compact and len(company_compact) >= 5 and (
+        company_compact in slug_compact or slug_compact in company_compact
+    ):
+        score += 1
+    if domain_compact and len(domain_compact) >= 4 and (
+        domain_compact in slug_compact or slug_compact in domain_compact
+    ):
+        score += 2
+
+    acronym = _name_acronym(company_tokens)
+    if acronym and (acronym in slug_compact or slug_compact in acronym):
+        score += 1
+
+    # Accept ambiguous cases unless there is strong evidence the slug belongs
+    # to an unrelated agency/brand and we found no positive overlap at all.
+    if score > 0:
+        return True
+
+    if slug_set & STRONG_FOREIGN_SLUG_TOKENS:
+        return False
+
+    return True
 
 def _extract_candidates_from_html(html_text: str, base_url: str) -> list[str]:
     soup = BeautifulSoup(html_text, "html.parser")
@@ -479,185 +808,415 @@ def build_google_formula(company_cell_a1: str) -> str:
     )
 
 
-# =========== MAIN ===========
-def main() -> bool:
-    inspector = LinkedInCompanyInspector()
+# =========== PIPELINE WORKERS ===========
+
+def _website_worker(task_queue, linkedin_queue, write_queue, columns, now, shutdown_event):
+    """Pull RowTasks, find LinkedIn URLs, route to linkedin_queue or write_queue."""
+    inspector = LinkedInCompanyInspector(browser_semaphore=_browser_semaphore)
     try:
-        gc = auth_client()
-        sh = gc.open_by_key(SHEET_ID)
-        ws = sh.worksheet(TAB_NAME)
-
-        meta = get_or_create_meta(sh)
-        start_row = meta_get_next_row(meta)
-
-        headers = [h.strip() for h in ws.row_values(1)]
-        header_lc = {h.lower(): i+1 for i, h in enumerate(headers)}
-
-        def col_index(*names):
-            for n in names:
-                idx = header_lc.get(n.lower())
-                if idx: return idx
-            return None
-
-        col_company    = col_index(COL_COMPANY)
-        col_website    = col_index("website")
-        col_linkedin   = col_index(COL_LINKEDIN, "Find LinkedIn", "Company LinkedIn")
-        col_status     = col_index(COL_STATUS)
-        col_checked    = col_index(COL_LAST_CHECKED)
-        col_emp_count  = col_index(COL_EMP_COUNT)
-        col_emp_link   = col_index(COL_EMP_LINK)
-        col_company_id = col_index(COL_COMPANY_ID)
-
-        if not col_website:
-            err_exit("Could not find the 'website' column.")
-        if not col_company:
-            err_exit("Could not find the 'name' column.")
-
-        # Ensure LinkedIn/Status/Checked columns exist
-        need_updates = []
-        def ensure_column(current_idx, header_label):
-            nonlocal need_updates
-            if current_idx:
-                return current_idx
-            ws.add_cols(1)
-            idx = ws.col_count
-            need_updates.append((1, idx, header_label))
-            return idx
-
-        col_linkedin   = ensure_column(col_linkedin, COL_LINKEDIN)
-        col_status     = ensure_column(col_status, COL_STATUS)
-        col_checked    = ensure_column(col_checked, COL_LAST_CHECKED)
-        col_emp_count  = ensure_column(col_emp_count, COL_EMP_COUNT)
-        col_emp_link   = ensure_column(col_emp_link, COL_EMP_LINK)
-        col_company_id = ensure_column(col_company_id, COL_COMPANY_ID)
-
-        if need_updates:
-            for r, c, v in need_updates:
-                ws.update_cell(r, c, v)
-            headers = [h.strip() for h in ws.row_values(1)]
-            header_lc = {h.lower(): i+1 for i, h in enumerate(headers)}
-
-        # Read all values once
-        values = ws.get_all_values()
-        if not values:
-            print("No data.")
-            return False
-
-        # Build candidate rows list (wrap from pointer)
-        all_rows = list(range(start_row, ws.row_count + 1)) + list(range(2, start_row))
-        work_rows, processed = [], 0
-        for r in all_rows:
-            if r > len(values):  # outside filled area
-                continue
-            row = values[r-1]
-            def v(col):
-                return (row[col-1] if col and col-1 < len(row) else "").strip()
-            website      = v(col_website)
-            linkedin_val = v(col_linkedin)
-            status_val   = v(col_status)
-            emp_count_v  = v(col_emp_count)
-            emp_link_v   = v(col_emp_link)
-            company_id_v = v(col_company_id)
-            has_formula  = linkedin_val.startswith("=")
-            has_real_li  = bool(linkedin_val) and not has_formula and "linkedin.com" in linkedin_val.lower()
-            is_none      = status_val == STATUS_NONE
-            needs_link_lookup = (not has_real_li) and not is_none
-            employee_missing = not (emp_count_v and emp_link_v and company_id_v)
-            needs_backfill = has_real_li and employee_missing
-
-            if not website:
-                continue
-            if not needs_link_lookup and not needs_backfill:
-                continue
-            work_rows.append(r)
-            processed += 1
-            if processed >= BATCH_SIZE:
+        while True:
+            if shutdown_event.is_set():
                 break
+            try:
+                item = task_queue.get(timeout=1.0)
+            except Empty:
+                continue
+            if item is _SENTINEL:
+                break
+            task = item
+            try:
+                if task.needs_link_lookup:
+                    print(f"[{task.row_num}] checking {task.website} …")
+                    li = inspector.find_linkedin_link(task.website)
+                    if li:
+                        if not _is_plausible_linkedin_match(task.company_name, task.website, li):
+                            print(f"  [{task.row_num}] rejected LinkedIn match as implausible: {li}")
+                            li = ""
+                    if li:
+                        li_kind = _linkedin_url_kind(li)
+                        partial_cells = [(columns['linkedin'], li)]
+                        if li_kind == "person":
+                            partial_cells += [
+                                (columns['status'], STATUS_PERSON_PROFILE),
+                                (columns['emp_count'], ""),
+                                (columns['emp_link'], ""),
+                                (columns['company_id'], ""),
+                                (columns['checked'], now),
+                            ]
+                            print(f"  -> {li} (person profile only)")
+                            write_queue.put(RowResult(task.seq_num, task.row_num, partial_cells, "person profile"))
+                        else:
+                            partial_cells.append((columns['status'], STATUS_FOUND))
+                            print(f"  -> {li}")
+                            updated = RowTask(
+                                seq_num=task.seq_num, row_num=task.row_num,
+                                company_name=task.company_name,
+                                website=task.website, linkedin_val=li,
+                                status_val=STATUS_FOUND,
+                                emp_count_v=task.emp_count_v, emp_link_v=task.emp_link_v,
+                                company_id_v=task.company_id_v,
+                                company_cell_a1=task.company_cell_a1,
+                                has_real_li=True, needs_link_lookup=False, needs_backfill=True,
+                            )
+                            linkedin_queue.put((updated, li, partial_cells))
+                    else:
+                        formula = build_google_formula(task.company_cell_a1)
+                        cells = [
+                            (columns['linkedin'], formula),
+                            (columns['status'], STATUS_NONE),
+                            (columns['emp_count'], ""),
+                            (columns['emp_link'], ""),
+                            (columns['company_id'], ""),
+                            (columns['checked'], now),
+                        ]
+                        print(f"  [{task.row_num}] -> (none) — inserted Google search formula")
+                        write_queue.put(RowResult(task.seq_num, task.row_num, cells, "none — formula"))
+                elif task.needs_backfill:
+                    print(f"[{task.row_num}] backfilling {task.linkedin_val} …")
+                    linkedin_queue.put((task, task.linkedin_val, []))
+            except Exception as e:
+                print(f"[website_worker] row {task.row_num} error: {e}")
+                write_queue.put(RowResult(task.seq_num, task.row_num, [], f"ERROR: {e}", advance_pointer=False))
+    finally:
+        inspector.close()
 
-        if not work_rows:
-            print("Nothing to update.")
-            meta_set_next_row(meta, start_row if start_row <= 3 else 2)
-            return False
 
-        updates = []
-        def queue_cell(row_num: int, col_num: int, value):
-            if not col_num or value is None:
-                return
-            a1 = gspread.utils.rowcol_to_a1(row_num, col_num)
-            updates.append({"range": f"{ws.title}!{a1}", "values": [[value]]})
-
-        now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-        last_touched = work_rows[-1]
-
-        for r in work_rows:
-            row = values[r-1]
-            def v(col):
-                return (row[col-1] if col and col-1 < len(row) else "").strip()
-            website      = v(col_website)
-            linkedin_val = v(col_linkedin)
-            status_val   = v(col_status)
-            emp_count_v  = v(col_emp_count)
-            emp_link_v   = v(col_emp_link)
-            company_id_v = v(col_company_id)
-            has_formula  = linkedin_val.startswith("=")
-            has_real_li  = bool(linkedin_val) and not has_formula and "linkedin.com" in linkedin_val.lower()
-            is_none      = status_val == STATUS_NONE
-            employee_missing = not (emp_count_v and emp_link_v and company_id_v)
-
-            company_cell = gspread.utils.rowcol_to_a1(r, col_company)  # e.g., A12
-            print(f"[{r}] checking {website} …")
-            li = linkedin_val if has_real_li else ""
-            looked_up = False
-
-            if not has_real_li and not is_none:
-                # Use robust inspector method (Static -> Playwright -> Broad Search)
-                li = inspector.find_linkedin_link(website)
-                looked_up = True
-                if li:
-                    queue_cell(r, col_linkedin, li)
-                    queue_cell(r, col_status, STATUS_FOUND)
-                    print(f"  -> {li}")
-                    has_real_li = True
-                else:
-                    formula = build_google_formula(company_cell)
-                    queue_cell(r, col_linkedin, formula)
-                    queue_cell(r, col_status, STATUS_NONE)
-                    queue_cell(r, col_emp_count, "")
-                    queue_cell(r, col_emp_link, "")
-                    queue_cell(r, col_company_id, "")
-                    print("  -> (none) — inserted Google search formula")
-                    queue_cell(r, col_checked, now)
-                    time.sleep(0.25)
-                    continue
-
-            if has_real_li and (employee_missing or looked_up):
-                stats = inspector.fetch(li)
+def _linkedin_worker(linkedin_queue, write_queue, columns, now, shutdown_event):
+    """Fetch employee data from LinkedIn with jitter delay, emit RowResult."""
+    inspector = LinkedInCompanyInspector(browser_semaphore=_browser_semaphore)
+    try:
+        while True:
+            if shutdown_event.is_set():
+                break
+            try:
+                item = linkedin_queue.get(timeout=1.0)
+            except Empty:
+                continue
+            if item is _SENTINEL:
+                break
+            task, li_url, partial_cells = item
+            try:
+                time.sleep(random.uniform(LI_DELAY_MIN, LI_DELAY_MAX))
+                stats = inspector.fetch(li_url)
+                cells = list(partial_cells)
                 if stats:
                     count_value = stats.get("employee_count")
                     if count_value is None:
                         count_value = stats.get("employee_text")
-                    queue_cell(r, col_emp_count, count_value or "")
-                    queue_cell(r, col_emp_link, stats.get("people_url") or "")
-                    queue_cell(r, col_company_id, stats.get("company_id") or "")
-                    print(f"  -> employees: {stats.get('employee_text') or stats.get('employee_count','?')} | people link: {stats.get('people_url','')}")
+                    cells += [
+                        (columns['emp_count'], count_value or ""),
+                        (columns['emp_link'], stats.get("people_url") or ""),
+                        (columns['company_id'], stats.get("company_id") or ""),
+                    ]
+                    if stats.get("employee_text") or stats.get("employee_count") is not None:
+                        print(
+                            f"  [{task.row_num}] employees: "
+                            f"{stats.get('employee_text') or stats.get('employee_count', '?')} "
+                            f"| people link: {stats.get('people_url', '')}"
+                        )
+                    else:
+                        reason = stats.get("failure_reason") or "UNKNOWN"
+                        suffix = f" | people link: {stats.get('people_url', '')}" if stats.get("people_url") else ""
+                        print(f"  [{task.row_num}] employee stats unavailable ({reason}){suffix}")
                 else:
-                    print("  -> employee stats unavailable")
-
-            queue_cell(r, col_checked, now)
-            time.sleep(0.25)
-
-        if updates:
-            ws.spreadsheet.values_batch_update({"valueInputOption": "USER_ENTERED", "data": updates})
-            print(f"✅ wrote {len(work_rows)} rows (URL or formula + status + timestamp).")
-
-        # Advance pointer
-        next_row = last_touched + 1
-        if next_row > len(values):
-            next_row = 2
-        meta_set_next_row(meta, next_row)
-        return True
+                    print(f"  [{task.row_num}] employee stats unavailable")
+                cells.append((columns['checked'], now))
+                write_queue.put(RowResult(task.seq_num, task.row_num, cells, "enriched"))
+            except Exception as e:
+                print(f"[linkedin_worker] row {task.row_num} error: {e}")
+                # Still emit partial_cells + checked so the ordered buffer never stalls
+                cells = list(partial_cells)
+                cells.append((columns['checked'], now))
+                write_queue.put(RowResult(task.seq_num, task.row_num, cells, f"ERROR: {e}", advance_pointer=False))
     finally:
         inspector.close()
+
+
+def _writer_thread(write_queue, worksheet, meta_ws, total_tasks, seq_next_rows, shutdown_event):
+    """Ordered batch writer — only advances _meta.next_row through contiguous completed rows."""
+    completed = {}           # seq_num -> bool (whether this result may advance the pointer)
+    next_to_commit = 0       # lowest seq_num not yet committed
+    pending_updates = []     # gspread batch update payloads
+    rows_since_flush = 0
+    last_flush_time = time.monotonic()
+    processed = 0
+    pointer_dirty = False
+    next_pointer = None
+
+    def flush():
+        nonlocal pending_updates, rows_since_flush, last_flush_time, pointer_dirty
+        if pending_updates:
+            worksheet.spreadsheet.values_batch_update({
+                "valueInputOption": "USER_ENTERED",
+                "data": pending_updates,
+            })
+        if pointer_dirty and next_pointer is not None:
+            meta_set_next_row(meta_ws, next_pointer)
+            print(
+                f"✅ wrote {rows_since_flush} rows "
+                f"(next row {next_pointer}; {processed}/{total_tasks} total)"
+            )
+        pending_updates = []
+        rows_since_flush = 0
+        pointer_dirty = False
+        last_flush_time = time.monotonic()
+
+    while True:
+        try:
+            item = write_queue.get(timeout=1.0)
+        except Empty:
+            if pending_updates and (time.monotonic() - last_flush_time) >= WRITER_FLUSH_INTERVAL:
+                flush()
+            if shutdown_event.is_set():
+                break
+            continue
+
+        if item is _SENTINEL:
+            break
+
+        result = item
+        completed[result.seq_num] = result.advance_pointer
+
+        # Queue this row's cell updates immediately, even if pointer cannot advance yet.
+        for col_num, value in result.cells:
+            if col_num and value is not None:
+                a1 = gspread.utils.rowcol_to_a1(result.row_num, col_num)
+                pending_updates.append({
+                    "range": f"{worksheet.title}!{a1}",
+                    "values": [[value]],
+                })
+        processed += 1
+        rows_since_flush += 1
+
+        # Advance pointer only through contiguous successful results.
+        while next_to_commit in completed:
+            can_advance = completed[next_to_commit]
+            if not can_advance:
+                break
+            completed.pop(next_to_commit)
+            next_pointer = seq_next_rows[next_to_commit]
+            pointer_dirty = True
+            next_to_commit += 1
+
+        if rows_since_flush >= WRITER_FLUSH_BATCH or (time.monotonic() - last_flush_time) >= WRITER_FLUSH_INTERVAL:
+            flush()
+
+    flush()  # Final flush of any remaining buffered rows
+
+
+# =========== MAIN ===========
+def main() -> bool:
+    gc = auth_client()
+    sh = gc.open_by_key(SHEET_ID)
+    ws = sh.worksheet(TAB_NAME)
+
+    meta = get_or_create_meta(sh)
+    start_row = meta_get_next_row(meta)
+
+    headers = [h.strip() for h in ws.row_values(1)]
+    header_lc = {h.lower(): i+1 for i, h in enumerate(headers)}
+
+    def col_index(*names):
+        for n in names:
+            idx = header_lc.get(n.lower())
+            if idx: return idx
+        return None
+
+    col_company    = col_index(COL_COMPANY)
+    col_website    = col_index("website")
+    col_linkedin   = col_index(COL_LINKEDIN, "Find LinkedIn", "Company LinkedIn")
+    col_status     = col_index(COL_STATUS)
+    col_checked    = col_index(COL_LAST_CHECKED)
+    col_emp_count  = col_index(COL_EMP_COUNT)
+    col_emp_link   = col_index(COL_EMP_LINK)
+    col_company_id = col_index(COL_COMPANY_ID)
+
+    if not col_website:
+        err_exit("Could not find the 'website' column.")
+    if not col_company:
+        err_exit("Could not find the 'name' column.")
+
+    # Ensure LinkedIn/Status/Checked columns exist
+    need_updates = []
+    def ensure_column(current_idx, header_label):
+        nonlocal need_updates
+        if current_idx:
+            return current_idx
+        ws.add_cols(1)
+        idx = ws.col_count
+        need_updates.append((1, idx, header_label))
+        return idx
+
+    col_linkedin   = ensure_column(col_linkedin, COL_LINKEDIN)
+    col_status     = ensure_column(col_status, COL_STATUS)
+    col_checked    = ensure_column(col_checked, COL_LAST_CHECKED)
+    col_emp_count  = ensure_column(col_emp_count, COL_EMP_COUNT)
+    col_emp_link   = ensure_column(col_emp_link, COL_EMP_LINK)
+    col_company_id = ensure_column(col_company_id, COL_COMPANY_ID)
+
+    if need_updates:
+        for r, c, v in need_updates:
+            ws.update_cell(r, c, v)
+        headers = [h.strip() for h in ws.row_values(1)]
+        header_lc = {h.lower(): i+1 for i, h in enumerate(headers)}
+
+    # Read all values once
+    values = ws.get_all_values()
+    if not values:
+        print("No data.")
+        return False
+
+    # Build candidate rows list (wrap from pointer)
+    all_rows = list(range(start_row, ws.row_count + 1)) + list(range(2, start_row))
+    work_rows, scanned = [], 0
+    for r in all_rows:
+        if r > len(values):
+            continue
+        row = values[r-1]
+        def v(col, _row=row):
+            return (_row[col-1] if col and col-1 < len(_row) else "").strip()
+        website      = v(col_website)
+        company_name = v(col_company)
+        linkedin_val = v(col_linkedin)
+        status_val   = v(col_status)
+        emp_count_v  = v(col_emp_count)
+        emp_link_v   = v(col_emp_link)
+        company_id_v = v(col_company_id)
+        has_formula  = linkedin_val.startswith("=")
+        linkedin_kind = _linkedin_url_kind(linkedin_val) if not has_formula else ""
+        has_real_li  = linkedin_kind in {"company", "showcase"}
+        is_none      = status_val == STATUS_NONE
+        is_person_profile = status_val == STATUS_PERSON_PROFILE
+        needs_link_lookup = (not has_real_li) and not is_none and not is_person_profile
+        employee_missing = not (emp_count_v and emp_link_v and company_id_v)
+        needs_backfill = has_real_li and employee_missing
+
+        if not website:
+            continue
+        if not needs_link_lookup and not needs_backfill:
+            continue
+        work_rows.append(r)
+        scanned += 1
+        if scanned >= BATCH_SIZE:
+            break
+
+    if not work_rows:
+        print("Nothing to update.")
+        meta_set_next_row(meta, start_row if start_row <= 3 else 2)
+        return False
+
+    print(f"🔎 Processing {len(work_rows)} rows starting at sheet row {work_rows[0]}.")
+
+    # --- Build RowTask list ---
+    columns = {
+        'linkedin':   col_linkedin,
+        'status':     col_status,
+        'checked':    col_checked,
+        'emp_count':  col_emp_count,
+        'emp_link':   col_emp_link,
+        'company_id': col_company_id,
+        'company':    col_company,
+    }
+    now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    tasks = []
+    seq_next_rows = []
+    for seq, r in enumerate(work_rows):
+        row = values[r-1]
+        def v(col, _row=row):
+            return (_row[col-1] if col and col-1 < len(_row) else "").strip()
+        website      = v(col_website)
+        linkedin_val = v(col_linkedin)
+        status_val   = v(col_status)
+        emp_count_v  = v(col_emp_count)
+        emp_link_v   = v(col_emp_link)
+        company_id_v = v(col_company_id)
+        has_formula  = linkedin_val.startswith("=")
+        linkedin_kind = _linkedin_url_kind(linkedin_val) if not has_formula else ""
+        has_real_li  = linkedin_kind in {"company", "showcase"}
+        is_none      = status_val == STATUS_NONE
+        is_person_profile = status_val == STATUS_PERSON_PROFILE
+        employee_missing = not (emp_count_v and emp_link_v and company_id_v)
+        needs_link_lookup = (not has_real_li) and not is_none and not is_person_profile
+        needs_backfill = has_real_li and employee_missing
+
+        tasks.append(RowTask(
+            seq_num=seq,
+            row_num=r,
+            company_name=company_name,
+            website=website,
+            linkedin_val=linkedin_val,
+            status_val=status_val,
+            emp_count_v=emp_count_v,
+            emp_link_v=emp_link_v,
+            company_id_v=company_id_v,
+            company_cell_a1=gspread.utils.rowcol_to_a1(r, col_company),
+            has_real_li=has_real_li,
+            needs_link_lookup=needs_link_lookup,
+            needs_backfill=needs_backfill,
+        ))
+        seq_next_rows.append(2 if r >= len(values) else r + 1)
+
+    # --- Start pipeline ---
+    task_queue    = Queue()
+    linkedin_queue = Queue()
+    write_queue   = Queue()
+    shutdown_event = threading.Event()
+
+    website_threads = [
+        threading.Thread(
+            target=_website_worker,
+            args=(task_queue, linkedin_queue, write_queue, columns, now, shutdown_event),
+            daemon=True,
+        )
+        for _ in range(WEBSITE_WORKERS)
+    ]
+    linkedin_threads = [
+        threading.Thread(
+            target=_linkedin_worker,
+            args=(linkedin_queue, write_queue, columns, now, shutdown_event),
+            daemon=True,
+        )
+        for _ in range(LINKEDIN_WORKERS)
+    ]
+    writer = threading.Thread(
+        target=_writer_thread,
+        args=(write_queue, ws, meta, len(tasks), seq_next_rows, shutdown_event),
+        daemon=True,
+    )
+    try:
+        for t in website_threads + linkedin_threads:
+            t.start()
+        writer.start()
+
+        for task in tasks:
+            task_queue.put(task)
+        for _ in website_threads:
+            task_queue.put(_SENTINEL)
+
+        for t in website_threads:
+            t.join()
+        for _ in linkedin_threads:
+            linkedin_queue.put(_SENTINEL)
+        for t in linkedin_threads:
+            t.join()
+
+        write_queue.put(_SENTINEL)
+        writer.join(timeout=60)
+        if writer.is_alive():
+            raise RuntimeError("Writer thread did not finish in time.")
+        return True
+    except KeyboardInterrupt:
+        shutdown_event.set()
+        for _ in website_threads:
+            task_queue.put(_SENTINEL)
+        for _ in linkedin_threads:
+            linkedin_queue.put(_SENTINEL)
+        write_queue.put(_SENTINEL)
+        for t in website_threads + linkedin_threads:
+            t.join(timeout=5)
+        writer.join(timeout=60)
+        raise
 
 # Optional: --loop mode
 # Optional: loop + reset controls
@@ -749,11 +1308,16 @@ if __name__ == "__main__":
             time.sleep(max(5, args.interval))
     elif args.drain:
         while True:
+            interrupted = False
             try:
                 progress = main()
             except Exception as e:
                 print("Run error:", e)
                 progress = False
+                interrupted = True
+            if interrupted:
+                print("⏸️ Drain interrupted by an error. Resume will continue from the saved next_row pointer.")
+                break
             if not progress:
                 print("✅ Drain complete – no remaining leads to process.")
                 break

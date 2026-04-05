@@ -504,10 +504,10 @@ LOCATIONS = _FULL_LOCATIONS
 # Use --next-category to advance to the next category.
 
 KEYWORD_CATEGORY_1 = [
-    "trading firm",
     "proprietary trading",
     "algorithmic trading",
     "quantitative trading",
+    "financial trading",
 ]
 
 KEYWORD_CATEGORY_2 = [
@@ -550,7 +550,7 @@ KEYWORDS = KEYWORD_CATEGORY_1
 # Number of unique leads (post-deduplication) to collect before pausing to
 # request operator confirmation to continue. This is the total batch size for
 # the run, not a per-worker multiplier.
-BATCH_SIZE = 10  # Temporarily set to 10 for testing (was 50)
+BATCH_SIZE = 40
 
 # Where batch CSVs should be written (absolute path for consistent behavior).
 _SCRAPER_DIR = Path(__file__).parent
@@ -601,7 +601,7 @@ CAPTCHA_BACKOFF_S = 45
 # PARALLEL SCRAPING CONFIGURATION
 # ============================================================================
 # Number of parallel browser instances. Set to 1 to disable parallel mode.
-NUM_WORKERS = 6
+NUM_WORKERS = 4
 
 # Delay range (seconds) between requests. Actual delay is randomized within this range.
 INTER_REQUEST_DELAY_MIN = 6

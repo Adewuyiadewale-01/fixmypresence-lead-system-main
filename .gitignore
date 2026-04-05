@@ -58,6 +58,7 @@ location_generator/out/
 
 # Logs
 *.log
+controller/logs/
 
 # Jupyter
 .ipynb_checkpoints/

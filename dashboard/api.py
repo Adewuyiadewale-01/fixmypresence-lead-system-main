@@ -6,14 +6,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from . import settings
 from .process import get_process_manager
 from .scheduler import get_scheduler
+from .pipeline_status import get_pipeline_status
 
 # Add Bots path to import progress_status
 sys.path.insert(0, str(settings.BOTS_DIR / "maps_scraper"))
@@ -33,9 +35,10 @@ except ImportError as e:
 
 app = FastAPI(title="FixMyPresence Control Center", version="1.0.0")
 
-# Mount static files
+# Mount static files and templates
 DASHBOARD_DIR = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=DASHBOARD_DIR / "static"), name="static")
+templates = Jinja2Templates(directory=DASHBOARD_DIR / "templates")
 
 
 # =============================================================================
@@ -58,29 +61,67 @@ class ConfigRequest(BaseModel):
 # =============================================================================
 
 @app.get("/", response_class=HTMLResponse)
-async def index():
-    """Serve the dashboard HTML."""
-    template_path = DASHBOARD_DIR / "templates" / "index.html"
-    if template_path.exists():
-        return HTMLResponse(content=template_path.read_text())
-    return HTMLResponse(content="<h1>Dashboard template not found</h1>")
+async def index(request: Request):
+    """Overview page."""
+    return templates.TemplateResponse(request, "overview.html", {"active_page": "overview"})
+
+
+@app.get("/scraper", response_class=HTMLResponse)
+async def scraper_page(request: Request):
+    """Scraper controls and progress."""
+    return templates.TemplateResponse(request, "scraper.html", {"active_page": "scraper"})
+
+
+@app.get("/enrichment", response_class=HTMLResponse)
+async def enrichment_page(request: Request):
+    """Enrichment pipeline status."""
+    return templates.TemplateResponse(request, "enrichment.html", {"active_page": "enrichment"})
+
+
+@app.get("/robot", response_class=HTMLResponse)
+async def robot_page(request: Request):
+    """Robot control room."""
+    return templates.TemplateResponse(request, "robot.html", {"active_page": "robot"})
+
+
+@app.get("/config", response_class=HTMLResponse)
+async def config_page(request: Request):
+    """System configuration."""
+    return templates.TemplateResponse(request, "config.html", {"active_page": "config"})
+
+
+@app.get("/locations", response_class=HTMLResponse)
+async def locations_page(request: Request):
+    """Location generator."""
+    return templates.TemplateResponse(request, "locations.html", {"active_page": "locations"})
+
+
+@app.get("/logs/view", response_class=HTMLResponse)
+async def logs_page(request: Request):
+    """Unified log viewer."""
+    return templates.TemplateResponse(request, "logs.html", {"active_page": "logs"})
 
 
 @app.get("/status")
 async def get_status():
     """
     Unified Status Endpoint.
-    Returns process info, scheduler state, and scraper progress.
+    Returns process info, scheduler state, scraper progress, and full pipeline snapshot.
     Single source of truth.
     """
     pm = get_process_manager()
     scheduler = get_scheduler()
-    
+
+    process_info = pm.get_info()
+    scheduler_state = scheduler.get_state()
+    scraper_progress = get_progress_status()
+
     return {
         "timestamp": datetime.now().isoformat(),
-        "process": pm.get_info(),
-        "scheduler": scheduler.get_state(),
-        "scraper": get_progress_status()
+        "process": process_info,
+        "scheduler": scheduler_state,
+        "scraper": scraper_progress,
+        "pipeline": get_pipeline_status(process_info, scheduler_state, scraper_progress),
     }
 
 

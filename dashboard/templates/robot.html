@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Robot{% endblock %}
+{% block page_title %}Robot{% endblock %}
+
+{% block content %}
+<div class="panel placeholder-page">
+    <i data-lucide="bot"></i>
+    <h3>Robot Control Room</h3>
+    <p>Warnings, automated decisions, timed manual input prompts, and system call-outs will live here.</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>lucide.createIcons();</script>
+{% endblock %}

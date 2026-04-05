@@ -155,7 +155,7 @@ def parse_args():
     parser.add_argument(
         "--with-watcher",
         action="store_true",
-        help="Run enrichment & ultra-validation watchers in background"
+        help="Run enrichment, ultra-validation, and scraper_v3 watchers in background"
     )
     parser.add_argument(
         "--watcher-interval",
@@ -201,6 +201,19 @@ if __name__ == "__main__":
                 watcher_threads.append(t2)
             except ImportError:
                 print("⚠️ Could not import ultra_validated_watcher")
+
+            # 3. Scraper V3 Watcher
+            try:
+                from scraper_v3_watcher import watcher_tick as scraper_v3_tick
+                t3 = threading.Thread(
+                    target=_run_watcher_in_thread,
+                    args=("Scraper V3 Watcher", scraper_v3_tick, args.watcher_interval),
+                    daemon=True
+                )
+                t3.start()
+                watcher_threads.append(t3)
+            except ImportError:
+                print("⚠️ Could not import scraper_v3_watcher")
         
         main(headless=args.headless, parallel=not args.single)
         

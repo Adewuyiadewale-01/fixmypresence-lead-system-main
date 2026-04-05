@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FixMyPresence{% endblock %} - Control Center</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    {% block head %}{% endblock %}
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+        <!-- Logo -->
+        <div class="sidebar-logo">
+            <div class="logo-icon">
+                <i data-lucide="radio-tower"></i>
+            </div>
+            <span class="logo-text">FixMyPresence</span>
+            <button id="btn-collapse" class="sidebar-collapse-btn" title="Collapse sidebar">
+                <i data-lucide="panel-left-close"></i>
+            </button>
+        </div>
+
+        <!-- Nav: System -->
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">SYSTEM</div>
+            <a href="/" class="nav-item {% if active_page == 'overview' %}active{% endif %}">
+                <i data-lucide="layout-dashboard"></i>
+                <span class="nav-text">Overview</span>
+            </a>
+            <a href="/scraper" class="nav-item {% if active_page == 'scraper' %}active{% endif %}">
+                <i data-lucide="scan-search"></i>
+                <span class="nav-text">Scraper</span>
+            </a>
+            <a href="/enrichment" class="nav-item {% if active_page == 'enrichment' %}active{% endif %}">
+                <i data-lucide="sparkles"></i>
+                <span class="nav-text">Enrichment</span>
+            </a>
+            <a href="/robot" class="nav-item {% if active_page == 'robot' %}active{% endif %}">
+                <i data-lucide="bot"></i>
+                <span class="nav-text">Robot</span>
+            </a>
+
+            <!-- Nav: Configuration -->
+            <div class="nav-section-label">CONFIGURATION</div>
+            <a href="/config" class="nav-item {% if active_page == 'config' %}active{% endif %}">
+                <i data-lucide="settings"></i>
+                <span class="nav-text">Config</span>
+            </a>
+            <a href="/locations" class="nav-item {% if active_page == 'locations' %}active{% endif %}">
+                <i data-lucide="map-pin"></i>
+                <span class="nav-text">Locations</span>
+            </a>
+
+            <!-- Nav: Monitoring -->
+            <div class="nav-section-label">MONITORING</div>
+            <a href="/logs/view" class="nav-item {% if active_page == 'logs' %}active{% endif %}">
+                <i data-lucide="scroll-text"></i>
+                <span class="nav-text">Logs</span>
+            </a>
+        </nav>
+
+        <!-- Sidebar Footer -->
+        <div class="sidebar-footer">
+            <div class="sidebar-status">
+                <span id="sidebar-dot" class="sidebar-status-dot stopped"></span>
+                <span class="nav-text" id="sidebar-status-text">Stopped</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div id="main-content" class="main-content">
+        <!-- Page Header -->
+        <header class="page-header">
+            <div class="page-header-left">
+                <button id="btn-expand" class="sidebar-expand-btn hidden" title="Expand sidebar">
+                    <i data-lucide="panel-left-open"></i>
+                </button>
+                <h1>{% block page_title %}Overview{% endblock %}</h1>
+            </div>
+            <div id="status-indicator" class="status-indicator stopped">
+                <span class="dot"></span>
+                <span id="status-text">STOPPED</span>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <div class="page-content">
+            {% block content %}{% endblock %}
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast-container" class="toast-container"></div>
+    </div>
+
+    <!-- Sidebar JS -->
+    <script>
+        (function() {
+            const sidebar = document.getElementById('sidebar');
+            const main = document.getElementById('main-content');
+            const btnCollapse = document.getElementById('btn-collapse');
+            const btnExpand = document.getElementById('btn-expand');
+            const STORAGE_KEY = 'sidebar_collapsed';
+
+            function collapse() {
+                sidebar.classList.add('collapsed');
+                main.classList.add('sidebar-collapsed');
+                btnCollapse.classList.add('hidden');
+                btnExpand.classList.remove('hidden');
+                localStorage.setItem(STORAGE_KEY, '1');
+            }
+
+            function expand() {
+                sidebar.classList.remove('collapsed');
+                main.classList.remove('sidebar-collapsed');
+                btnCollapse.classList.remove('hidden');
+                btnExpand.classList.add('hidden');
+                localStorage.setItem(STORAGE_KEY, '0');
+            }
+
+            btnCollapse.addEventListener('click', collapse);
+            btnExpand.addEventListener('click', expand);
+
+            // Restore state
+            if (localStorage.getItem(STORAGE_KEY) === '1') {
+                collapse();
+            }
+
+            // Initialize Lucide icons
+            lucide.createIcons();
+        })();
+    </script>
+
+    <!-- Common JS -->
+    <script src="/static/js/common.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

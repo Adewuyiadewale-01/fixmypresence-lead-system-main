@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Config{% endblock %}
+{% block page_title %}Config{% endblock %}
+
+{% block content %}
+<div class="panel placeholder-page">
+    <i data-lucide="settings"></i>
+    <h3>System Configuration</h3>
+    <p>Workers, batch size, headless toggle, enrichment thresholds, and all tunable values will live here.</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>lucide.createIcons();</script>
+{% endblock %}

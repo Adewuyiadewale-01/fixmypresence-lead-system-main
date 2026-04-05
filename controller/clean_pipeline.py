@@ -42,16 +42,19 @@ DEST_TABS = ["Alpha", "Beta", "Gamma", "I-gamma", "pBin", "Hydro", "hydro_formul
 # Lock Files
 LOCK_FILES = [
     "enrichment_lock.json",
-    "ultra_validated_lock.json"
+    "ultra_validated_lock.json",
+    "scraper_v3_lock.json",
 ]
 
 # Processes to kill
 PROCESS_NAMES = [
     "enrichment_watcher.py",
     "ultra_validated_watcher.py",
+    "scraper_v3_watcher.py",
     "enrich_linkedin.py",
     "keyword_detector.py",
-    "score_and_classify.py"
+    "score_and_classify.py",
+    "scraper_v3.py",
 ]
 
 SCOPES = [

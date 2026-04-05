@@ -1,0 +1,556 @@
+{% extends "base.html" %}
+
+{% block title %}Overview{% endblock %}
+{% block page_title %}Overview{% endblock %}
+
+{% block content %}
+<div class="pipeline-grid">
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         ROW 1: Hero pulse + Leads big-number
+         ═══════════════════════════════════════════════════════════════ -->
+
+    <section class="panel hero-card pgrid-span-2">
+        <div class="hero-content">
+            <div class="hero-label">System Pulse</div>
+            <div class="hero-status">
+                <span id="hero-dot" class="hero-dot"></span>
+                <span id="hero-status-text" class="hero-status-text">Stopped</span>
+            </div>
+            <div id="hero-meta" class="hero-meta">System idle</div>
+        </div>
+        <div class="waveform-wrap">
+            <canvas id="waveform-hero"></canvas>
+        </div>
+    </section>
+
+    <section class="panel leads-hero-card">
+        <h2>Leads Collected</h2>
+        <div class="big-number-display">
+            <span id="ov-leads" class="big-number">0</span>
+            <span class="big-number-label">Total Leads</span>
+        </div>
+        <div class="mini-stats">
+            <div class="mini-stat">
+                <span class="mini-label">Searches</span>
+                <span id="ov-searches" class="mini-value">--</span>
+            </div>
+            <div class="mini-stat">
+                <span class="mini-label">Category</span>
+                <span id="ov-category" class="mini-value">--</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         ROW 2: Quick Actions
+         ═══════════════════════════════════════════════════════════════ -->
+
+    <section class="panel pgrid-full">
+        <h2>Quick Actions</h2>
+        <div class="action-row">
+            <button id="ov-btn-start" class="btn btn-primary">
+                <i data-lucide="play"></i>
+                Start Scraper
+            </button>
+            <button id="ov-btn-cycle" class="btn btn-success">
+                <i data-lucide="refresh-cw"></i>
+                Start Cycle
+            </button>
+            <button id="ov-btn-stop" class="btn btn-warning">
+                <i data-lucide="square"></i>
+                Stop
+            </button>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         ROW 3: Pipeline — Maps Scraper + LinkedIn Enrichment + Keyword Detection
+         ═══════════════════════════════════════════════════════════════ -->
+
+    <section class="panel pipeline-card" id="card-scraper">
+        <div class="pipeline-card-header">
+            <div class="pipeline-card-icon"><i data-lucide="map-pin"></i></div>
+            <div>
+                <h2>Maps Scraper</h2>
+                <span id="ov-scraper-badge" class="pipeline-badge badge-stopped">Stopped</span>
+            </div>
+        </div>
+        <div class="pipeline-card-body">
+            <div class="pipeline-row">
+                <span class="pipeline-label">Location</span>
+                <span id="ov-scraper-location" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Keyword</span>
+                <span id="ov-scraper-keyword" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Leads today</span>
+                <span id="ov-scraper-leads" class="pipeline-val">0</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Batches</span>
+                <span id="ov-scraper-batches" class="pipeline-val">0</span>
+            </div>
+        </div>
+        <div id="ov-scraper-attention" class="pipeline-attention hidden"></div>
+    </section>
+
+    <section class="panel pipeline-card" id="card-enrichment">
+        <div class="pipeline-card-header">
+            <div class="pipeline-card-icon"><i data-lucide="linkedin" ></i></div>
+            <div>
+                <h2>LinkedIn Enrichment</h2>
+                <span id="ov-enrichment-badge" class="pipeline-badge badge-idle">Idle</span>
+            </div>
+        </div>
+        <div class="pipeline-card-body">
+            <div class="pipeline-row">
+                <span class="pipeline-label">Status</span>
+                <span id="ov-enrichment-status" class="pipeline-val">Idle</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Pending</span>
+                <span id="ov-enrichment-pending" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Checked</span>
+                <span id="ov-enrichment-checked" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Employees</span>
+                <span id="ov-enrichment-employees" class="pipeline-val">--</span>
+            </div>
+        </div>
+        <div id="ov-enrichment-attention" class="pipeline-attention hidden"></div>
+    </section>
+
+    <section class="panel pipeline-card" id="card-keywords">
+        <div class="pipeline-card-header">
+            <div class="pipeline-card-icon"><i data-lucide="search"></i></div>
+            <div>
+                <h2>Keyword Detection</h2>
+                <span id="ov-keyword-badge" class="pipeline-badge badge-idle">Idle</span>
+            </div>
+        </div>
+        <div class="pipeline-card-body">
+            <div class="pipeline-row">
+                <span class="pipeline-label">Status</span>
+                <span id="ov-keyword-status" class="pipeline-val">Idle</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Pending</span>
+                <span id="ov-keyword-pending" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Cat 1</span>
+                <span id="ov-keyword-cat1" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Cat 2</span>
+                <span id="ov-keyword-cat2" class="pipeline-val">--</span>
+            </div>
+        </div>
+        <div id="ov-keyword-attention" class="pipeline-attention hidden"></div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         ROW 3: Scoring + Settlement + Scraper V3
+         ═══════════════════════════════════════════════════════════════ -->
+
+    <section class="panel pipeline-card" id="card-scoring">
+        <div class="pipeline-card-header">
+            <div class="pipeline-card-icon"><i data-lucide="bar-chart-3"></i></div>
+            <div>
+                <h2>Scoring</h2>
+                <span id="ov-scoring-badge" class="pipeline-badge badge-idle">Idle</span>
+            </div>
+        </div>
+        <div class="pipeline-card-body">
+            <div class="pipeline-row">
+                <span class="pipeline-label">Status</span>
+                <span id="ov-scoring-status" class="pipeline-val">Idle</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Ready</span>
+                <span id="ov-scoring-ready" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Moved</span>
+                <span id="ov-scoring-moved" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">A / B / G</span>
+                <span id="ov-scoring-dist" class="pipeline-val">--</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel pipeline-card" id="card-settlement">
+        <div class="pipeline-card-header">
+            <div class="pipeline-card-icon"><i data-lucide="layers"></i></div>
+            <div>
+                <h2>Settlement</h2>
+                <span id="ov-settlement-badge" class="pipeline-badge badge-nodata">No data</span>
+            </div>
+        </div>
+        <div class="pipeline-card-body">
+            <div class="pipeline-row">
+                <span class="pipeline-label">Alpha</span>
+                <span id="ov-settlement-alpha" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Beta</span>
+                <span id="ov-settlement-beta" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Gamma</span>
+                <span id="ov-settlement-gamma" class="pipeline-val">--</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel pipeline-card" id="card-scraperv3">
+        <div class="pipeline-card-header">
+            <div class="pipeline-card-icon"><i data-lucide="rocket"></i></div>
+            <div>
+                <h2>Scraper V3</h2>
+                <span id="ov-v3-badge" class="pipeline-badge badge-nodata">No data</span>
+            </div>
+        </div>
+        <div class="pipeline-card-body">
+            <div class="pipeline-row">
+                <span class="pipeline-label">Status</span>
+                <span id="ov-v3-status" class="pipeline-val">Awaiting trigger</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">A+B progress</span>
+                <span id="ov-v3-progress" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Gamma ready</span>
+                <span id="ov-v3-gamma" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Last batch</span>
+                <span id="ov-v3-lastbatch" class="pipeline-val">--</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         ROW 4: Watchers + Scheduler (half width each)
+         ═══════════════════════════════════════════════════════════════ -->
+
+    <section class="panel pipeline-card pgrid-span-half" id="card-watchers">
+        <div class="pipeline-card-header">
+            <div class="pipeline-card-icon"><i data-lucide="eye"></i></div>
+            <div><h2>Watchers</h2></div>
+        </div>
+        <div class="pipeline-card-body">
+            <div class="pipeline-row">
+                <span class="pipeline-label">Enrichment watcher</span>
+                <span id="ov-watcher-enrichment" class="pipeline-val watcher-state">idle</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Ultra validated watcher</span>
+                <span id="ov-watcher-ultra" class="pipeline-val watcher-state">idle</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Scraper V3 watcher</span>
+                <span id="ov-watcher-v3" class="pipeline-val watcher-state">idle</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel pipeline-card pgrid-span-half" id="card-scheduler">
+        <div class="pipeline-card-header">
+            <div class="pipeline-card-icon"><i data-lucide="clock"></i></div>
+            <div><h2>Scheduler</h2></div>
+        </div>
+        <div class="pipeline-card-body">
+            <div class="pipeline-row">
+                <span class="pipeline-label">Mode</span>
+                <span id="ov-scheduler-status" class="pipeline-val">Disabled</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Next transition</span>
+                <span id="ov-scheduler-next" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Config</span>
+                <span id="ov-scheduler-config" class="pipeline-val">--</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         ROW 5: System Attention (full width)
+         ═══════════════════════════════════════════════════════════════ -->
+
+    <section class="panel pipeline-card pgrid-full" id="card-attention">
+        <div class="pipeline-card-header">
+            <div class="pipeline-card-icon attention-icon"><i data-lucide="alert-triangle"></i></div>
+            <div><h2>System Attention</h2></div>
+        </div>
+        <div id="ov-attention-list" class="attention-list">
+            <div class="attention-empty">No issues detected</div>
+        </div>
+    </section>
+
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/waveform.js"></script>
+<script>
+(function() {
+    // ── Waveform ──
+    const heroCanvas = document.getElementById('waveform-hero');
+    const wf = heroCanvas ? new Waveform(heroCanvas, { color: '190, 232, 46' }) : null;
+
+    // ── Helper: update a badge ──
+    function setBadge(el, status) {
+        if (!el) return;
+        el.className = 'pipeline-badge';
+        const map = {
+            running: ['badge-running', 'Running'],
+            resting: ['badge-resting', 'Resting'],
+            stopped: ['badge-stopped', 'Stopped'],
+            idle:    ['badge-idle', 'Idle'],
+            stale:   ['badge-stale', 'Stale lock'],
+            no_data: ['badge-nodata', 'No data'],
+        };
+        const [cls, text] = map[status] || map['idle'];
+        el.classList.add(cls);
+        el.textContent = text;
+    }
+
+    // ── Helper: format minutes ──
+    function fmtAge(minutes) {
+        if (minutes == null) return '--';
+        if (minutes < 1) return '<1m';
+        if (minutes < 60) return Math.round(minutes) + 'm';
+        return Math.floor(minutes / 60) + 'h ' + Math.round(minutes % 60) + 'm';
+    }
+
+    // ── Helper: format time remaining ──
+    function fmtRemaining(isoStr) {
+        if (!isoStr) return '--';
+        const diff = new Date(isoStr) - new Date();
+        if (diff <= 0) return 'Now';
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        return `in ${h}h ${m}m`;
+    }
+
+    // ── Helper: watcher state class ──
+    function setWatcherState(el, state) {
+        if (!el) return;
+        el.textContent = state;
+        el.className = 'pipeline-val watcher-state';
+        if (state === 'active') el.classList.add('ws-active');
+        else if (state === 'stale') el.classList.add('ws-stale');
+        else el.classList.add('ws-idle');
+    }
+
+    // ── Main status handler ──
+    window.addEventListener('status-update', (e) => {
+        const data = e.detail;
+        const p = data.process;
+        const s = data.scheduler;
+        const sc = data.scraper;
+        const pl = data.pipeline || {};
+
+        // ════════════════════════════════════════
+        // HERO CARD
+        // ════════════════════════════════════════
+        const heroDot = document.getElementById('hero-dot');
+        const heroText = document.getElementById('hero-status-text');
+        const heroMeta = document.getElementById('hero-meta');
+
+        heroDot.classList.remove('running', 'resting');
+
+        if (p.running) {
+            heroDot.classList.add('running');
+            heroText.textContent = s.enabled && s.phase === 'RUNNING' ? 'Running (Cycle)' : 'Running';
+            heroMeta.textContent = p.uptime ? `Uptime: ${p.uptime}` : 'Process active';
+            if (wf) wf.setIntensity(0.7);
+        } else if (s.phase === 'RESTING') {
+            heroDot.classList.add('resting');
+            heroText.textContent = 'Resting';
+            heroMeta.textContent = 'Scheduler rest period';
+            if (wf) wf.setIntensity(0.25);
+        } else {
+            heroText.textContent = 'Stopped';
+            heroMeta.textContent = 'System idle';
+            if (wf) wf.setIntensity(0.08);
+        }
+
+        // ════════════════════════════════════════
+        // LEADS / PROGRESS
+        // ════════════════════════════════════════
+        const ms = pl.maps_scraper || {};
+        document.getElementById('ov-leads').textContent = ms.leads_today || '0';
+        document.getElementById('ov-searches').textContent =
+            ms.searches != null ? `${ms.searches}/${ms.total_searches || '?'}` : '--';
+        document.getElementById('ov-category').textContent = ms.category || '--';
+
+        // ════════════════════════════════════════
+        // MAPS SCRAPER CARD
+        // ════════════════════════════════════════
+        setBadge(document.getElementById('ov-scraper-badge'), ms.status || 'stopped');
+        document.getElementById('ov-scraper-location').textContent = ms.location || '--';
+        document.getElementById('ov-scraper-keyword').textContent = ms.keyword || '--';
+        document.getElementById('ov-scraper-leads').textContent = ms.leads_today || '0';
+        document.getElementById('ov-scraper-batches').textContent = ms.batches || '0';
+
+        // ════════════════════════════════════════
+        // ENRICHMENT CARD
+        // ════════════════════════════════════════
+        const en = pl.enrichment || {};
+        setBadge(document.getElementById('ov-enrichment-badge'), en.status || 'idle');
+        document.getElementById('ov-enrichment-status').textContent =
+            en.locked ? (en.is_stale ? 'Stale lock' : 'Draining') : 'Idle';
+        document.getElementById('ov-enrichment-pending').textContent =
+            en.pending != null ? en.pending : '--';
+        document.getElementById('ov-enrichment-checked').textContent =
+            en.checked != null ? en.checked : '--';
+        document.getElementById('ov-enrichment-employees').textContent =
+            en.employees != null ? en.employees : '--';
+
+        // ════════════════════════════════════════
+        // KEYWORD DETECTION CARD
+        // ════════════════════════════════════════
+        const kw = pl.keyword_detection || {};
+        setBadge(document.getElementById('ov-keyword-badge'), kw.status || 'idle');
+        document.getElementById('ov-keyword-status').textContent =
+            kw.locked ? (kw.is_stale ? 'Stale lock' : 'Processing') : 'Idle';
+        document.getElementById('ov-keyword-pending').textContent =
+            kw.pending != null ? kw.pending : '--';
+        document.getElementById('ov-keyword-cat1').textContent =
+            kw.cat1 != null ? kw.cat1 : '--';
+        document.getElementById('ov-keyword-cat2').textContent =
+            kw.cat2 != null ? kw.cat2 : '--';
+
+        // ════════════════════════════════════════
+        // SCORING CARD
+        // ════════════════════════════════════════
+        const sc2 = pl.scoring || {};
+        setBadge(document.getElementById('ov-scoring-badge'), sc2.status || 'idle');
+        document.getElementById('ov-scoring-status').textContent =
+            sc2.locked ? 'Processing' : 'Idle';
+        document.getElementById('ov-scoring-ready').textContent =
+            sc2.ready != null ? sc2.ready : '--';
+        document.getElementById('ov-scoring-moved').textContent =
+            sc2.moved != null ? sc2.moved : '--';
+        document.getElementById('ov-scoring-dist').textContent =
+            (sc2.alpha != null && sc2.beta != null && sc2.gamma != null)
+                ? `${sc2.alpha} / ${sc2.beta} / ${sc2.gamma}`
+                : '--';
+
+        // ════════════════════════════════════════
+        // SETTLEMENT CARD
+        // ════════════════════════════════════════
+        const st = pl.settlement || {};
+        setBadge(document.getElementById('ov-settlement-badge'), st.status || 'no_data');
+        document.getElementById('ov-settlement-alpha').textContent = st.alpha != null ? st.alpha : '--';
+        document.getElementById('ov-settlement-beta').textContent = st.beta != null ? st.beta : '--';
+        document.getElementById('ov-settlement-gamma').textContent = st.gamma != null ? st.gamma : '--';
+
+        // ════════════════════════════════════════
+        // SCRAPER V3 CARD
+        // ════════════════════════════════════════
+        const v3 = pl.scraper_v3 || {};
+        setBadge(document.getElementById('ov-v3-badge'), v3.status || 'idle');
+        document.getElementById('ov-v3-status').textContent =
+            v3.locked ? (v3.is_stale ? 'Stale lock' : 'Running') : 'Awaiting Alpha/Beta threshold';
+        document.getElementById('ov-v3-progress').textContent =
+            (v3.alpha_beta != null && v3.threshold != null) ? `${v3.alpha_beta}/${v3.threshold}` : '--';
+        document.getElementById('ov-v3-gamma').textContent =
+            v3.gamma != null ? v3.gamma : '--';
+        document.getElementById('ov-v3-lastbatch').textContent =
+            v3.last_batch != null ? `${v3.last_batch} leads` : '--';
+
+        // ════════════════════════════════════════
+        // WATCHERS
+        // ════════════════════════════════════════
+        const wt = pl.watchers || {};
+        setWatcherState(document.getElementById('ov-watcher-enrichment'), wt.enrichment_watcher || 'idle');
+        setWatcherState(document.getElementById('ov-watcher-ultra'), wt.ultra_watcher || 'idle');
+        setWatcherState(document.getElementById('ov-watcher-v3'), wt.scraper_v3_watcher || 'idle');
+
+        // ════════════════════════════════════════
+        // SCHEDULER
+        // ════════════════════════════════════════
+        const sch = pl.scheduler || {};
+        if (sch.enabled) {
+            document.getElementById('ov-scheduler-status').textContent =
+                sch.phase === 'RUNNING' ? 'Running' : 'Resting';
+            document.getElementById('ov-scheduler-next').textContent = fmtRemaining(sch.next_transition);
+        } else {
+            document.getElementById('ov-scheduler-status').textContent = 'Disabled';
+            document.getElementById('ov-scheduler-next').textContent = '--';
+        }
+        const cfg = sch.config || {};
+        document.getElementById('ov-scheduler-config').textContent =
+            cfg.run_hours ? `${cfg.run_hours}h run / ${cfg.rest_hours}h rest` : '--';
+
+        // ════════════════════════════════════════
+        // SYSTEM ATTENTION
+        // ════════════════════════════════════════
+        const attnList = document.getElementById('ov-attention-list');
+        const flags = pl.attention || [];
+
+        if (flags.length === 0) {
+            attnList.innerHTML = '<div class="attention-empty">No issues detected</div>';
+        } else {
+            attnList.innerHTML = flags.map(f => `
+                <div class="attention-item attn-${f.level}">
+                    <span class="attn-dot"></span>
+                    <span class="attn-source">${f.source}</span>
+                    <span class="attn-msg">${f.message}</span>
+                </div>
+            `).join('');
+        }
+
+        // ════════════════════════════════════════
+        // BUTTON STATES
+        // ════════════════════════════════════════
+        document.getElementById('ov-btn-start').disabled = p.running;
+        document.getElementById('ov-btn-cycle').disabled = p.running;
+        document.getElementById('ov-btn-stop').disabled = !p.running;
+        document.getElementById('ov-btn-start').classList.toggle('btn-disabled', p.running);
+        document.getElementById('ov-btn-cycle').classList.toggle('btn-disabled', p.running);
+        document.getElementById('ov-btn-stop').classList.toggle('btn-disabled', !p.running);
+    });
+
+    // ── Button handlers ──
+    document.getElementById('ov-btn-start').addEventListener('click', async () => {
+        try {
+            const result = await api('/control/start', 'POST', { mode: 'manual' });
+            showToast(result.message, result.success ? 'success' : 'error');
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+
+    document.getElementById('ov-btn-cycle').addEventListener('click', async () => {
+        if (!confirmAction('Start auto-cycle mode?')) return;
+        try {
+            const result = await api('/control/start', 'POST', { mode: 'cycle' });
+            showToast(result.message, result.success ? 'success' : 'error');
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+
+    document.getElementById('ov-btn-stop').addEventListener('click', async () => {
+        try {
+            const result = await api('/control/stop', 'POST');
+            showToast(result.message, 'success');
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+
+    lucide.createIcons();
+})();
+</script>
+{% endblock %}
