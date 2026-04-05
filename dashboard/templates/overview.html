@@ -27,19 +27,24 @@
     <section class="panel leads-hero-card">
         <h2>Leads Collected</h2>
         <div class="big-number-display">
-            <span id="ov-leads" class="big-number">0</span>
-            <span class="big-number-label">Total Leads</span>
+            <span id="ov-leads" class="big-number">--</span>
+            <span class="big-number-label">Usable Leads</span>
+        </div>
+        <div id="ov-leads-conversion" class="leads-conversion-bar">
+            <span class="conversion-pct" id="ov-leads-pct">--%</span>
+            <span class="conversion-label">usable from <span id="ov-leads-scraped">--</span> scraped</span>
         </div>
         <div class="mini-stats">
             <div class="mini-stat">
-                <span class="mini-label">Searches</span>
-                <span id="ov-searches" class="mini-value">--</span>
+                <span class="mini-label">Scrape Progress</span>
+                <span id="ov-searches" class="mini-value mini-value-stack">--</span>
             </div>
             <div class="mini-stat">
-                <span class="mini-label">Category</span>
-                <span id="ov-category" class="mini-value">--</span>
+                <span class="mini-label">Settlement</span>
+                <span id="ov-settlement-breakdown" class="mini-value mini-value-stack">--</span>
             </div>
         </div>
+        <div id="ov-leads-staleness" class="staleness-indicator"></div>
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════════
@@ -76,24 +81,45 @@
                 <span id="ov-scraper-badge" class="pipeline-badge badge-stopped">Stopped</span>
             </div>
         </div>
-        <div class="pipeline-card-body">
-            <div class="pipeline-row">
-                <span class="pipeline-label">Location</span>
-                <span id="ov-scraper-location" class="pipeline-val">--</span>
+        <div class="pipeline-card-body pipeline-two-col">
+            <div class="pipeline-col">
+                <div class="pipeline-row">
+                    <span class="pipeline-label">Searches</span>
+                    <span id="ov-scraper-searches" class="pipeline-val">--</span>
+                </div>
+                <div class="pipeline-row">
+                    <span class="pipeline-label">Search Pace</span>
+                    <span id="ov-scraper-search-pace" class="pipeline-val">--</span>
+                </div>
+                <div class="pipeline-row">
+                    <span class="pipeline-label">Yield</span>
+                    <span id="ov-scraper-yield" class="pipeline-val">--</span>
+                </div>
+                <div class="pipeline-row">
+                    <span class="pipeline-label">Website Rate</span>
+                    <span id="ov-scraper-website-rate" class="pipeline-val">--</span>
+                </div>
             </div>
-            <div class="pipeline-row">
-                <span class="pipeline-label">Keyword</span>
-                <span id="ov-scraper-keyword" class="pipeline-val">--</span>
-            </div>
-            <div class="pipeline-row">
-                <span class="pipeline-label">Leads today</span>
-                <span id="ov-scraper-leads" class="pipeline-val">0</span>
-            </div>
-            <div class="pipeline-row">
-                <span class="pipeline-label">Batches</span>
-                <span id="ov-scraper-batches" class="pipeline-val">0</span>
+            <div class="pipeline-col">
+                <div class="pipeline-row">
+                    <span class="pipeline-label">Category</span>
+                    <span id="ov-scraper-category" class="pipeline-val">--</span>
+                </div>
+                <div class="pipeline-row">
+                    <span class="pipeline-label">Batches</span>
+                    <span id="ov-scraper-batches" class="pipeline-val">0</span>
+                </div>
+                <div class="pipeline-row">
+                    <span class="pipeline-label">Batch Yield</span>
+                    <span id="ov-scraper-batch-yield" class="pipeline-val">--</span>
+                </div>
+                <div class="pipeline-row">
+                    <span class="pipeline-label">Captcha / Errors</span>
+                    <span id="ov-scraper-risk" class="pipeline-val pipeline-val-stack">--</span>
+                </div>
             </div>
         </div>
+        <div id="ov-scraper-staleness" class="staleness-indicator"></div>
         <div id="ov-scraper-attention" class="pipeline-attention hidden"></div>
     </section>
 
@@ -346,6 +372,40 @@
         return `in ${h}h ${m}m`;
     }
 
+    function fmtNum(value) {
+        if (value == null || Number.isNaN(Number(value))) return '--';
+        return Number(value).toLocaleString();
+    }
+
+    function fmtPct(value) {
+        if (value == null || Number.isNaN(Number(value))) return '--';
+        return `${Number(value).toFixed(1)}%`;
+    }
+
+    function fmtStaleness(isoStr) {
+        if (!isoStr) return '';
+        const diff = (Date.now() - new Date(isoStr).getTime()) / 1000;
+        if (diff < 0 || Number.isNaN(diff)) return '';
+        if (diff < 60) return 'Last activity <1m ago';
+        if (diff < 3600) return `Last activity ${Math.floor(diff / 60)}m ago`;
+        const h = Math.floor(diff / 3600);
+        const m = Math.floor((diff % 3600) / 60);
+        return `Last activity ${h}h ${m}m ago`;
+    }
+
+    function setCardNote(el, text, tone = 'info') {
+        if (!el) return;
+        if (!text) {
+            el.classList.add('hidden');
+            el.textContent = '';
+            el.classList.remove('attn-info', 'attn-warning', 'attn-danger');
+            return;
+        }
+        el.classList.remove('hidden', 'attn-info', 'attn-warning', 'attn-danger');
+        el.classList.add(`attn-${tone}`);
+        el.textContent = text;
+    }
+
     // ── Helper: watcher state class ──
     function setWatcherState(el, state) {
         if (!el) return;
@@ -393,19 +453,79 @@
         // LEADS / PROGRESS
         // ════════════════════════════════════════
         const ms = pl.maps_scraper || {};
-        document.getElementById('ov-leads').textContent = ms.leads_today || '0';
-        document.getElementById('ov-searches').textContent =
-            ms.searches != null ? `${ms.searches}/${ms.total_searches || '?'}` : '--';
-        document.getElementById('ov-category').textContent = ms.category || '--';
+        document.getElementById('ov-leads').textContent =
+            ms.usable_leads != null ? fmtNum(ms.usable_leads) : '--';
+
+        // Conversion bar
+        document.getElementById('ov-leads-pct').textContent =
+            ms.usable_rate != null ? fmtPct(ms.usable_rate) : '--%';
+        document.getElementById('ov-leads-scraped').textContent =
+            ms.scraped_leads != null ? fmtNum(ms.scraped_leads) : '--';
+
+        // Scrape Progress mini-stat
+        document.getElementById('ov-searches').innerHTML = `
+            <span class="mini-main">${fmtNum(ms.searches)} / ${fmtNum(ms.total_searches)}</span>
+            <span class="mini-sub">${ms.leads_per_100_searches != null ? fmtNum(ms.leads_per_100_searches) : '--'} leads per 100 searches</span>
+        `;
+
+        // Settlement mini-stat
+        document.getElementById('ov-settlement-breakdown').innerHTML = `
+            <span class="mini-main">A: ${fmtNum(ms.alpha)} · B: ${fmtNum(ms.beta)} · G: ${fmtNum(ms.gamma)}</span>
+        `;
+
+        // Staleness — leads card
+        document.getElementById('ov-leads-staleness').textContent =
+            fmtStaleness(pl.snapshot_fetched_at);
 
         // ════════════════════════════════════════
         // MAPS SCRAPER CARD
         // ════════════════════════════════════════
         setBadge(document.getElementById('ov-scraper-badge'), ms.status || 'stopped');
-        document.getElementById('ov-scraper-location').textContent = ms.location || '--';
-        document.getElementById('ov-scraper-keyword').textContent = ms.keyword || '--';
-        document.getElementById('ov-scraper-leads').textContent = ms.leads_today || '0';
-        document.getElementById('ov-scraper-batches').textContent = ms.batches || '0';
+        document.getElementById('ov-scraper-searches').textContent =
+            (ms.searches != null && ms.total_searches != null)
+                ? `${fmtNum(ms.searches)}/${fmtNum(ms.total_searches)}`
+                : '--';
+        document.getElementById('ov-scraper-search-pace').textContent =
+            ms.searches_per_hour != null ? `${fmtNum(ms.searches_per_hour)}/hr` : '--';
+        document.getElementById('ov-scraper-yield').textContent =
+            ms.leads_per_100_searches != null ? `${fmtNum(ms.leads_per_100_searches)}/100` : '--';
+        document.getElementById('ov-scraper-website-rate').textContent =
+            ms.website_found_rate != null ? `${fmtPct(ms.website_found_rate)} (${fmtNum(ms.website_found_count)})` : '--';
+        document.getElementById('ov-scraper-category').textContent =
+            ms.category || '--';
+        document.getElementById('ov-scraper-batches').textContent = fmtNum(ms.batches);
+        document.getElementById('ov-scraper-batch-yield').textContent =
+            ms.leads_per_batch != null ? `${fmtNum(ms.leads_per_batch)}/batch` : '--';
+
+        // Captcha / errors — raw count + rate
+        const hasRiskData = ms.captcha_count != null || ms.error_count != null || ms.run_started_at;
+        const captchas = ms.captcha_count != null ? ms.captcha_count : 0;
+        const totalSearches = ms.searches || 0;
+        const errors = ms.error_count != null ? ms.error_count : 0;
+        let riskHtml = '--';
+        if (hasRiskData) {
+            riskHtml = `<span class="pipeline-main">${fmtNum(captchas)} caps · ${fmtNum(errors)} err</span>`;
+            if (totalSearches > 0 && (captchas > 0 || errors > 0)) {
+                const capRate = captchas > 0 ? `${((captchas / totalSearches) * 100).toFixed(2)}%` : '0.00%';
+                const errRate = errors > 0 ? `${((errors / totalSearches) * 100).toFixed(2)}%` : '0.00%';
+                riskHtml += `<span class="pipeline-sub">${capRate} · ${errRate} of searches</span>`;
+            }
+        }
+        document.getElementById('ov-scraper-risk').innerHTML = riskHtml;
+        // Staleness — scraper card
+        document.getElementById('ov-scraper-staleness').textContent =
+            p.running && p.uptime
+                ? `Running for ${p.uptime}`
+                : fmtStaleness(ms.last_activity);
+
+        const scraperNote = (ms.leads_per_100_searches != null || ms.website_found_rate != null)
+            ? `${ms.recommendation || 'Monitoring'}${ms.worker_count != null ? ` · ${fmtNum(ms.worker_count)} workers` : ''}`
+            : '';
+        setCardNote(
+            document.getElementById('ov-scraper-attention'),
+            scraperNote,
+            ms.recommendation_tone || 'info'
+        );
 
         // ════════════════════════════════════════
         // ENRICHMENT CARD

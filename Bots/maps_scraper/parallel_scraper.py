@@ -12,6 +12,7 @@ import random
 import sys
 import time
 import queue
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Set, Tuple, Optional, Dict
@@ -38,6 +39,7 @@ from config import (
     WORKER_STAGGER_DELAY_MIN,
     WORKER_STAGGER_DELAY_MAX,
     PLAYWRIGHT_USER_DATA,
+    SCRAPER_HEALTH_FILE,
     WEBSITE_STATUS_WORKERS,
 )
 from utils import normalize_domain
@@ -243,9 +245,52 @@ class ParallelOrchestrator:
         self.batch_number = self._load_last_batch_number()
         self.pending_batch_path = PENDING_BATCH_FILE
         self.run_lock_path = RUN_LOCK_FILE
+        self.health_path = SCRAPER_HEALTH_FILE
+        self._health_started_at: Optional[str] = None
+        self._health_ended_at: Optional[str] = None
+        self._health_last_activity: Optional[str] = None
+        self._captcha_count = 0
+        self._error_count = 0
         
         # Load existing leads to prevent duplicates across runs
         self._load_existing_leads()
+
+    @staticmethod
+    def _utc_now_iso() -> str:
+        return datetime.now(timezone.utc).isoformat()
+
+    def _write_health(self):
+        payload = {
+            "pid": os.getpid(),
+            "started_at": self._health_started_at,
+            "ended_at": self._health_ended_at,
+            "last_activity": self._health_last_activity,
+            "captcha_count": self._captcha_count,
+            "error_count": self._error_count,
+        }
+        try:
+            _atomic_write_json(self.health_path, payload)
+        except Exception as e:
+            print(f"⚠️ Could not write scraper health: {e}")
+
+    def _mark_activity(self):
+        self._health_last_activity = self._utc_now_iso()
+        self._write_health()
+
+    def _start_health_tracking(self):
+        self._health_started_at = self._utc_now_iso()
+        self._health_ended_at = None
+        self._health_last_activity = self._health_started_at
+        self._captcha_count = 0
+        self._error_count = 0
+        self._write_health()
+
+    def _finish_health_tracking(self):
+        if not self._health_started_at:
+            return
+        self._health_ended_at = self._utc_now_iso()
+        self._health_last_activity = self._health_ended_at
+        self._write_health()
 
     def _load_last_batch_number(self) -> int:
         """Resume batch numbering from existing output files."""
@@ -512,9 +557,13 @@ class ParallelOrchestrator:
 
             tasks_completed += 1
             if result.captcha_detected:
+                self._captcha_count += 1
+                self._mark_activity()
                 captcha_detected = True
                 continue
             if result.error and not result.captcha_detected:
+                self._error_count += 1
+                self._mark_activity()
                 continue
 
             unique_leads = []
@@ -527,6 +576,7 @@ class ParallelOrchestrator:
 
             self._save_pending_batch(current_batch)
             self._save_completed_task(result.keyword, result.location)
+            self._mark_activity()
 
         return current_batch, tasks_completed, captcha_detected
     
@@ -648,6 +698,7 @@ class ParallelOrchestrator:
         destination = OUTPUT_DIR / f"leads_batch_{self.batch_number:03d}.csv"
         export_batch(validated_leads, destination)
         append_to_master(master_path, validated_leads)
+        self._mark_activity()
         
         # Summary
         print(f"\n--- Batch {self.batch_number} ({len(validated_leads)} leads) ---")
@@ -672,6 +723,8 @@ class ParallelOrchestrator:
         if total_tasks == 0:
             print("No tasks to execute. Check LOCATIONS and KEYWORDS in config.")
             return
+
+        self._start_health_tracking()
         
         print(f"📋 {total_tasks} search tasks to execute across {self.num_workers} workers.\n")
         
@@ -754,11 +807,15 @@ class ParallelOrchestrator:
                     tasks_completed += 1
                     
                     if result.captcha_detected:
+                        self._captcha_count += 1
+                        self._mark_activity()
                         print("\n🛑 CAPTCHA detected - aborting to protect session.")
                         captcha_abort = True
                         break
                     
                     if result.error and not result.captcha_detected:
+                        self._error_count += 1
+                        self._mark_activity()
                         print(f"   [W{result.worker_id + 1}] Skipping due to error")
                     else:
                         # Process leads with deduplication
@@ -773,12 +830,15 @@ class ParallelOrchestrator:
                         # Persist buffered leads before marking the task completed.
                         self._save_pending_batch(current_batch)
                         self._save_completed_task(result.keyword, result.location)
+                        self._mark_activity()
 
                     # Send next task if available and we still have room in the active batch.
                     if tasks_sent < total_tasks and len(current_batch) < target_batch_size:
                         tasks_sent = self._seed_tasks(tasks, tasks_sent, tasks_completed)
                         
                 except queue.Empty:
+                    self._error_count += 1
+                    self._mark_activity()
                     print("⚠️ Timeout waiting for worker results. Checking worker status...")
                     # Check if workers are still alive
                     alive_workers = sum(1 for p in self.workers if p.is_alive())
@@ -798,6 +858,7 @@ class ParallelOrchestrator:
                 
         finally:
             self.stop_workers()
+            self._finish_health_tracking()
             self._release_run_lock()
 
 

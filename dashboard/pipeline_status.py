@@ -1,8 +1,9 @@
 """Pipeline Status - Unified status collector for all subsystems.
 
 Reads lock files, process state, and progress data to build a single
-pipeline snapshot for the overview dashboard. Everything here is
-local file reads — no Google Sheets API calls (those are too slow for polling).
+pipeline snapshot for the overview dashboard. Most reads are local files;
+live metrics (enrichment counts, settlement totals) are fetched from
+Google Sheets with a 30-second TTL cache via _get_live_metrics().
 """
 
 from __future__ import annotations
@@ -30,6 +31,17 @@ SCRAPER_V3_SUMMARY_DIR = settings.BOTS_DIR / "enricher" / "outputs" / "summaries
 LIVE_STATUS_TTL_SECONDS = 30
 _LIVE_STATUS_CACHE: Dict[str, Any] = {"fetched_at": 0.0, "data": None}
 
+# Scraper recommendation thresholds are intentionally conservative and are
+# calibrated to current Maps Scraper behavior:
+# - leads/100 searches below 120 usually means weak keyword/location yield
+# - 220+ leads/100 searches usually means the current mix is producing well
+# - website-found rate below 55% often indicates noisy/non-business results
+# - 75%+ website-found rate is a healthy signal for safely increasing workers
+SCRAPER_LOW_YIELD_PER_100 = 120.0
+SCRAPER_HIGH_YIELD_PER_100 = 220.0
+SCRAPER_LOW_WEBSITE_RATE = 55.0
+SCRAPER_HIGH_WEBSITE_RATE = 75.0
+
 CREDENTIALS_PATH = Path(
     os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "~/sheet-bot-key.json")
 )
@@ -54,6 +66,17 @@ except ImportError:
     GoogleClient = None
     SOURCE_WEBHOOK_URL = None
     WEBHOOK_SECRET = None
+
+try:
+    from maps_scraper.config import (
+        SCRAPER_HEALTH_FILE,
+        MASTER_OUTPUT as SCRAPER_MASTER_OUTPUT,
+        NUM_WORKERS as SCRAPER_NUM_WORKERS,
+    )
+except ImportError:
+    SCRAPER_HEALTH_FILE = None
+    SCRAPER_MASTER_OUTPUT = None
+    SCRAPER_NUM_WORKERS = None
 
 
 # ============================================================================
@@ -227,6 +250,7 @@ def _compute_live_metrics() -> Dict[str, Any]:
     scraper_v3_ready = _fetch_scraper_v3_ready_counts()
 
     return {
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
         "enrichment": {
             "pending": enrichment_pending,
             "checked": enrichment_checked,
@@ -262,16 +286,13 @@ def _get_live_metrics() -> Dict[str, Any]:
         return data
     except Exception:
         return cached or {
+            "fetched_at": None,
             "enrichment": {"pending": None, "checked": None, "found": None, "person": None, "employees": None},
             "keyword_detection": {"pending": None, "cat1": None, "cat2": None},
             "scoring": {"ready": None, "moved": None},
             "settlement": {"alpha": None, "beta": None, "gamma": None},
             "scraper_v3_ready": {"alpha": None, "beta": None, "gamma": None, "total": None},
         }
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return None
 
 
 def _pid_alive(pid: int) -> bool:
@@ -293,6 +314,101 @@ def _lock_age_minutes(locked_at: str) -> Optional[float]:
         return (now - lock_time).total_seconds() / 60
     except Exception:
         return None
+
+
+def _elapsed_hours_between(start_time_iso: Optional[str], end_time_iso: Optional[str]) -> Optional[float]:
+    """Elapsed runtime between two ISO timestamps, falling back to now when no end time exists."""
+    if not start_time_iso:
+        return None
+    try:
+        started = datetime.fromisoformat(start_time_iso.replace("Z", "+00:00"))
+        if end_time_iso:
+            ended = datetime.fromisoformat(end_time_iso.replace("Z", "+00:00"))
+        elif started.tzinfo is None:
+            ended = datetime.now()
+        else:
+            ended = datetime.now(started.tzinfo)
+        elapsed = (ended - started).total_seconds() / 3600
+        return elapsed if elapsed > 0 else None
+    except Exception:
+        return None
+
+
+def _scraper_recommendation(
+    searches: int,
+    batches: int,
+    leads_per_100: Optional[float],
+    website_found_rate: Optional[float],
+    captcha_count: int,
+    error_count: int,
+) -> tuple[str, str]:
+    """Heuristic recommendation for scraper aggression on overview."""
+    if searches < 20 or batches < 1:
+        return ("Learning baseline", "info")
+
+    if captcha_count > 0:
+        return ("Reduce aggression", "warning")
+    if error_count >= 5:
+        return ("Inspect worker stability", "warning")
+
+    if website_found_rate is None:
+        if leads_per_100 is not None and leads_per_100 >= SCRAPER_HIGH_YIELD_PER_100:
+            return ("Healthy yield", "info")
+        if leads_per_100 is not None and leads_per_100 < SCRAPER_LOW_YIELD_PER_100:
+            return ("Low yield, inspect inputs", "warning")
+        return ("Benchmarking", "info")
+
+    if website_found_rate >= SCRAPER_HIGH_WEBSITE_RATE and (leads_per_100 or 0) >= SCRAPER_HIGH_YIELD_PER_100:
+        return ("Safe to increase ~20%", "info")
+    if website_found_rate < SCRAPER_LOW_WEBSITE_RATE or ((leads_per_100 or 0) < SCRAPER_LOW_YIELD_PER_100):
+        return ("Reduce aggression", "warning")
+    return ("Optimal", "info")
+
+
+def _read_scraper_output_health() -> Dict[str, Optional[float]]:
+    """Read scraper-owned output health metrics from local CSV output."""
+    if SCRAPER_MASTER_OUTPUT is None or not Path(SCRAPER_MASTER_OUTPUT).exists():
+        return {"website_found_count": None, "website_found_rate": None}
+
+    website_found = 0
+    total_rows = 0
+    try:
+        with Path(SCRAPER_MASTER_OUTPUT).open("r", encoding="utf-8", newline="") as fh:
+            import csv
+
+            reader = csv.DictReader(fh)
+            for row in reader:
+                total_rows += 1
+                if (row.get("website") or "").strip():
+                    website_found += 1
+    except Exception:
+        return {"website_found_count": None, "website_found_rate": None}
+
+    rate = None
+    if total_rows > 0:
+        rate = round((website_found / total_rows) * 100, 1)
+    return {"website_found_count": website_found, "website_found_rate": rate}
+
+
+def _read_scraper_health() -> Dict[str, Any]:
+    """Read scraper-owned current-run health data."""
+    if SCRAPER_HEALTH_FILE is None:
+        return {
+            "started_at": None,
+            "ended_at": None,
+            "last_activity": None,
+            "captcha_count": None,
+            "error_count": None,
+        }
+
+    data = _read_json(Path(SCRAPER_HEALTH_FILE)) or {}
+    return {
+        "started_at": data.get("started_at"),
+        "ended_at": data.get("ended_at"),
+        "last_activity": data.get("last_activity"),
+        "captcha_count": data.get("captcha_count"),
+        "error_count": data.get("error_count"),
+    }
 
 
 # ============================================================================
@@ -570,17 +686,87 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
     overall = progress.get("overall", {})
     loc = progress.get("current_location", {})
     cat = progress.get("category", {})
+    settlement_alpha = live["settlement"].get("alpha")
+    settlement_beta = live["settlement"].get("beta")
+    settlement_gamma = live["settlement"].get("gamma")
+    usable_total = None
+    if None not in (settlement_alpha, settlement_beta, settlement_gamma):
+        usable_total = settlement_alpha + settlement_beta + settlement_gamma
+
+    scraped_total = overall.get("total_leads_collected", 0) or 0
+    completed_searches = overall.get("completed_searches", 0) or 0
+    batch_count = overall.get("batch_number", 0) or 0
+    leads_per_100_searches = None
+    if completed_searches > 0:
+        leads_per_100_searches = round((scraped_total / completed_searches) * 100, 1)
+
+    usable_rate = None
+    if usable_total is not None and scraped_total > 0:
+        usable_rate = round((usable_total / scraped_total) * 100, 1)
+
+    leads_per_batch = None
+    if batch_count > 0:
+        leads_per_batch = round(scraped_total / batch_count, 1)
+
+    scraper_health = _read_scraper_health()
+    runtime_hours = _elapsed_hours_between(
+        scraper_health.get("started_at"),
+        None if is_running else scraper_health.get("ended_at"),
+    )
+    searches_per_hour = None
+    if runtime_hours is not None and runtime_hours > 0 and completed_searches > 0:
+        searches_per_hour = round(completed_searches / runtime_hours, 1)
+
+    scraper_output_health = _read_scraper_output_health()
+    if scraped_total <= 0:
+        scraper_output_health = {"website_found_count": None, "website_found_rate": None}
+
+    if completed_searches <= 0 and not is_running:
+        scraper_health = {
+            "started_at": None,
+            "ended_at": None,
+            "last_activity": progress.get("last_saved"),
+            "captcha_count": None,
+            "error_count": None,
+        }
+
+    recommendation, recommendation_tone = _scraper_recommendation(
+        completed_searches,
+        batch_count,
+        leads_per_100_searches,
+        scraper_output_health.get("website_found_rate"),
+        int(scraper_health.get("captcha_count") or 0),
+        int(scraper_health.get("error_count") or 0),
+    )
 
     maps_scraper = {
         "status": scraper_status,
         "location": loc.get("name"),
         "keyword": loc.get("keyword_name"),
-        "leads_today": overall.get("total_leads_collected", 0),
-        "searches": overall.get("completed_searches", 0),
+        "scraped_leads": scraped_total,
+        "usable_leads": usable_total,
+        "usable_rate": usable_rate,
+        "leads_per_100_searches": leads_per_100_searches,
+        "alpha": settlement_alpha,
+        "beta": settlement_beta,
+        "gamma": settlement_gamma,
+        "searches": completed_searches,
         "total_searches": overall.get("total_searches", 0),
-        "batches": overall.get("batch_number", 0),
+        "batches": batch_count,
+        "leads_per_batch": leads_per_batch,
+        "searches_per_hour": searches_per_hour,
+        "website_found_count": scraper_output_health.get("website_found_count"),
+        "website_found_rate": scraper_output_health.get("website_found_rate"),
+        "captcha_count": scraper_health.get("captcha_count"),
+        "error_count": scraper_health.get("error_count"),
         "category": f"{cat.get('index', 0) + 1}/{cat.get('total', '?')}" if cat else None,
+        "worker_count": SCRAPER_NUM_WORKERS,
+        "recommendation": recommendation,
+        "recommendation_tone": recommendation_tone,
         "last_saved": progress.get("last_saved"),
+        "last_activity": scraper_health.get("last_activity") or progress.get("last_saved"),
+        "run_started_at": scraper_health.get("started_at"),
+        "run_ended_at": scraper_health.get("ended_at"),
     }
 
     # Enrichment card
@@ -667,6 +853,7 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
     )
 
     return {
+        "snapshot_fetched_at": live.get("fetched_at"),
         "maps_scraper": maps_scraper,
         "enrichment": enrichment_card,
         "keyword_detection": keyword_card,

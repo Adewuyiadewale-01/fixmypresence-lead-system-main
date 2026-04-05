@@ -1,13 +1,13 @@
 {
   "alpha:3": {
     "checkpoint_key": "alpha:3",
-    "website": "http://fxminds.nl/",
+    "website": "https://www.destigteragf.nl/",
     "tab": "Alpha",
     "row": 3,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T08:48:23.540419"
+    "timestamp": "2026-04-05T14:03:50.887930"
   },
   "alpha:2": {
     "checkpoint_key": "alpha:2",
@@ -17,87 +17,87 @@
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T08:48:23.821630"
+    "timestamp": "2026-04-05T14:03:47.724629"
   },
   "alpha:5": {
     "checkpoint_key": "alpha:5",
-    "website": "https://www.orbitaltrading.nl/",
+    "website": "https://fvbdeboer.nl/?utm_source=google%20my%20business&utm_medium=Organic",
     "tab": "Alpha",
     "row": 5,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T08:48:31.375104"
+    "timestamp": "2026-04-05T14:03:56.622542"
   },
   "alpha:4": {
     "checkpoint_key": "alpha:4",
-    "website": "https://www.deltaquant.nl/",
+    "website": "https://www.amcventuresholding.nl/contact/",
     "tab": "Alpha",
     "row": 4,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T08:49:19.683145"
+    "timestamp": "2026-04-05T14:03:53.654604"
   },
   "alpha:6": {
     "checkpoint_key": "alpha:6",
-    "website": "https://mercuryredstone.com/",
+    "website": "http://www.familycapitaltrust.nl/",
     "tab": "Alpha",
     "row": 6,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T08:49:34.438866"
+    "timestamp": "2026-04-05T14:04:00.718396"
   },
   "alpha:8": {
     "checkpoint_key": "alpha:8",
-    "website": "https://www.tradermath.org/",
+    "website": "https://www.transitioncf.com/",
     "tab": "Alpha",
     "row": 8,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T08:49:47.382209"
+    "timestamp": "2026-04-05T14:04:07.111851"
   },
   "alpha:7": {
     "checkpoint_key": "alpha:7",
-    "website": "https://www.theinstituteoftrading.com/",
+    "website": "https://www.financial-lease.nl/",
     "tab": "Alpha",
     "row": 7,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T08:50:18.169991"
+    "timestamp": "2026-04-05T14:04:03.995386"
   },
   "alpha:11": {
     "checkpoint_key": "alpha:11",
-    "website": "https://www.metstrade.com/",
+    "website": "http://www.blackswancapital.eu/",
     "tab": "Alpha",
     "row": 11,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T08:50:59.502600"
+    "timestamp": "2026-04-05T14:04:15.612679"
   },
   "alpha:10": {
     "checkpoint_key": "alpha:10",
-    "website": "https://www.startupvillage.nl/",
+    "website": "http://tradingstrategie.nl/",
     "tab": "Alpha",
     "row": 10,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T08:51:00.934226"
+    "timestamp": "2026-04-05T14:04:12.747936"
   },
   "alpha:13": {
     "checkpoint_key": "alpha:13",
-    "website": "http://www.energyquants.com/about-us/",
+    "website": "http://www.amsterdamsebos.nl/",
     "tab": "Alpha",
     "row": 13,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T08:51:36.743074"
+    "timestamp": "2026-04-05T14:04:24.680161"
   },
   "alpha:9": {
     "checkpoint_key": "alpha:9",
@@ -107,7 +107,7 @@
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T08:51:51.377333"
+    "timestamp": "2026-04-05T14:04:09.690549"
   },
   "alpha:14": {
     "checkpoint_key": "alpha:14",
@@ -121,13 +121,13 @@
   },
   "alpha:12": {
     "checkpoint_key": "alpha:12",
-    "website": "http://www.unitytrading.nl/",
+    "website": "https://www.amcventuresholding.nl/contact/",
     "tab": "Alpha",
     "row": 12,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T08:52:29.634463"
+    "timestamp": "2026-04-05T14:04:21.713945"
   },
   "alpha:15": {
     "checkpoint_key": "alpha:15",
@@ -1311,83 +1311,83 @@
   },
   "beta:2": {
     "checkpoint_key": "beta:2",
-    "website": "http://www.webbtraders.nl/",
+    "website": "https://altix.nl/",
     "tab": "Beta",
     "row": 2,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T10:30:49.372431"
+    "timestamp": "2026-04-05T14:04:27.446540"
   },
   "beta:3": {
     "checkpoint_key": "beta:3",
-    "website": "https://www.facilitytradegroup.nl/",
+    "website": "http://www.afi-europe.eu/",
     "tab": "Beta",
     "row": 3,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T10:31:34.942157"
+    "timestamp": "2026-04-05T14:04:30.952380"
   },
   "beta:5": {
     "checkpoint_key": "beta:5",
-    "website": "http://www.flowertradeconsult.nl/",
+    "website": "http://captin.nl/",
     "tab": "Beta",
     "row": 5,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T10:31:57.684750"
+    "timestamp": "2026-04-05T14:04:36.769531"
   },
   "beta:4": {
     "checkpoint_key": "beta:4",
-    "website": "http://www.bots.io/",
+    "website": "https://delta-equitypartners.com/",
     "tab": "Beta",
     "row": 4,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T10:31:57.685261"
+    "timestamp": "2026-04-05T14:04:33.697185"
   },
   "beta:7": {
     "checkpoint_key": "beta:7",
-    "website": "http://www.propertynl.com/",
+    "website": "http://www.finance-insurance.nl/",
     "tab": "Beta",
     "row": 7,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T10:32:36.009313"
+    "timestamp": "2026-04-05T14:04:42.806595"
   },
   "beta:8": {
     "checkpoint_key": "beta:8",
-    "website": "https://www.altera.nl/",
+    "website": "http://www.poundwise.nl/",
     "tab": "Beta",
     "row": 8,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T10:32:56.038640"
+    "timestamp": "2026-04-05T14:04:45.878648"
   },
   "beta:6": {
     "checkpoint_key": "beta:6",
-    "website": "http://www.sustainablecapitalgroup.com/",
+    "website": "https://altix.nl/",
     "tab": "Beta",
     "row": 6,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T10:33:15.066646"
+    "timestamp": "2026-04-05T14:04:40.040143"
   },
   "beta:9": {
     "checkpoint_key": "beta:9",
-    "website": "https://altix.nl/",
+    "website": "https://www.nxchange.com/",
     "tab": "Beta",
     "row": 9,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T10:33:19.833330"
+    "timestamp": "2026-04-05T14:04:48.744366"
   },
   "beta:11": {
     "checkpoint_key": "beta:11",
@@ -1431,13 +1431,13 @@
   },
   "beta:10": {
     "checkpoint_key": "beta:10",
-    "website": "http://www.hollandcapital.nl/",
+    "website": "https://broadstreet.nl/?utm_source=Google%20my%20busines&utm_medium=organic&utm_campaign=GMB",
     "tab": "Beta",
     "row": 10,
     "scrape": "ok",
     "write": "ok",
     "marked": "done",
-    "timestamp": "2026-03-24T10:34:52.269310"
+    "timestamp": "2026-04-05T14:04:52.022757"
   },
   "beta:15": {
     "checkpoint_key": "beta:15",
@@ -1998,5 +1998,135 @@
     "write": "ok",
     "marked": "done",
     "timestamp": "2026-03-24T10:54:31.723303"
+  },
+  "gamma:3": {
+    "checkpoint_key": "gamma:3",
+    "website": "http://www.dycotrade.com/",
+    "tab": "Gamma",
+    "row": 3,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-05T14:05:16.338549"
+  },
+  "gamma:2": {
+    "checkpoint_key": "gamma:2",
+    "website": "http://www.webbtraders.nl/",
+    "tab": "Gamma",
+    "row": 2,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-05T14:05:33.593359"
+  },
+  "gamma:4": {
+    "checkpoint_key": "gamma:4",
+    "website": "https://www.amdax.com/",
+    "tab": "Gamma",
+    "row": 4,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-05T14:05:52.063193"
+  },
+  "gamma:5": {
+    "checkpoint_key": "gamma:5",
+    "website": "http://www.commoditycentre.com/",
+    "tab": "Gamma",
+    "row": 5,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-05T14:06:44.994899"
+  },
+  "gamma:6": {
+    "checkpoint_key": "gamma:6",
+    "website": "http://www.webbtraders.nl/",
+    "tab": "Gamma",
+    "row": 6,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-05T14:06:44.995937"
+  },
+  "gamma:9": {
+    "checkpoint_key": "gamma:9",
+    "website": "http://www.invest-nl.nl/",
+    "tab": "Gamma",
+    "row": 9,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-05T14:07:16.317553"
+  },
+  "gamma:8": {
+    "checkpoint_key": "gamma:8",
+    "website": "https://www.amdax.com/",
+    "tab": "Gamma",
+    "row": 8,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-05T14:07:50.489309"
+  },
+  "gamma:7": {
+    "checkpoint_key": "gamma:7",
+    "website": "http://thecfigroup.com/",
+    "tab": "Gamma",
+    "row": 7,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-05T14:07:56.878198"
+  },
+  "gamma:10": {
+    "checkpoint_key": "gamma:10",
+    "website": "https://brightpensioen.nl/",
+    "tab": "Gamma",
+    "row": 10,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-05T14:09:03.344373"
+  },
+  "gamma:11": {
+    "checkpoint_key": "gamma:11",
+    "website": "https://www.bridgefund.nl/",
+    "tab": "Gamma",
+    "row": 11,
+    "scrape": "error",
+    "write": "skipped",
+    "marked": "error",
+    "timestamp": "2026-04-05T14:10:51.035166"
+  },
+  "gamma:12": {
+    "checkpoint_key": "gamma:12",
+    "website": "http://www.otcflow.com/",
+    "tab": "Gamma",
+    "row": 12,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-05T14:10:04.186279"
+  },
+  "gamma:14": {
+    "checkpoint_key": "gamma:14",
+    "website": "https://www.aaa-riskfinance.nl/",
+    "tab": "Gamma",
+    "row": 14,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-05T14:10:46.999184"
+  },
+  "gamma:13": {
+    "checkpoint_key": "gamma:13",
+    "website": "https://www.home.saxo/nl-nl",
+    "tab": "Gamma",
+    "row": 13,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-05T14:11:58.212759"
   }
 }

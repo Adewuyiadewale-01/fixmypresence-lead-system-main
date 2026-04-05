@@ -1033,6 +1033,77 @@ body {
     color: rgba(235, 255, 240, 0.9);
 }
 
+.leads-hero-card .mini-value-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    line-height: 1.25;
+    text-align: center;
+}
+
+.leads-hero-card .mini-main {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: rgba(235, 255, 240, 0.95);
+    font-variant-numeric: tabular-nums;
+}
+
+.leads-hero-card .mini-sub {
+    font-family: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.7);
+    letter-spacing: 0.01em;
+}
+
+/* Conversion rate bar — sits between big number and mini-stats */
+.leads-conversion-bar {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 8px;
+    padding: 6px 0 2px;
+    position: relative;
+    z-index: 2;
+}
+
+.leads-conversion-bar .conversion-pct {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 12px rgba(190, 232, 46, 0.25);
+}
+
+.leads-conversion-bar .conversion-label {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.leads-conversion-bar .conversion-label span {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 600;
+    color: rgba(235, 255, 240, 0.85);
+}
+
+/* Staleness indicator — used on leads card and scraper card */
+.staleness-indicator {
+    font-size: 0.66rem;
+    font-weight: 500;
+    color: var(--text-4);
+    position: relative;
+    z-index: 2;
+}
+
+.leads-hero-card .staleness-indicator {
+    color: rgba(255, 255, 255, 0.4);
+    text-align: center;
+}
+
 /* =============================================================================
    WAVEFORM VISUALIZATION
    ============================================================================= */
@@ -1408,6 +1479,18 @@ body {
     gap: 0;
 }
 
+.pipeline-card-body.pipeline-two-col {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.pipeline-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
 .pipeline-row {
     display: flex;
     justify-content: space-between;
@@ -1433,6 +1516,30 @@ body {
     font-variant-numeric: tabular-nums;
 }
 
+.pipeline-val-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    line-height: 1.2;
+}
+
+.pipeline-main {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-1);
+    font-variant-numeric: tabular-nums;
+}
+
+.pipeline-sub {
+    font-family: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.64rem;
+    font-weight: 500;
+    color: var(--text-3);
+    letter-spacing: 0.01em;
+}
+
 /* Watcher state indicators */
 .watcher-state { text-transform: uppercase; letter-spacing: 0.04em; }
 .ws-active { color: var(--accent); }
@@ -1454,6 +1561,12 @@ body {
     background: var(--warning-dim);
     color: var(--warning);
     border: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+.pipeline-attention.attn-info {
+    background: var(--info-dim);
+    color: #93c5fd;
+    border: 1px solid rgba(59, 130, 246, 0.15);
 }
 
 .pipeline-attention.attn-danger {

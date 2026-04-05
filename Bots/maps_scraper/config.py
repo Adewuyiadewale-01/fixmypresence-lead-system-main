@@ -568,6 +568,7 @@ CATEGORY_STATE_FILE = OUTPUT_DIR / "category_state.json"
 
 # Progress tracking file to enable resuming after crashes/stops.
 PROGRESS_FILE = OUTPUT_DIR / "scraper_progress.json"
+SCRAPER_HEALTH_FILE = OUTPUT_DIR / "scraper_health.json"
 
 # Webhook integration (Google Apps Script)
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzqD2ny083z43T6vnD2nifpYMI7RdbRXhOvrsFuhKHrJdlvF0Ealy7QwsDxJpVeSaYo/exec"
