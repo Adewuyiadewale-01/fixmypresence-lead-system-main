@@ -1,10 +1,16 @@
 /**
- * Waveform — animated wave visualization for system activity
+ * Waveform — signal-style wave visualization driven by real system metrics
+ *
+ * Renders a high-density oscillation with noise-modulated amplitude envelope.
+ * When fed real metrics via feedMetrics(), the envelope responds to actual
+ * system activity. Without metrics, noise alone provides organic variation.
  *
  * Usage:
- *   const wf = new Waveform(document.getElementById('canvas-id'));
- *   wf.setIntensity(0.7);  // 0 = flatline, 1 = max activity
- *   wf.destroy();           // cleanup
+ *   const wf = new Waveform(canvas, { color: '190, 232, 46' });
+ *   wf.setIntensity(0.7);              // master gain: 0 = flatline, 1 = max
+ *   wf.feedMetrics({ activity: 0.8 }); // push real metric sample (0-1)
+ *   wf.setProgress(0.35);              // scanline position (0-1), null hides
+ *   wf.destroy();
  */
 
 class Waveform {
@@ -12,12 +18,24 @@ class Waveform {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.color = options.color || '190, 232, 46';
-        this.intensity = 0.08;
-        this.targetIntensity = 0.08;
-        this.phase = Math.random() * Math.PI * 2; // random start
+
+        this.intensity = 0.05;
+        this.targetIntensity = 0.05;
+
+        this.phase = 0;
+        this.time = 0;
         this.animId = null;
         this.w = 0;
         this.h = 0;
+
+        // Rolling sample buffer — fed by real metrics each poll
+        this.bufferSize = 128;
+        this.buffer = new Float32Array(this.bufferSize);
+        this.bufferHead = 0;
+
+        // Value-noise permutation table
+        this._perm = new Uint8Array(512);
+        this._initNoise();
 
         this._resizeBound = () => this._resize();
         window.addEventListener('resize', this._resizeBound);
@@ -25,12 +43,34 @@ class Waveform {
         this._animate();
     }
 
+    /* ── Noise ── */
+
+    _initNoise() {
+        const p = new Uint8Array(256);
+        for (let i = 0; i < 256; i++) p[i] = i;
+        let s = 42;
+        for (let i = 255; i > 0; i--) {
+            s = (s * 16807) % 2147483647;
+            const j = s % (i + 1);
+            [p[i], p[j]] = [p[j], p[i]];
+        }
+        for (let i = 0; i < 512; i++) this._perm[i] = p[i & 255];
+    }
+
+    _noise(x) {
+        const xi = Math.floor(x) & 255;
+        const xf = x - Math.floor(x);
+        const u = xf * xf * (3 - 2 * xf); // smoothstep
+        return (this._perm[xi] + u * (this._perm[xi + 1] - this._perm[xi])) / 255;
+    }
+
+    /* ── Resize ── */
+
     _resize() {
         const parent = this.canvas.parentElement;
         if (!parent) return;
         const rect = parent.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-
         this.canvas.width = rect.width * dpr;
         this.canvas.height = rect.height * dpr;
         this.canvas.style.width = rect.width + 'px';
@@ -40,14 +80,37 @@ class Waveform {
         this.h = rect.height;
     }
 
+    /* ── Public API ── */
+
     setIntensity(val) {
-        this.targetIntensity = Math.max(0.04, Math.min(1, val));
+        this.targetIntensity = Math.max(0.02, Math.min(1, val));
     }
 
+    feedMetrics(delta) {
+        const val = Math.max(0, Math.min(1, delta.activity || 0));
+        this.buffer[this.bufferHead] = val;
+        this.bufferHead = (this.bufferHead + 1) % this.bufferSize;
+    }
+
+    /* ── Buffer interpolation ── */
+
+    _sampleBuffer(t) {
+        // t: 0-1 across canvas width → interpolated buffer value
+        const idx = t * (this.bufferSize - 1);
+        const i0 = Math.floor(idx);
+        const i1 = Math.min(i0 + 1, this.bufferSize - 1);
+        const f = idx - i0;
+        const v0 = this.buffer[(this.bufferHead + i0) % this.bufferSize];
+        const v1 = this.buffer[(this.bufferHead + i1) % this.bufferSize];
+        return v0 + f * (v1 - v0);
+    }
+
+    /* ── Render loop ── */
+
     _animate() {
-        // Smooth easing toward target
-        this.intensity += (this.targetIntensity - this.intensity) * 0.025;
-        this.phase += 0.014;
+        this.intensity += (this.targetIntensity - this.intensity) * 0.03;
+        this.phase += 0.018;
+        this.time += 0.004;
 
         const { ctx, w, h, intensity } = this;
         if (w === 0 || h === 0) {
@@ -57,67 +120,74 @@ class Waveform {
 
         ctx.clearRect(0, 0, w, h);
 
-        // Wave layers — each with different frequency, amplitude, speed
-        const layers = [
-            { freq: 0.005,  amp: 0.32, speed: 1.0,  off: 0,    alpha: 0.55, lw: 1.5 },
-            { freq: 0.008,  amp: 0.24, speed: 1.5,  off: 2.1,  alpha: 0.35, lw: 1.2 },
-            { freq: 0.003,  amp: 0.42, speed: 0.6,  off: 4.2,  alpha: 0.18, lw: 2.0 },
-            { freq: 0.012,  amp: 0.14, speed: 2.2,  off: 1.5,  alpha: 0.22, lw: 0.8 },
-            { freq: 0.018,  amp: 0.08, speed: 2.8,  off: 3.0,  alpha: 0.12, lw: 0.6 },
-        ];
+        const midY = h * 0.5;
+        const maxAmp = h * 0.43;
 
-        // Draw each wave layer
-        layers.forEach(layer => {
-            const alpha = layer.alpha * intensity * 3;
-            if (alpha < 0.008) return;
+        // ── Build points: carrier × noise envelope × buffer × intensity ──
+        const points = new Float32Array(w + 1);
 
-            ctx.beginPath();
-            ctx.strokeStyle = `rgba(${this.color}, ${Math.min(alpha, 0.75)})`;
-            ctx.lineWidth = layer.lw;
+        for (let x = 0; x <= w; x++) {
+            const t = x / w;
 
-            const step = 2;
-            for (let x = 0; x <= w; x += step) {
-                // Sine envelope for edge fade
-                const edge = Math.sin((x / w) * Math.PI);
-                // Compound wave with slight noise
-                const wave1 = Math.sin(x * layer.freq + this.phase * layer.speed + layer.off);
-                const wave2 = Math.sin(x * layer.freq * 1.7 + this.phase * layer.speed * 0.8 + layer.off + 1.0) * 0.3;
-                const y = h / 2 + (wave1 + wave2) * layer.amp * h * intensity * edge;
+            // Multi-octave noise envelope (broad bursts + local detail)
+            const n1 = this._noise(t * 4.5 + this.time * 0.3);   // broad modulation
+            const n2 = this._noise(t * 11 + this.time * 0.5 + 47);  // medium detail
+            const n3 = this._noise(t * 25 + this.time * 0.8 + 113); // fine variation
+            const noiseEnv = n1 * 0.5 + n2 * 0.3 + n3 * 0.2;
 
-                if (x === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            }
-            ctx.stroke();
-        });
+            // Buffer-driven modulation
+            const bufVal = this._sampleBuffer(t);
 
-        // Glow pass on primary wave when activity is high
-        if (intensity > 0.12) {
-            const glowAlpha = (intensity - 0.12) * 0.6;
+            // Combined envelope: noise shapes bursts, buffer + intensity scale
+            // Floor 0.15 keeps idle shimmer; buffer can push to full 1.0
+            const env = noiseEnv * (0.15 + bufVal * 0.85) * intensity * 2.5;
+
+            // High-frequency carrier (compound sine for complex waveform shape)
+            const f = x * 0.45 + this.phase * 3.5;
+            const raw = Math.sin(f)
+                      + Math.sin(f * 1.53 + 0.7) * 0.35
+                      + Math.sin(f * 0.67 + 2.3) * 0.25;
+            const carrier = raw / 1.6; // normalize to [-1, 1]
+
+            const displacement = carrier * Math.min(env, 1.0) * maxAmp;
+            points[x] = midY + displacement;
+        }
+
+        // ── Echo layer (subtle, slightly expanded) ──
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(${this.color}, ${Math.min(intensity * 0.12, 0.1)})`;
+        ctx.lineWidth = 2.8;
+        for (let x = 0; x <= w; x += 2) {
+            const y = midY + (points[x] - midY) * 1.15;
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // ── Glow layer ──
+        if (intensity > 0.08) {
             ctx.save();
-            ctx.shadowColor = `rgba(${this.color}, 0.4)`;
-            ctx.shadowBlur = 18;
+            ctx.shadowColor = `rgba(${this.color}, ${Math.min(intensity * 0.3, 0.25)})`;
+            ctx.shadowBlur = 14;
             ctx.beginPath();
-            ctx.strokeStyle = `rgba(${this.color}, ${Math.min(glowAlpha, 0.2)})`;
-            ctx.lineWidth = 3;
-
-            for (let x = 0; x <= w; x += 3) {
-                const edge = Math.sin((x / w) * Math.PI);
-                const y = h / 2 +
-                    Math.sin(x * 0.005 + this.phase + 0) *
-                    0.32 * h * intensity * edge;
-                if (x === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
+            ctx.strokeStyle = `rgba(${this.color}, ${Math.min(intensity * 0.2, 0.18)})`;
+            ctx.lineWidth = 2.5;
+            for (let x = 0; x <= w; x += 2) {
+                if (x === 0) ctx.moveTo(x, points[x]);
+                else ctx.lineTo(x, points[x]);
             }
             ctx.stroke();
             ctx.restore();
         }
 
-        // Center baseline — very subtle reference line
+        // ── Main signal line ──
         ctx.beginPath();
-        ctx.strokeStyle = `rgba(${this.color}, ${0.04 + intensity * 0.03})`;
-        ctx.lineWidth = 0.5;
-        ctx.moveTo(0, h / 2);
-        ctx.lineTo(w, h / 2);
+        ctx.strokeStyle = `rgba(${this.color}, ${Math.min(0.35 + intensity * 0.55, 0.85)})`;
+        ctx.lineWidth = 1.2;
+        for (let x = 0; x <= w; x++) {
+            if (x === 0) ctx.moveTo(x, points[x]);
+            else ctx.lineTo(x, points[x]);
+        }
         ctx.stroke();
 
         this.animId = requestAnimationFrame(() => this._animate());

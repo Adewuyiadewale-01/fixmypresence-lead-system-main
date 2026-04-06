@@ -336,6 +336,8 @@
     // ── Waveform ──
     const heroCanvas = document.getElementById('waveform-hero');
     const wf = heroCanvas ? new Waveform(heroCanvas, { color: '190, 232, 46' }) : null;
+    let _prevSearches = null;
+    let _prevCaptcha = 0;
 
     // ── Helper: update a badge ──
     function setBadge(el, status) {
@@ -476,6 +478,19 @@
         // Staleness — leads card
         document.getElementById('ov-leads-staleness').textContent =
             fmtStaleness(pl.snapshot_fetched_at);
+
+        // ── Feed waveform with real metric deltas ──
+        if (wf) {
+            if (_prevSearches != null && ms.searches != null) {
+                const searchDelta = Math.max(0, ms.searches - _prevSearches);
+                const captchaDelta = Math.max(0, (ms.captcha_count || 0) - _prevCaptcha);
+                let activity = Math.min(searchDelta / 3, 1);
+                if (captchaDelta > 0) activity = Math.min(activity + 0.35, 1);
+                wf.feedMetrics({ activity });
+            }
+            _prevSearches = ms.searches != null ? ms.searches : _prevSearches;
+            _prevCaptcha = ms.captcha_count || 0;
+        }
 
         // ════════════════════════════════════════
         // MAPS SCRAPER CARD

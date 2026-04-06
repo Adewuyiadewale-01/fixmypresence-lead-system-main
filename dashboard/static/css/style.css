@@ -888,10 +888,10 @@ body {
 .hero-content {
     position: relative;
     z-index: 2;
-    flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
+    padding-bottom: 0;
 }
 
 .hero-label {
@@ -1120,6 +1120,11 @@ body {
 
 .waveform-wrap canvas {
     display: block;
+}
+
+/* Hero card: waveform occupies bottom half, below text content */
+.hero-card .waveform-wrap {
+    height: 50%;
 }
 
 /* Waveform strip — thinner version for non-hero cards */
