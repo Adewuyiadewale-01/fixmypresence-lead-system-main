@@ -52,7 +52,7 @@ def _parse_completed_tasks() -> Tuple[Set[str], Dict[str, List[str]], str]:
     """
     completed_keys: Set[str] = set()
     location_keywords: Dict[str, List[str]] = defaultdict(list)
-    last_timestamp = "unknown"
+    last_timestamp = None
     
     if not TASKS_PROGRESS_FILE.exists():
         return completed_keys, dict(location_keywords), last_timestamp
@@ -190,7 +190,11 @@ def get_progress_status() -> dict:
     progress_pct = (completed_count / total_tasks * 100) if total_tasks > 0 else 0
     locations_completed_pct = (locations_fully_completed / total_locations * 100) if total_locations > 0 else 0
     locations_used_pct = (locations_used / total_locations * 100) if total_locations > 0 else 0
-    categories_completed_pct = (category_index / TOTAL_CATEGORIES * 100) if category_complete else ((category_index) / TOTAL_CATEGORIES * 100)
+    categories_completed_pct = (
+        ((category_index + 1) / TOTAL_CATEGORIES) * 100
+        if category_complete
+        else (category_index / TOTAL_CATEGORIES) * 100
+    )
     
     # Count leads and batches
     total_leads = _count_leads_in_master()

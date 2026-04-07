@@ -3,7 +3,7 @@
 Reads lock files, process state, and progress data to build a single
 pipeline snapshot for the overview dashboard. Most reads are local files;
 live metrics (enrichment counts, settlement totals) are fetched from
-Google Sheets with a 30-second TTL cache via _get_live_metrics().
+Google Sheets with a longer TTL cache to stay within Sheets read quotas.
 """
 
 from __future__ import annotations
@@ -11,25 +11,38 @@ from __future__ import annotations
 import json
 import os
 import sys
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from . import settings
+from .sheet_rotation import get_sheet_rotation_snapshot
 
 sys.path.insert(0, str(settings.BOTS_DIR))
 
 # Lock file paths
 CONTROLLER_DIR = settings.CONTROLLER_DIR
 ENRICHMENT_LOCK = CONTROLLER_DIR / "enrichment_lock.json"
+ENRICHMENT_WATCHER_STATE = CONTROLLER_DIR / "enrichment_watcher_state.json"
 ULTRA_LOCK = CONTROLLER_DIR / "ultra_validated_lock.json"
 SCRAPER_V3_LOCK = CONTROLLER_DIR / "scraper_v3_lock.json"
 ENRICHMENT_BATCH_COUNTER = CONTROLLER_DIR / "enrichment_batch_counter.txt"
 SCRAPER_V3_SUMMARY_DIR = settings.BOTS_DIR / "enricher" / "outputs" / "summaries"
 
-LIVE_STATUS_TTL_SECONDS = 30
+LIVE_STATUS_TTL_SECONDS = 180
+DELIVERY_STATUS_TTL_SECONDS = 180
+SYSTEM_CONFIG_LIVE_TTL_SECONDS = 300
 _LIVE_STATUS_CACHE: Dict[str, Any] = {"fetched_at": 0.0, "data": None}
+_DELIVERY_SHEET_CACHE: Dict[str, Any] = {"fetched_at": 0.0, "data": None}
+_SYSTEM_CONFIG_LIVE_CACHE: Dict[str, Any] = {"fetched_at": 0.0, "data": None}
+_CACHE_REFRESH_LOCK = threading.Lock()
+_CACHE_REFRESH_IN_PROGRESS: Dict[str, bool] = {
+    "live_metrics": False,
+    "system_config_live": False,
+    "delivery_sheet": False,
+}
 
 # Scraper recommendation thresholds are intentionally conservative and are
 # calibrated to current Maps Scraper behavior:
@@ -61,22 +74,32 @@ SCOPES = [
 
 try:
     from common.google_client import GoogleClient
-    from common.config import SOURCE_WEBHOOK_URL, WEBHOOK_SECRET
+    from common.config import SOURCE_WEBHOOK_URL, WEBHOOK_SECRET, OUTPUT_SPREADSHEET_ID, OUTPUT_TAB_NAME
+    from common.system_config import get_system_config
 except ImportError:
     GoogleClient = None
     SOURCE_WEBHOOK_URL = None
     WEBHOOK_SECRET = None
+    OUTPUT_SPREADSHEET_ID = None
+    OUTPUT_TAB_NAME = "Employee_db"
+    def get_system_config(*_args, **_kwargs):
+        return {}
 
 try:
     from maps_scraper.config import (
+        SCRAPER_CALLOUTS_FILE,
         SCRAPER_HEALTH_FILE,
         MASTER_OUTPUT as SCRAPER_MASTER_OUTPUT,
-        NUM_WORKERS as SCRAPER_NUM_WORKERS,
+        SCRAPER_STATS_FILE,
+        get_dashboard_config as get_scraper_dashboard_config,
     )
 except ImportError:
+    SCRAPER_CALLOUTS_FILE = None
     SCRAPER_HEALTH_FILE = None
     SCRAPER_MASTER_OUTPUT = None
-    SCRAPER_NUM_WORKERS = None
+    SCRAPER_STATS_FILE = None
+    def get_scraper_dashboard_config():
+        return {}
 
 
 # ============================================================================
@@ -118,7 +141,18 @@ def _auth_client():
 
 def _fetch_scraper_v3_ready_counts() -> Dict[str, int]:
     if SOURCE_WEBHOOK_URL is None or WEBHOOK_SECRET is None:
-        return {"alpha": None, "beta": None, "gamma": None, "total": None}
+        return {
+            "alpha": None,
+            "alpha_high": None,
+            "beta": None,
+            "beta_high": None,
+            "gamma": None,
+            "gamma_high": None,
+            "alpha_family": None,
+            "beta_family": None,
+            "gamma_family": None,
+            "total": None,
+        }
     import httpx
 
     try:
@@ -131,13 +165,41 @@ def _fetch_scraper_v3_ready_counts() -> Dict[str, int]:
         response.raise_for_status()
         rows = (response.json() or {}).get("urls", [])
     except Exception:
-        return {"alpha": None, "beta": None, "gamma": None, "total": None}
+        return {
+            "alpha": None,
+            "alpha_high": None,
+            "beta": None,
+            "beta_high": None,
+            "gamma": None,
+            "gamma_high": None,
+            "alpha_family": None,
+            "beta_family": None,
+            "gamma_family": None,
+            "total": None,
+        }
 
-    counts = {"alpha": 0, "beta": 0, "gamma": 0, "total": 0}
+    counts = {
+        "alpha": 0,
+        "alpha_high": 0,
+        "beta": 0,
+        "beta_high": 0,
+        "gamma": 0,
+        "gamma_high": 0,
+        "alpha_family": 0,
+        "beta_family": 0,
+        "gamma_family": 0,
+        "total": 0,
+    }
     for row in rows:
         tab = str(row.get("tab") or "").strip().lower()
-        if tab in ("alpha", "beta", "gamma"):
+        if tab in counts:
             counts[tab] += 1
+        if tab in ("alpha", "alpha_high"):
+            counts["alpha_family"] += 1
+        elif tab in ("beta", "beta_high"):
+            counts["beta_family"] += 1
+        elif tab in ("gamma", "gamma_high"):
+            counts["gamma_family"] += 1
         counts["total"] += 1
     return counts
 
@@ -148,12 +210,110 @@ def _safe_cell(row: list[str], idx: Optional[int]) -> str:
     return row[idx].strip()
 
 
+def _get_sheet_targets_from_config() -> Dict[str, Dict[str, Any]]:
+    config = get_system_config(include_live=False) if callable(get_system_config) else {}
+    pipeline = config.get("pipeline_sheets") if isinstance(config.get("pipeline_sheets"), dict) else {}
+    pipeline_sheets = pipeline.get("sheets") if isinstance(pipeline.get("sheets"), list) else []
+    active_key = pipeline.get("active_sheet_key")
+    active_pipeline = next((item for item in pipeline_sheets if item.get("key") == active_key), pipeline_sheets[0] if pipeline_sheets else None)
+    source_cfg = config.get("source_settlement") if isinstance(config.get("source_settlement"), dict) else {}
+    source_sheets = source_cfg.get("sheets") if isinstance(source_cfg.get("sheets"), list) else []
+    source_active_key = source_cfg.get("active_sheet_key")
+    active_source = next((item for item in source_sheets if item.get("key") == source_active_key), source_sheets[0] if source_sheets else None)
+    output_cfg = config.get("output_target") if isinstance(config.get("output_target"), dict) else {}
+    output_sheets = output_cfg.get("sheets") if isinstance(output_cfg.get("sheets"), list) else []
+    output_active_key = output_cfg.get("active_sheet_key")
+    active_output = next((item for item in output_sheets if item.get("key") == output_active_key), output_sheets[0] if output_sheets else None)
+    return {
+        "pipeline": active_pipeline or {},
+        "source_settlement": active_source or {},
+        "output_target": active_output or {},
+    }
+
+
+def _empty_live_metrics() -> Dict[str, Any]:
+    targets = _get_sheet_targets_from_config()
+    pipeline_target = targets.get("pipeline") or {}
+    output_target = targets.get("output_target") or {}
+    return {
+        "fetched_at": None,
+        "sheet_rows": {
+            "validated": {"sheet_id": pipeline_target.get("sheet_id") or SOURCE_SHEET_ID, "tab_name": pipeline_target.get("validated_tab") or VALIDATED_TAB, "current_rows": None, "data_rows": None},
+            "ultra": {"sheet_id": pipeline_target.get("sheet_id") or SOURCE_SHEET_ID, "tab_name": pipeline_target.get("ultra_tab") or ULTRA_TAB, "current_rows": None, "data_rows": None},
+            "output": {"sheet_id": output_target.get("sheet_id") or OUTPUT_SPREADSHEET_ID, "tab_name": output_target.get("tab_name") or OUTPUT_TAB_NAME, "current_rows": None, "data_rows": None},
+        },
+        "enrichment": {"eligible_live": None, "pending": None, "checked": None, "found": None, "person": None, "none": None, "employees": None},
+        "keyword_detection": {"pending": None, "cat1": None, "cat2": None, "cat3": None},
+        "scoring": {"ready": None, "moved": None},
+        "settlement": {
+            "alpha": None,
+            "alpha_high": None,
+            "beta": None,
+            "beta_high": None,
+            "gamma": None,
+            "gamma_high": None,
+            "i_gamma": None,
+            "pbin": None,
+            "hydro": None,
+            "hydro_formula": None,
+        },
+        "scraper_v3_ready": {
+            "alpha": None,
+            "alpha_high": None,
+            "beta": None,
+            "beta_high": None,
+            "gamma": None,
+            "gamma_high": None,
+            "alpha_family": None,
+            "beta_family": None,
+            "gamma_family": None,
+            "total": None,
+        },
+    }
+
+
+def _schedule_cache_refresh(name: str, cache: Dict[str, Any], compute_fn) -> None:
+    with _CACHE_REFRESH_LOCK:
+        if _CACHE_REFRESH_IN_PROGRESS.get(name):
+            return
+        _CACHE_REFRESH_IN_PROGRESS[name] = True
+
+    def _runner() -> None:
+        try:
+            data = compute_fn()
+            cache["data"] = data
+            cache["fetched_at"] = time.time()
+        except Exception:
+            pass
+        finally:
+            with _CACHE_REFRESH_LOCK:
+                _CACHE_REFRESH_IN_PROGRESS[name] = False
+
+    threading.Thread(target=_runner, daemon=True).start()
+
+
 def _compute_live_metrics() -> Dict[str, Any]:
+    targets = _get_sheet_targets_from_config()
+    pipeline_target = targets.get("pipeline") or {}
+    source_settlement = targets.get("source_settlement") or {}
+    output_target = targets.get("output_target") or {}
+    pipeline_sheet_id = pipeline_target.get("sheet_id") or SOURCE_SHEET_ID
+    validated_tab = pipeline_target.get("validated_tab") or VALIDATED_TAB
+    ultra_tab = pipeline_target.get("ultra_tab") or ULTRA_TAB
+    settlement_sheet_id = source_settlement.get("sheet_id") or DEST_SHEET_ID
+    output_sheet_id = output_target.get("sheet_id") or OUTPUT_SPREADSHEET_ID
+    output_tab = output_target.get("tab_name") or OUTPUT_TAB_NAME
     client = _auth_client()
-    src_book = client.open_by_key(SOURCE_SHEET_ID)
-    validated_ws = src_book.worksheet(VALIDATED_TAB)
-    ultra_ws = src_book.worksheet(ULTRA_TAB)
-    dest_book = client.open_by_key(DEST_SHEET_ID)
+    src_book = client.open_by_key(pipeline_sheet_id)
+    validated_ws = src_book.worksheet(validated_tab)
+    ultra_ws = src_book.worksheet(ultra_tab)
+    dest_book = client.open_by_key(settlement_sheet_id)
+    output_ws = None
+    if output_sheet_id:
+        try:
+            output_ws = client.open_by_key(output_sheet_id).worksheet(output_tab)
+        except Exception:
+            output_ws = None
 
     # LinkedIn enrichment metrics
     validated_values = validated_ws.get_all_values()
@@ -166,9 +326,11 @@ def _compute_live_metrics() -> Dict[str, Any]:
 
     valid_live_statuses = {"Live", "Live " , "LIVE"}
     enrichment_pending = 0
+    enrichment_eligible_live = 0
     enrichment_checked = 0
     enrichment_found = 0
     enrichment_person = 0
+    enrichment_none = 0
     enrichment_employees = 0
 
     for row in v_rows:
@@ -187,20 +349,22 @@ def _compute_live_metrics() -> Dict[str, Any]:
             enrichment_found += 1
         elif status_val == "PERSON_PROFILE_ONLY":
             enrichment_person += 1
+        elif status_val == "NONE":
+            enrichment_none += 1
         if emp_count_v and emp_link_v and company_id_v:
             enrichment_employees += 1
 
         if not website or web_status not in valid_live_statuses:
             continue
 
+        enrichment_eligible_live += 1
+
         has_formula = linkedin_val.startswith("=")
         has_real_li = bool(linkedin_val) and not has_formula and "linkedin.com" in linkedin_val.lower()
         is_none = status_val == "NONE"
         is_person_profile = status_val == "PERSON_PROFILE_ONLY"
         needs_link_lookup = (not has_real_li) and not is_none and not is_person_profile
-        employee_missing = not (emp_count_v and emp_link_v and company_id_v)
-        needs_backfill = has_real_li and employee_missing
-        if needs_link_lookup or needs_backfill:
+        if needs_link_lookup:
             enrichment_pending += 1
 
     # Keyword + scoring metrics
@@ -215,6 +379,7 @@ def _compute_live_metrics() -> Dict[str, Any]:
     keyword_pending = 0
     keyword_cat1 = 0
     keyword_cat2 = 0
+    keyword_cat3 = 0
     scoring_ready = 0
     scoring_moved = 0
 
@@ -231,37 +396,79 @@ def _compute_live_metrics() -> Dict[str, Any]:
             keyword_cat1 += 1
         elif kw_status == "cat 2":
             keyword_cat2 += 1
+        elif kw_status == "cat 3":
+            keyword_cat3 += 1
 
-        if kw_status in ("cat 1", "cat 2") and moved != "MOVED":
+        if kw_status in ("cat 1", "cat 2", "cat 3") and moved != "MOVED":
             scoring_ready += 1
         if moved == "MOVED":
             scoring_moved += 1
 
     # Settlement counts
     settlement = {}
-    for tab in ("Alpha", "Beta", "Gamma"):
-        try:
-            ws = dest_book.worksheet(tab)
-            settlement[tab.lower()] = max(0, len(ws.get_all_values()) - 1)
-        except Exception:
-            settlement[tab.lower()] = None
+    settlement_tabs = {
+        "alpha": (source_settlement.get("alpha_tab") or "Alpha",),
+        "alpha_high": (source_settlement.get("alpha_high_tab") or "Alpha_high",),
+        "beta": (source_settlement.get("beta_tab") or "Beta",),
+        "beta_high": (source_settlement.get("beta_high_tab") or "Beta_high",),
+        "gamma": (source_settlement.get("gamma_tab") or "Gamma",),
+        "gamma_high": (source_settlement.get("gamma_high_tab") or "Gamma_high",),
+        "i_gamma": (source_settlement.get("i_gamma_tab") or "I-gamma",),
+        "pbin": (source_settlement.get("pbin_tab") or "pBin",),
+        "hydro": (source_settlement.get("hydro_tab") or "Hydro",),
+        "hydro_formula": (source_settlement.get("hydro_formula_tab") or "Hydro_formula", "hydro_formular"),
+    }
+    for key, aliases in settlement_tabs.items():
+        count = None
+        for tab in aliases:
+            try:
+                ws = dest_book.worksheet(tab)
+                count = max(0, len(ws.get_all_values()) - 1)
+                break
+            except Exception:
+                continue
+        settlement[key] = count
 
     # Scraper V3 ready counts from source webhook
     scraper_v3_ready = _fetch_scraper_v3_ready_counts()
+    output_values = output_ws.get_all_values() if output_ws is not None else []
 
     return {
         "fetched_at": datetime.now(timezone.utc).isoformat(),
+        "sheet_rows": {
+            "validated": {
+                "sheet_id": pipeline_sheet_id,
+                "tab_name": validated_tab,
+                "current_rows": len(validated_values),
+                "data_rows": max(len(validated_values) - 1, 0),
+            },
+            "ultra": {
+                "sheet_id": pipeline_sheet_id,
+                "tab_name": ultra_tab,
+                "current_rows": len(ultra_values),
+                "data_rows": max(len(ultra_values) - 1, 0),
+            },
+            "output": {
+                "sheet_id": output_sheet_id,
+                "tab_name": output_tab,
+                "current_rows": len(output_values),
+                "data_rows": max(len(output_values) - 1, 0),
+            },
+        },
         "enrichment": {
+            "eligible_live": enrichment_eligible_live,
             "pending": enrichment_pending,
             "checked": enrichment_checked,
             "found": enrichment_found,
             "person": enrichment_person,
+            "none": enrichment_none,
             "employees": enrichment_employees,
         },
         "keyword_detection": {
             "pending": keyword_pending,
             "cat1": keyword_cat1,
             "cat2": keyword_cat2,
+            "cat3": keyword_cat3,
         },
         "scoring": {
             "ready": scoring_ready,
@@ -276,23 +483,52 @@ def _get_live_metrics() -> Dict[str, Any]:
     now = time.time()
     cached = _LIVE_STATUS_CACHE.get("data")
     fetched_at = float(_LIVE_STATUS_CACHE.get("fetched_at") or 0.0)
-    if cached is not None and now - fetched_at < LIVE_STATUS_TTL_SECONDS:
+    if cached is not None and now - fetched_at < DELIVERY_STATUS_TTL_SECONDS:
+        return cached
+    _schedule_cache_refresh("live_metrics", _LIVE_STATUS_CACHE, _compute_live_metrics)
+    return cached or _empty_live_metrics()
+
+
+def _get_delivery_sheet_status_cached() -> Dict[str, Any]:
+    live_config = _get_system_config_live_cached()
+    if isinstance(live_config, dict):
+        return ((live_config.get("delivery_sheets") or {}).get("active_status") if isinstance(live_config.get("delivery_sheets"), dict) else {}) or {}
+
+    now = time.time()
+    cached = _DELIVERY_SHEET_CACHE.get("data")
+    fetched_at = float(_DELIVERY_SHEET_CACHE.get("fetched_at") or 0.0)
+    if cached is not None and now - fetched_at < SYSTEM_CONFIG_LIVE_TTL_SECONDS:
         return cached
 
-    try:
-        data = _compute_live_metrics()
-        _LIVE_STATUS_CACHE["data"] = data
-        _LIVE_STATUS_CACHE["fetched_at"] = now
-        return data
-    except Exception:
-        return cached or {
-            "fetched_at": None,
-            "enrichment": {"pending": None, "checked": None, "found": None, "person": None, "employees": None},
-            "keyword_detection": {"pending": None, "cat1": None, "cat2": None},
-            "scoring": {"ready": None, "moved": None},
-            "settlement": {"alpha": None, "beta": None, "gamma": None},
-            "scraper_v3_ready": {"alpha": None, "beta": None, "gamma": None, "total": None},
-        }
+    def _compute_active_delivery_status() -> Dict[str, Any]:
+        system_config = get_system_config(include_live=True) if callable(get_system_config) else {}
+        return ((system_config.get("delivery_sheets") or {}).get("active_status") if isinstance(system_config, dict) else {}) or {}
+
+    _schedule_cache_refresh("delivery_sheet", _DELIVERY_SHEET_CACHE, _compute_active_delivery_status)
+    return cached or {}
+
+
+def _get_system_config_live_cached() -> Dict[str, Any]:
+    now = time.time()
+    cached = _SYSTEM_CONFIG_LIVE_CACHE.get("data")
+    fetched_at = float(_SYSTEM_CONFIG_LIVE_CACHE.get("fetched_at") or 0.0)
+    if cached is not None and now - fetched_at < LIVE_STATUS_TTL_SECONDS:
+        return cached
+    _schedule_cache_refresh(
+        "system_config_live",
+        _SYSTEM_CONFIG_LIVE_CACHE,
+        lambda: get_system_config(include_live=True) if callable(get_system_config) else {},
+    )
+    return cached or {}
+
+
+def prewarm_status_caches() -> None:
+    _schedule_cache_refresh(
+        "system_config_live",
+        _SYSTEM_CONFIG_LIVE_CACHE,
+        lambda: get_system_config(include_live=True) if callable(get_system_config) else {},
+    )
+    _schedule_cache_refresh("live_metrics", _LIVE_STATUS_CACHE, _compute_live_metrics)
 
 
 def _pid_alive(pid: int) -> bool:
@@ -365,10 +601,59 @@ def _scraper_recommendation(
     return ("Optimal", "info")
 
 
+def _make_sheet_volume_entry(
+    key: str,
+    label: str,
+    tab_name: str,
+    current_rows: Optional[int],
+    warning_threshold: Optional[int],
+    stop_threshold: Optional[int],
+    *,
+    data_rows: Optional[int] = None,
+    state_override: Optional[str] = None,
+    note_override: Optional[str] = None,
+) -> Dict[str, Any]:
+    warning = warning_threshold if isinstance(warning_threshold, int) and warning_threshold > 0 else None
+    stop = stop_threshold if isinstance(stop_threshold, int) and stop_threshold > 0 else None
+    rows = current_rows if isinstance(current_rows, int) and current_rows >= 0 else None
+    pct = None
+    if rows is not None and stop:
+        pct = round(min((rows / stop) * 100, 100.0), 1)
+
+    state = state_override or "normal"
+    note = note_override or ""
+    if rows is None:
+        state = state_override or "unknown"
+        note = note_override or "Volume unavailable"
+    elif stop:
+        if rows >= stop:
+            state = state_override or "danger"
+            note = note_override or "Cap reached"
+        elif warning and rows >= warning:
+            state = state_override or "warning"
+            note = note_override or f"{max(stop - rows, 0):,} rows remaining"
+        else:
+            state = state_override or "normal"
+            note = note_override or f"{max(stop - rows, 0):,} rows remaining"
+
+    return {
+        "key": key,
+        "label": label,
+        "tab_name": tab_name,
+        "current_rows": rows,
+        "data_rows": data_rows,
+        "warning_threshold": warning,
+        "stop_threshold": stop,
+        "progress_pct": pct,
+        "state": state,
+        "note": note,
+    }
+
+
 def _read_scraper_output_health() -> Dict[str, Optional[float]]:
     """Read scraper-owned output health metrics from local CSV output."""
     if SCRAPER_MASTER_OUTPUT is None or not Path(SCRAPER_MASTER_OUTPUT).exists():
-        return {"website_found_count": None, "website_found_rate": None}
+        return {"website_found_count": None, "website_total": None, "website_found_rate": None}
 
     website_found = 0
     total_rows = 0
@@ -382,12 +667,66 @@ def _read_scraper_output_health() -> Dict[str, Optional[float]]:
                 if (row.get("website") or "").strip():
                     website_found += 1
     except Exception:
-        return {"website_found_count": None, "website_found_rate": None}
+        return {"website_found_count": None, "website_total": None, "website_found_rate": None}
 
     rate = None
     if total_rows > 0:
         rate = round((website_found / total_rows) * 100, 1)
-    return {"website_found_count": website_found, "website_found_rate": rate}
+    return {"website_found_count": website_found, "website_total": total_rows, "website_found_rate": rate}
+
+
+def _read_scraper_all_time_stats() -> Dict[str, Optional[float]]:
+    """Read cumulative scraper metrics from persisted stats, with file-based fallback."""
+    derived = {
+        "total_searches": None,
+        "total_leads": None,
+        "total_batches": None,
+        "total_website_found": None,
+        "total_website_total": None,
+        "total_captchas": None,
+        "total_errors": None,
+    }
+
+    output_health = _read_scraper_output_health()
+    if output_health.get("website_found_count") is not None:
+        derived["total_website_found"] = output_health.get("website_found_count")
+        derived["total_website_total"] = output_health.get("website_total")
+
+    if SCRAPER_STATS_FILE is None:
+        return derived
+
+    data = _read_json(Path(SCRAPER_STATS_FILE)) or {}
+    for key in derived:
+        if key in data:
+            derived[key] = data.get(key)
+    return derived
+
+
+def _read_scraper_callouts(limit: int = 20) -> List[Dict[str, Any]]:
+    """Return the most recent scraper callouts, newest first."""
+    if SCRAPER_CALLOUTS_FILE is None:
+        return []
+
+    path = Path(SCRAPER_CALLOUTS_FILE)
+    if not path.exists():
+        return []
+
+    items: List[Dict[str, Any]] = []
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            for line in fh:
+                if not line.strip():
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(data, dict):
+                    items.append(data)
+    except OSError:
+        return []
+
+    return list(reversed(items[-limit:]))
 
 
 def _read_scraper_health() -> Dict[str, Any]:
@@ -397,8 +736,15 @@ def _read_scraper_health() -> Dict[str, Any]:
             "started_at": None,
             "ended_at": None,
             "last_activity": None,
+            "current_phase": None,
             "captcha_count": None,
             "error_count": None,
+            "run_searches": None,
+            "run_leads": None,
+            "run_batches": None,
+            "run_website_found": None,
+            "run_website_total": None,
+            "current_batch_number": None,
         }
 
     data = _read_json(Path(SCRAPER_HEALTH_FILE)) or {}
@@ -406,8 +752,15 @@ def _read_scraper_health() -> Dict[str, Any]:
         "started_at": data.get("started_at"),
         "ended_at": data.get("ended_at"),
         "last_activity": data.get("last_activity"),
+        "current_phase": data.get("current_phase"),
         "captcha_count": data.get("captcha_count"),
         "error_count": data.get("error_count"),
+        "run_searches": data.get("run_searches"),
+        "run_leads": data.get("run_leads"),
+        "run_batches": data.get("run_batches"),
+        "run_website_found": data.get("run_website_found"),
+        "run_website_total": data.get("run_website_total"),
+        "current_batch_number": data.get("current_batch_number"),
     }
 
 
@@ -474,6 +827,13 @@ def _get_enrichment_status() -> Dict[str, Any]:
     }
 
 
+def _get_enrichment_watcher_state() -> Dict[str, Any]:
+    state = _read_json(ENRICHMENT_WATCHER_STATE)
+    if not isinstance(state, dict):
+        return {}
+    return state
+
+
 # ============================================================================
 # ULTRA VALIDATED WATCHER STATUS
 # ============================================================================
@@ -517,7 +877,7 @@ def _get_ultra_status() -> Dict[str, Any]:
 # SCRAPER V3 WATCHER STATUS
 # ============================================================================
 
-def _get_scraper_v3_status() -> Dict[str, Any]:
+def _get_scraper_v3_status(stale_timeout_minutes: int = 180) -> Dict[str, Any]:
     """Read scraper_v3 watcher state from lock file."""
     lock_data = _read_json(SCRAPER_V3_LOCK)
 
@@ -553,7 +913,7 @@ def _get_scraper_v3_status() -> Dict[str, Any]:
         }
 
     age = _lock_age_minutes(locked_at) if locked_at else None
-    is_stale = (age is not None and age > 180) or (pid is not None and not alive)
+    is_stale = (age is not None and age > stale_timeout_minutes) or (pid is not None and not alive)
 
     if alive:
         status = "running"
@@ -584,6 +944,9 @@ def _build_attention_flags(
     enrichment: dict,
     ultra: dict,
     scraper_v3: dict,
+    delivery_sheet: dict,
+    managed_sheet_statuses: List[dict],
+    sheet_rotation: dict,
 ) -> List[Dict[str, str]]:
     """Build the system attention list — top issues only."""
     flags: List[Dict[str, str]] = []
@@ -644,6 +1007,92 @@ def _build_attention_flags(
             "message": "All categories complete — scraping finished",
         })
 
+    if delivery_sheet.get("ok"):
+        label = delivery_sheet.get("sheet_label") or "Delivery sheet"
+        tab_name = delivery_sheet.get("tab_name") or "Leads"
+        current_rows = delivery_sheet.get("current_rows")
+        if delivery_sheet.get("blocked"):
+            flags.append({
+                "level": "danger",
+                "source": "Pipeline Sheet",
+                "message": f"{label} / {tab_name} reached its stop threshold at row {current_rows}. Add and activate a new pipeline sheet before resuming.",
+            })
+        elif delivery_sheet.get("warning"):
+            remaining = delivery_sheet.get("rows_remaining_to_stop")
+            flags.append({
+                "level": "warning",
+                "source": "Pipeline Sheet",
+                "message": f"{label} / {tab_name} is approaching its row cap. {remaining} rows remain before the stop threshold.",
+            })
+    elif delivery_sheet.get("error"):
+        flags.append({
+            "level": "warning",
+            "source": "Pipeline Sheet",
+            "message": f"Could not inspect delivery sheet capacity: {delivery_sheet.get('error')}",
+        })
+
+    for entry in managed_sheet_statuses:
+        if not isinstance(entry, dict):
+            continue
+        key = entry.get("key")
+        status = entry.get("status") if isinstance(entry.get("status"), dict) else {}
+        if key == "pipeline_inbox" or not entry.get("enabled"):
+            continue
+        label = status.get("sheet_label") or entry.get("label") or "Managed sheet"
+        tab_name = status.get("tab_name") or entry.get("tab_name") or "--"
+        current_rows = status.get("current_rows")
+        if status.get("blocked"):
+            flags.append({
+                "level": "danger",
+                "source": label,
+                "message": f"{label} / {tab_name} reached its stop threshold at row {current_rows}.",
+            })
+        elif status.get("warning"):
+            remaining = status.get("rows_remaining_to_stop")
+            flags.append({
+                "level": "warning",
+                "source": label,
+                "message": f"{label} / {tab_name} is approaching its row cap. {remaining} rows remain before the stop threshold.",
+            })
+        elif status.get("error"):
+            flags.append({
+                "level": "warning",
+                "source": label,
+                "message": f"Could not inspect {label} capacity: {status.get('error')}",
+            })
+
+    registries = (sheet_rotation.get("registries") if isinstance(sheet_rotation, dict) else {}) or {}
+    for registry_key, registry in registries.items():
+        if not isinstance(registry, dict):
+            continue
+        status = registry.get("live_status") if isinstance(registry.get("live_status"), dict) else {}
+        label = status.get("active_label") or registry.get("active_label") or registry_key.replace("_", " ").title()
+        tab_name = status.get("tab_name") or "--"
+        percent_used = status.get("percent_used")
+        phase = status.get("phase")
+        pending_label = registry.get("pending_sheet_label")
+        deadline = registry.get("approval_deadline_at")
+        rotation_status = registry.get("rotation_status")
+
+        if rotation_status == "paused_pending_approval":
+            flags.append({
+                "level": "danger",
+                "source": label,
+                "message": f"{label} / {tab_name} is full. System paused pending approval to switch to {pending_label or 'the prepared replacement'}." + (f" Auto-continue at {deadline}." if deadline else ""),
+            })
+        elif rotation_status == "prepared" and pending_label:
+            flags.append({
+                "level": "danger",
+                "source": label,
+                "message": f"{label} / {tab_name} prepared a replacement sheet ({pending_label}) at {percent_used}% capacity.",
+            })
+        elif phase == "warning" and percent_used is not None:
+            flags.append({
+                "level": "danger",
+                "source": label,
+                "message": f"{label} / {tab_name} crossed {percent_used}% capacity. Replacement planning is active.",
+            })
+
     return flags
 
 
@@ -664,9 +1113,16 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
         scoring, settlement, scraper_v3, watchers, attention
     """
     enrichment = _get_enrichment_status()
+    enrichment_watcher_state = _get_enrichment_watcher_state()
     ultra = _get_ultra_status()
-    scraper_v3 = _get_scraper_v3_status()
+    delivery_sheet = _get_delivery_sheet_status_cached()
+    system_config_live = _get_system_config_live_cached()
+    managed_sheet_statuses = (((system_config_live.get("managed_sheets") or {}).get("entries")) if isinstance(system_config_live, dict) else None) or []
+    sheet_rotation = get_sheet_rotation_snapshot()
     live = _get_live_metrics()
+    system_config = get_system_config(include_live=False) if callable(get_system_config) else {}
+    scraper_v3_cfg = ((((system_config.get("enrichment") or {}).get("scraper_v3") or {}).get("watcher")) if isinstance(system_config, dict) else {}) or {}
+    scraper_v3 = _get_scraper_v3_status(int(scraper_v3_cfg.get("stale_lock_timeout_minutes") or 180))
     latest_scraper_v3_summary = _read_latest_json(
         SCRAPER_V3_SUMMARY_DIR, "run_summary_*.json"
     ) or {}
@@ -687,17 +1143,66 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
     loc = progress.get("current_location", {})
     cat = progress.get("category", {})
     settlement_alpha = live["settlement"].get("alpha")
+    settlement_alpha_high = live["settlement"].get("alpha_high")
+    if settlement_alpha_high is None:
+        settlement_alpha_high = 0
     settlement_beta = live["settlement"].get("beta")
+    settlement_beta_high = live["settlement"].get("beta_high")
+    if settlement_beta_high is None:
+        settlement_beta_high = 0
     settlement_gamma = live["settlement"].get("gamma")
+    settlement_gamma_high = live["settlement"].get("gamma_high")
+    if settlement_gamma_high is None:
+        settlement_gamma_high = 0
+    settlement_i_gamma = live["settlement"].get("i_gamma")
+    if settlement_i_gamma is None:
+        settlement_i_gamma = 0
+    settlement_pbin = live["settlement"].get("pbin")
+    if settlement_pbin is None:
+        settlement_pbin = 0
+    settlement_hydro = live["settlement"].get("hydro")
+    if settlement_hydro is None:
+        settlement_hydro = 0
+    settlement_hydro_formula = live["settlement"].get("hydro_formula")
+    if settlement_hydro_formula is None:
+        settlement_hydro_formula = 0
     usable_total = None
-    if None not in (settlement_alpha, settlement_beta, settlement_gamma):
-        usable_total = settlement_alpha + settlement_beta + settlement_gamma
+    if None not in (
+        settlement_alpha,
+        settlement_alpha_high,
+        settlement_beta,
+        settlement_beta_high,
+        settlement_gamma,
+        settlement_gamma_high,
+    ):
+        usable_total = (
+            settlement_alpha
+            + settlement_alpha_high
+            + settlement_beta
+            + settlement_beta_high
+            + settlement_gamma
+            + settlement_gamma_high
+        )
 
-    scraped_total = overall.get("total_leads_collected", 0) or 0
-    completed_searches = overall.get("completed_searches", 0) or 0
-    batch_count = overall.get("batch_number", 0) or 0
+    all_time_stats = _read_scraper_all_time_stats()
+    scraper_callouts = _read_scraper_callouts()
+    scraped_total = (
+        all_time_stats.get("total_leads")
+        if all_time_stats.get("total_leads") is not None
+        else (overall.get("total_leads_collected", 0) or 0)
+    )
+    completed_searches = (
+        all_time_stats.get("total_searches")
+        if all_time_stats.get("total_searches") is not None
+        else (overall.get("completed_searches", 0) or 0)
+    )
+    batch_count = (
+        all_time_stats.get("total_batches")
+        if all_time_stats.get("total_batches") is not None
+        else (overall.get("batch_number", 0) or 0)
+    )
     leads_per_100_searches = None
-    if completed_searches > 0:
+    if completed_searches and completed_searches > 0 and scraped_total is not None:
         leads_per_100_searches = round((scraped_total / completed_searches) * 100, 1)
 
     usable_rate = None
@@ -709,35 +1214,97 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
         leads_per_batch = round(scraped_total / batch_count, 1)
 
     scraper_health = _read_scraper_health()
+    run_searches = scraper_health.get("run_searches")
+    run_leads = scraper_health.get("run_leads")
+    run_batches = scraper_health.get("run_batches")
+    run_website_found = scraper_health.get("run_website_found")
+    run_website_total = scraper_health.get("run_website_total")
+
     runtime_hours = _elapsed_hours_between(
         scraper_health.get("started_at"),
         None if is_running else scraper_health.get("ended_at"),
     )
     searches_per_hour = None
-    if runtime_hours is not None and runtime_hours > 0 and completed_searches > 0:
-        searches_per_hour = round(completed_searches / runtime_hours, 1)
+    if runtime_hours is not None and runtime_hours > 0 and run_searches and run_searches > 0:
+        searches_per_hour = round(run_searches / runtime_hours, 1)
 
     scraper_output_health = _read_scraper_output_health()
     if scraped_total <= 0:
-        scraper_output_health = {"website_found_count": None, "website_found_rate": None}
+        scraper_output_health = {"website_found_count": None, "website_total": None, "website_found_rate": None}
 
-    if completed_searches <= 0 and not is_running:
+    run_leads_per_100_searches = None
+    if run_searches and run_searches > 0 and run_leads is not None:
+        run_leads_per_100_searches = round((run_leads / run_searches) * 100, 1)
+
+    run_leads_per_batch = None
+    if run_batches and run_batches > 0 and run_leads is not None:
+        run_leads_per_batch = round(run_leads / run_batches, 1)
+
+    run_website_found_rate = None
+    if run_website_total and run_website_total > 0 and run_website_found is not None:
+        run_website_found_rate = round((run_website_found / run_website_total) * 100, 1)
+
+    scraper_runtime_cfg = {}
+    scraper_dashboard_cfg = get_scraper_dashboard_config() if callable(get_scraper_dashboard_config) else {}
+    if isinstance(scraper_dashboard_cfg, dict):
+        scraper_runtime_cfg = scraper_dashboard_cfg.get("runtime") or {}
+
+    run_error_rate = None
+    if run_searches and run_searches > 0 and scraper_health.get("error_count") is not None:
+        run_error_rate = round((float(scraper_health.get("error_count") or 0) / run_searches) * 100, 1)
+
+    run_captcha_rate = None
+    if run_searches and run_searches > 0 and scraper_health.get("captcha_count") is not None:
+        run_captcha_rate = round((float(scraper_health.get("captcha_count") or 0) / run_searches) * 100, 1)
+
+    all_time_error_rate = None
+    total_errors = all_time_stats.get("total_errors")
+    if completed_searches and completed_searches > 0 and total_errors is not None:
+        all_time_error_rate = round((float(total_errors) / completed_searches) * 100, 1)
+
+    all_time_captcha_rate = None
+    total_captchas = all_time_stats.get("total_captchas")
+    if completed_searches and completed_searches > 0 and total_captchas is not None:
+        all_time_captcha_rate = round((float(total_captchas) / completed_searches) * 100, 1)
+
+    if (run_searches or 0) <= 0 and not is_running:
         scraper_health = {
             "started_at": None,
             "ended_at": None,
             "last_activity": progress.get("last_saved"),
+            "current_phase": None,
             "captcha_count": None,
             "error_count": None,
+            "run_searches": None,
+            "run_leads": None,
+            "run_batches": None,
+            "run_website_found": None,
+            "run_website_total": None,
+            "current_batch_number": None,
         }
+        run_searches = None
+        run_leads = None
+        run_batches = None
+        run_website_found = None
+        run_website_total = None
+        run_leads_per_100_searches = None
+        run_leads_per_batch = None
+        run_website_found_rate = None
+        run_error_rate = None
+        run_captcha_rate = None
+        searches_per_hour = None
 
-    recommendation, recommendation_tone = _scraper_recommendation(
-        completed_searches,
-        batch_count,
-        leads_per_100_searches,
-        scraper_output_health.get("website_found_rate"),
-        int(scraper_health.get("captcha_count") or 0),
-        int(scraper_health.get("error_count") or 0),
-    )
+    if scraper_health.get("current_phase") == "paused_critical":
+        recommendation, recommendation_tone = ("Auto-paused for review", "danger")
+    else:
+        recommendation, recommendation_tone = _scraper_recommendation(
+            int(run_searches or 0),
+            int(run_batches or 0),
+            run_leads_per_100_searches,
+            run_website_found_rate,
+            int(scraper_health.get("captcha_count") or 0),
+            int(scraper_health.get("error_count") or 0),
+        )
 
     maps_scraper = {
         "status": scraper_status,
@@ -748,8 +1315,11 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
         "usable_rate": usable_rate,
         "leads_per_100_searches": leads_per_100_searches,
         "alpha": settlement_alpha,
+        "alpha_high": settlement_alpha_high,
         "beta": settlement_beta,
+        "beta_high": settlement_beta_high,
         "gamma": settlement_gamma,
+        "gamma_high": settlement_gamma_high,
         "searches": completed_searches,
         "total_searches": overall.get("total_searches", 0),
         "batches": batch_count,
@@ -760,25 +1330,94 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
         "captcha_count": scraper_health.get("captcha_count"),
         "error_count": scraper_health.get("error_count"),
         "category": f"{cat.get('index', 0) + 1}/{cat.get('total', '?')}" if cat else None,
-        "worker_count": SCRAPER_NUM_WORKERS,
+        "worker_count": scraper_runtime_cfg.get("num_workers"),
+        "batch_size": scraper_runtime_cfg.get("batch_size"),
+        "website_status_workers": scraper_runtime_cfg.get("website_status_workers"),
         "recommendation": recommendation,
         "recommendation_tone": recommendation_tone,
+        "delivery_sheet": delivery_sheet,
         "last_saved": progress.get("last_saved"),
         "last_activity": scraper_health.get("last_activity") or progress.get("last_saved"),
         "run_started_at": scraper_health.get("started_at"),
         "run_ended_at": scraper_health.get("ended_at"),
+        "current_phase": scraper_health.get("current_phase"),
+        "current_batch_number": scraper_health.get("current_batch_number"),
+        "run": {
+            "searches": run_searches,
+            "leads": run_leads,
+            "batches": run_batches,
+            "leads_per_100_searches": run_leads_per_100_searches,
+            "leads_per_batch": run_leads_per_batch,
+            "website_found": run_website_found,
+            "website_total": run_website_total,
+            "website_found_rate": run_website_found_rate,
+            "captcha_count": scraper_health.get("captcha_count"),
+            "error_count": scraper_health.get("error_count"),
+            "captcha_rate": run_captcha_rate,
+            "error_rate": run_error_rate,
+            "searches_per_hour": searches_per_hour,
+        },
+        "all_time": {
+            "searches": completed_searches,
+            "leads": scraped_total,
+            "batches": batch_count,
+            "leads_per_100_searches": leads_per_100_searches,
+            "leads_per_batch": leads_per_batch,
+            "website_found": scraper_output_health.get("website_found_count"),
+            "website_total": scraper_output_health.get("website_total"),
+            "website_found_rate": scraper_output_health.get("website_found_rate"),
+            "captcha_count": total_captchas,
+            "error_count": total_errors,
+            "captcha_rate": all_time_captcha_rate,
+            "error_rate": all_time_error_rate,
+        },
+        "recent_callouts": scraper_callouts,
     }
 
     # Enrichment card
+    enrichment_live = live["enrichment"]
+    enrichment_eligible_live = enrichment_live.get("eligible_live")
+    enrichment_checked = enrichment_live.get("checked")
+    enrichment_found = enrichment_live.get("found")
+    enrichment_person = enrichment_live.get("person")
+    enrichment_none = enrichment_live.get("none")
+    enrichment_employees = enrichment_live.get("employees")
+    enrichment_pending = enrichment_live.get("pending")
+
+    enrichment_coverage_rate = None
+    if enrichment_eligible_live and enrichment_eligible_live > 0 and enrichment_checked is not None:
+        enrichment_coverage_rate = round((enrichment_checked / enrichment_eligible_live) * 100, 1)
+
+    enrichment_employee_completion_rate = None
+    if enrichment_found and enrichment_found > 0 and enrichment_employees is not None:
+        enrichment_employee_completion_rate = round((enrichment_employees / enrichment_found) * 100, 1)
+
     enrichment_card = {
         "status": enrichment["status"],
         "locked": enrichment["locked"],
+        "pid": enrichment.get("pid"),
+        "reason": enrichment.get("reason"),
         "lock_age": enrichment.get("age_minutes"),
         "is_stale": enrichment.get("is_stale", False),
-        "pending": live["enrichment"].get("pending"),
-        "checked": live["enrichment"].get("checked"),
-        "employees": live["enrichment"].get("employees"),
-        "found": live["enrichment"].get("found"),
+        "eligible_live": enrichment_eligible_live,
+        "pending": enrichment_pending,
+        "checked": enrichment_checked,
+        "employees": enrichment_employees,
+        "found": enrichment_found,
+        "person": enrichment_person,
+        "none": enrichment_none,
+        "coverage_rate": enrichment_coverage_rate,
+        "employee_completion_rate": enrichment_employee_completion_rate,
+        "trigger_threshold": enrichment_watcher_state.get("min_backlog_to_drain"),
+        "max_wait_minutes": enrichment_watcher_state.get("max_wait_before_forced_drain_minutes"),
+        "watcher_interval_minutes": enrichment_watcher_state.get("watcher_interval_minutes"),
+        "waiting_minutes": enrichment_watcher_state.get("waiting_minutes"),
+        "wait_progress_pct": enrichment_watcher_state.get("wait_progress_pct"),
+        "backlog_since": enrichment_watcher_state.get("backlog_since"),
+        "last_tick_at": enrichment_watcher_state.get("last_tick_at"),
+        "last_launch_at": enrichment_watcher_state.get("last_launch_at"),
+        "last_trigger": enrichment_watcher_state.get("last_trigger"),
+        "trigger_state": enrichment_watcher_state.get("trigger_state"),
     }
 
     # Keyword detection — runs via ultra_validated_watcher
@@ -790,6 +1429,11 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
         "pending": live["keyword_detection"].get("pending"),
         "cat1": live["keyword_detection"].get("cat1"),
         "cat2": live["keyword_detection"].get("cat2"),
+        "cat3": live["keyword_detection"].get("cat3"),
+        "threshold": (
+            (((system_config.get("enrichment") or {}).get("keyword_scoring") or {}).get("watcher") or {}).get("trigger_threshold")
+            or 50
+        ),
     }
 
     # Scoring — runs immediately after keyword detection (same watcher)
@@ -799,15 +1443,29 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
         "ready": live["scoring"].get("ready"),
         "moved": live["scoring"].get("moved"),
         "alpha": live["settlement"].get("alpha"),
+        "alpha_high": settlement_alpha_high,
         "beta": live["settlement"].get("beta"),
+        "beta_high": settlement_beta_high,
         "gamma": live["settlement"].get("gamma"),
+        "gamma_high": settlement_gamma_high,
+        "i_gamma": settlement_i_gamma,
+        "pbin": settlement_pbin,
+        "hydro": settlement_hydro,
+        "hydro_formula": settlement_hydro_formula,
     }
 
     settlement_card = {
         "status": "idle",
         "alpha": live["settlement"].get("alpha"),
+        "alpha_high": settlement_alpha_high,
         "beta": live["settlement"].get("beta"),
+        "beta_high": settlement_beta_high,
         "gamma": live["settlement"].get("gamma"),
+        "gamma_high": settlement_gamma_high,
+        "i_gamma": settlement_i_gamma,
+        "pbin": settlement_pbin,
+        "hydro": settlement_hydro,
+        "hydro_formula": settlement_hydro_formula,
     }
 
     scraper_v3_card = {
@@ -817,20 +1475,46 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
         "is_stale": scraper_v3.get("is_stale", False),
         "reason": scraper_v3.get("reason"),
         "alpha": live["scraper_v3_ready"].get("alpha"),
+        "alpha_high": live["scraper_v3_ready"].get("alpha_high"),
         "beta": live["scraper_v3_ready"].get("beta"),
+        "beta_high": live["scraper_v3_ready"].get("beta_high"),
         "gamma": live["scraper_v3_ready"].get("gamma"),
+        "gamma_high": live["scraper_v3_ready"].get("gamma_high"),
+        "alpha_family": live["scraper_v3_ready"].get("alpha_family"),
+        "beta_family": live["scraper_v3_ready"].get("beta_family"),
+        "gamma_family": live["scraper_v3_ready"].get("gamma_family"),
         "total": live["scraper_v3_ready"].get("total"),
         "alpha_beta": (
-            (live["scraper_v3_ready"].get("alpha") or 0)
-            + (live["scraper_v3_ready"].get("beta") or 0)
-            if live["scraper_v3_ready"].get("alpha") is not None
-            and live["scraper_v3_ready"].get("beta") is not None
+            (live["scraper_v3_ready"].get("alpha_family") or 0)
+            + (live["scraper_v3_ready"].get("beta_family") or 0)
+            if live["scraper_v3_ready"].get("alpha_family") is not None
+            and live["scraper_v3_ready"].get("beta_family") is not None
             else None
         ),
-        "threshold": int(os.environ.get("MIN_ALPHA_BETA_BACKLOG_TO_RUN", "30")),
+        "threshold": int(scraper_v3_cfg.get("alpha_beta_trigger_threshold") or os.environ.get("MIN_ALPHA_BETA_BACKLOG_TO_RUN", "30")),
+        "max_wait_minutes": int(scraper_v3_cfg.get("max_wait_before_forced_run_minutes") or os.environ.get("SCRAPER_V3_MAX_WAIT_MINUTES", "60")),
+        "watcher_interval_minutes": int(scraper_v3_cfg.get("watcher_interval_minutes") or os.environ.get("WATCHER_INTERVAL_MINUTES", "10")),
+        "stale_lock_timeout_minutes": int(scraper_v3_cfg.get("stale_lock_timeout_minutes") or 180),
         "last_finished": latest_scraper_v3_summary.get("finished"),
         "last_batch": latest_scraper_v3_summary.get("batch_size"),
         "last_written": latest_scraper_v3_summary.get("written_ok"),
+        "last_started": latest_scraper_v3_summary.get("started"),
+        "last_elapsed_seconds": latest_scraper_v3_summary.get("elapsed_seconds"),
+        "last_per_site_seconds": latest_scraper_v3_summary.get("per_site_seconds"),
+        "last_attempted": latest_scraper_v3_summary.get("attempted"),
+        "last_resumed_mark_only": latest_scraper_v3_summary.get("resumed_mark_only"),
+        "last_scraped_ok": latest_scraper_v3_summary.get("scraped_ok"),
+        "last_scraped_error": latest_scraper_v3_summary.get("scraped_error"),
+        "last_write_failed": latest_scraper_v3_summary.get("write_failed"),
+        "last_marked_done": latest_scraper_v3_summary.get("marked_done"),
+        "last_marked_error": latest_scraper_v3_summary.get("marked_error"),
+        "last_mark_failed": latest_scraper_v3_summary.get("mark_failed"),
+        "last_graceful_shutdown": latest_scraper_v3_summary.get("graceful_shutdown"),
+        "last_timeout_count": latest_scraper_v3_summary.get("timeout_count"),
+        "last_blocked_count": latest_scraper_v3_summary.get("blocked_count"),
+        "last_linkedin_urls": latest_scraper_v3_summary.get("linkedin_urls"),
+        "last_emails": latest_scraper_v3_summary.get("emails"),
+        "last_persons_extracted": latest_scraper_v3_summary.get("persons_extracted"),
     }
 
     # Watchers summary
@@ -849,8 +1533,40 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
     }
 
     attention = _build_attention_flags(
-        process_info, scheduler_state, scraper_progress, enrichment, ultra, scraper_v3
+        process_info, scheduler_state, scraper_progress, enrichment, ultra, scraper_v3, delivery_sheet, managed_sheet_statuses, sheet_rotation
     )
+
+    sheet_volume = []
+    for entry in managed_sheet_statuses:
+        if not isinstance(entry, dict):
+            continue
+        status = entry.get("status") if isinstance(entry.get("status"), dict) else {}
+        sheet_volume.append(
+            _make_sheet_volume_entry(
+                entry.get("key") or "managed_sheet",
+                status.get("sheet_label") or entry.get("label") or "Managed Sheet",
+                status.get("tab_name") or entry.get("tab_name") or "--",
+                status.get("current_rows"),
+                status.get("warning_row_threshold") or entry.get("warning_row_threshold"),
+                status.get("stop_row_threshold") or entry.get("stop_row_threshold"),
+                data_rows=status.get("data_rows"),
+                state_override=(
+                    "danger" if status.get("blocked")
+                    else "warning" if status.get("warning")
+                    else "unknown" if status.get("error")
+                    else None
+                ),
+                note_override=(
+                    f"{status.get('rows_remaining_to_stop'):,} rows remaining"
+                    if status.get("ok") and status.get("rows_remaining_to_stop") is not None and not status.get("blocked")
+                    else "Cap reached"
+                    if status.get("blocked")
+                    else "Volume unavailable"
+                    if status.get("error")
+                    else None
+                ),
+            )
+        )
 
     return {
         "snapshot_fetched_at": live.get("fetched_at"),
@@ -860,6 +1576,8 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
         "scoring": scoring_card,
         "settlement": settlement_card,
         "scraper_v3": scraper_v3_card,
+        "sheet_volume": sheet_volume,
+        "sheet_rotation": sheet_rotation,
         "watchers": watchers,
         "scheduler": scheduler_card,
         "attention": attention,

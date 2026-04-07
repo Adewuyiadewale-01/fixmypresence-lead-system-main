@@ -1,15 +1,135 @@
 // === CONFIG ===
-const SHEET_ID = '1KrKoeun-h6eEzSK6-cc4_MUHriuabg8GyAR9b8NR7fc';
-const TAB_NAME = 'Leads';
 const SECRET = 'FMP-Scraper';
-const SOURCE_TAB = 'Validated_leads';
-const DEST_TAB = 'Ultra_validated';
-const CONFIG_TAB = 'config';
+const PIPELINE_CONFIG_PROPERTY = 'FMP_ACTIVE_PIPELINE_CONFIG';
+const DEFAULT_PIPELINE_CONFIG = {
+  sheetId: '1KrKoeun-h6eEzSK6-cc4_MUHriuabg8GyAR9b8NR7fc',
+  sheetLabel: 'Primary Pipeline',
+  tabInbox: 'Leads',
+  tabValidated: 'Validated_leads',
+  tabUltra: 'Ultra_validated',
+  tabConfig: 'config',
+  inboxQuota: 5,
+  enrichQuota: 5,
+  hydroSheetId: '1YF8WvLTPu-Raf22rHaaphauj-w-n64CRu83ZeAtHYAc',
+  hydroFormulaTab: 'Hydro_formula',
+  hydroIncompleteTab: 'Hydro_incomplete'
+};
 const MAX_BATCH = 50;
-// External scoring sheet (where Alpha/Beta/Gamma/Hydro live)
-const HYDRO_DEST_SHEET_ID = '1YF8WvLTPu-Raf22rHaaphauj-w-n64CRu83ZeAtHYAc';
-const HYDRO_FORMULA_TAB_NAME = 'Hydro_formula';     // formulas only
-const HYDRO_INCOMPLETE_TAB_NAME = 'Hydro_incomplete'; // real LI, missing fields
+
+function extractDriveFolderId(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  const match = text.match(/\/folders\/([a-zA-Z0-9-_]+)/);
+  if (match) return match[1];
+  return /^[a-zA-Z0-9-_]+$/.test(text) ? text : '';
+}
+
+function clearWorksheetData(sheet) {
+  if (!sheet) return;
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  if (lastRow <= 1 || lastCol <= 0) return;
+  sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
+}
+
+function clearPipelineCopy(ss, cfg) {
+  [
+    cfg.tabInbox,
+    cfg.tabValidated,
+    cfg.tabUltra,
+    cfg.tabConfig,
+  ].forEach(function(tabName) {
+    const sheet = ss.getSheetByName(tabName);
+    if (sheet) clearWorksheetData(sheet);
+  });
+}
+
+function createPipelineRotationCopy(options) {
+  const cfg = getPipelineConfig();
+  const opts = options || {};
+  const title = String(opts.title || (cfg.sheetLabel + ' Next')).trim() || (cfg.sheetLabel + ' Next');
+  const folderId = extractDriveFolderId(opts.folderId || opts.folder_id);
+  const sourceFile = DriveApp.getFileById(cfg.sheetId);
+  const copyFile = folderId
+    ? sourceFile.makeCopy(title, DriveApp.getFolderById(folderId))
+    : sourceFile.makeCopy(title);
+  const copiedSheetId = copyFile.getId();
+  const copiedSpreadsheet = SpreadsheetApp.openById(copiedSheetId);
+  clearPipelineCopy(copiedSpreadsheet, cfg);
+  return {
+    sheet_id: copiedSheetId,
+    sheet_ref: copiedSheetId,
+    title: copyFile.getName(),
+  };
+}
+
+function authorizeRotationAccess() {
+  DriveApp.getRootFolder();
+  SpreadsheetApp.getActive();
+  return true;
+}
+
+function getPipelineConfig() {
+  const props = PropertiesService.getScriptProperties();
+  const raw = props.getProperty(PIPELINE_CONFIG_PROPERTY);
+  if (!raw) return Object.assign({}, DEFAULT_PIPELINE_CONFIG);
+
+  try {
+    const parsed = JSON.parse(raw);
+    return normalizePipelineConfig(parsed);
+  } catch (err) {
+    return Object.assign({}, DEFAULT_PIPELINE_CONFIG);
+  }
+}
+
+function normalizePipelineConfig(config) {
+  const data = config || {};
+  return {
+    sheetId: String(data.sheetId || data.sheet_id || DEFAULT_PIPELINE_CONFIG.sheetId).trim(),
+    sheetLabel: String(data.sheetLabel || data.sheet_label || DEFAULT_PIPELINE_CONFIG.sheetLabel).trim(),
+    tabInbox: String(data.tabInbox || data.inbox_tab || data.tabName || DEFAULT_PIPELINE_CONFIG.tabInbox).trim(),
+    tabValidated: String(data.tabValidated || data.validated_tab || DEFAULT_PIPELINE_CONFIG.tabValidated).trim(),
+    tabUltra: String(data.tabUltra || data.ultra_tab || DEFAULT_PIPELINE_CONFIG.tabUltra).trim(),
+    tabConfig: String(data.tabConfig || data.config_tab || DEFAULT_PIPELINE_CONFIG.tabConfig).trim(),
+    inboxQuota: Number(data.inboxQuota || data.inbox_quota || DEFAULT_PIPELINE_CONFIG.inboxQuota) || DEFAULT_PIPELINE_CONFIG.inboxQuota,
+    enrichQuota: Number(data.enrichQuota || data.enrich_quota || DEFAULT_PIPELINE_CONFIG.enrichQuota) || DEFAULT_PIPELINE_CONFIG.enrichQuota,
+    hydroSheetId: String(data.hydroSheetId || data.hydro_sheet_id || DEFAULT_PIPELINE_CONFIG.hydroSheetId).trim(),
+    hydroFormulaTab: String(data.hydroFormulaTab || data.hydro_formula_tab || DEFAULT_PIPELINE_CONFIG.hydroFormulaTab).trim(),
+    hydroIncompleteTab: String(data.hydroIncompleteTab || data.hydro_incomplete_tab || DEFAULT_PIPELINE_CONFIG.hydroIncompleteTab).trim()
+  };
+}
+
+function savePipelineConfig(config) {
+  const normalized = normalizePipelineConfig(config);
+  PropertiesService.getScriptProperties().setProperty(
+    PIPELINE_CONFIG_PROPERTY,
+    JSON.stringify(normalized)
+  );
+  ensurePipelineTriggers(normalized);
+  return normalized;
+}
+
+function openPipelineSpreadsheet(config) {
+  const cfg = config || getPipelineConfig();
+  return SpreadsheetApp.openById(cfg.sheetId);
+}
+
+function ensurePipelineTriggers(config) {
+  const cfg = config || getPipelineConfig();
+  const targetId = cfg.sheetId;
+  const existing = ScriptApp.getProjectTriggers();
+
+  existing.forEach((trigger) => {
+    if (trigger.getHandlerFunction() === 'onSheetChange') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  ScriptApp.newTrigger('onSheetChange')
+    .forSpreadsheet(targetId)
+    .onChange()
+    .create();
+}
 
 // === 1. RECEIVE NEW LEADS (via /doPost endpoint) ===
 function doPost(e) {
@@ -19,6 +139,31 @@ function doPost(e) {
             return ContentService.createTextOutput('unauthorized')
                 .setMimeType(ContentService.MimeType.TEXT);
         }
+
+        if (payload.action === 'sync_pipeline_config') {
+            const saved = savePipelineConfig(payload.pipeline || {});
+            return ContentService.createTextOutput(
+              JSON.stringify({ status: 'ok', message: 'pipeline config synced', pipeline: saved })
+            ).setMimeType(ContentService.MimeType.JSON);
+        }
+
+        if (payload.action === 'create_rotation_copy') {
+            const created = createPipelineRotationCopy(payload.rotation || {});
+            return ContentService.createTextOutput(
+              JSON.stringify({ status: 'ok', message: 'pipeline rotation copy created', copy: created })
+            ).setMimeType(ContentService.MimeType.JSON);
+        }
+
+        if (payload.action === 'run_stage2_sorter') {
+            processPhase1Enrichment();
+            return ContentService.createTextOutput(
+              JSON.stringify({ status: 'ok', message: 'stage2 sorter executed' })
+            ).setMimeType(ContentService.MimeType.JSON);
+        }
+
+        const pipelineConfig = payload.pipeline
+          ? savePipelineConfig(payload.pipeline)
+          : getPipelineConfig();
 
         const rows = payload.rows;
         if (!Array.isArray(rows) || rows.length === 0) {
@@ -35,26 +180,254 @@ function doPost(e) {
             }
         }
 
-        const ss = SpreadsheetApp.openById(SHEET_ID);
-        const sh = ss.getSheetByName(TAB_NAME);
+        const ss = openPipelineSpreadsheet(pipelineConfig);
+        const sh = ss.getSheetByName(pipelineConfig.tabInbox);
         // MODIFIED: Use dynamic width (rows[0].length) instead of hardcoded 7
         const target = sh.getRange(sh.getLastRow() + 1, 1, rows.length, rows[0].length);
         target.setValues(rows);
 
-        return ContentService.createTextOutput('ok')
-            .setMimeType(ContentService.MimeType.TEXT);
+        const currentRows = sh.getLastRow() - 1;
+
+        if (currentRows >= pipelineConfig.inboxQuota) {
+            const moveSummary = moveVerifiedLeads();
+            if (moveSummary.movedCount > 0) {
+                processPhase1Enrichment();
+            }
+            return ContentService.createTextOutput(
+              JSON.stringify({
+                status: 'ok',
+                message: `Quota met (${currentRows}). Moved instantly.`,
+                pipeline: pipelineConfig,
+                moved: moveSummary.movedCount,
+                duplicates: moveSummary.duplicateCount
+              })
+            ).setMimeType(ContentService.MimeType.JSON);
+        }
+
+        return ContentService.createTextOutput(
+          JSON.stringify({
+            status: 'ok',
+            message: `Waiting: Inbox has ${currentRows}/${pipelineConfig.inboxQuota} leads.`,
+            pipeline: pipelineConfig
+          })
+        ).setMimeType(ContentService.MimeType.JSON);
     } catch (err) {
         return ContentService.createTextOutput('error: ' + err)
             .setMimeType(ContentService.MimeType.TEXT);
     }
 }
 
+// === 1B. WATCHER (Validated -> sorter) ===
+function onSheetChange(e) {
+    const cfg = getPipelineConfig();
+    const ss = (e && e.source) || openPipelineSpreadsheet(cfg);
+    const sheet = ss.getActiveSheet();
+
+    if (!sheet || sheet.getName() !== cfg.tabValidated) return;
+
+    const lock = LockService.getScriptLock();
+    if (lock.tryLock(5000)) {
+        try {
+            processPhase1Enrichment();
+        } catch (err) {
+            Logger.log("Error in Instant Sort: " + err);
+        } finally {
+            lock.releaseLock();
+        }
+    }
+}
+
+// === STAGE 1: MOVER (Inbox -> Validated) ===
+function moveVerifiedLeads() {
+    const cfg = getPipelineConfig();
+    const ss = openPipelineSpreadsheet(cfg);
+    const src = ss.getSheetByName(cfg.tabInbox);
+    const dest = ss.getSheetByName(cfg.tabValidated);
+
+    if (!src || !dest) {
+        Logger.log("❌ Inbox or Validated tab missing.");
+        return { movedCount: 0, duplicateCount: 0 };
+    }
+
+    const data = src.getDataRange().getValues();
+    if (data.length <= 1) return { movedCount: 0, duplicateCount: 0 };
+
+    const headers = data[0].map(h => h.toString().toLowerCase().trim());
+    const nameCol = headers.indexOf("name");
+    const webCol = headers.indexOf("website");
+
+    let statusCol = headers.indexOf("status");
+    if (statusCol === -1) statusCol = headers.indexOf("website status");
+
+    let moveStatusCol = headers.indexOf("move status");
+    if (moveStatusCol === -1) {
+        moveStatusCol = headers.length;
+        src.getRange(1, moveStatusCol + 1).setValue("Move Status");
+    }
+
+    if (nameCol === -1 || webCol === -1 || statusCol === -1) {
+        Logger.log("❌ Missing required Inbox columns.");
+        return { movedCount: 0, duplicateCount: 0 };
+    }
+
+    const destLastRow = dest.getLastRow();
+    let existingWebsites = new Set();
+    if (destLastRow > 1) {
+        const destData = dest.getRange(2, 2, destLastRow - 1, 1).getValues();
+        destData.forEach(r => existingWebsites.add((r[0] || "").toString().toLowerCase().trim()));
+    }
+
+    const rowsToMove = [];
+    const updates = [];
+
+    for (let i = 1; i < data.length; i++) {
+        const rawStatus = data[i][statusCol];
+        const status = (rawStatus || "").toString().toLowerCase().trim();
+        const moveStatus = (data[i][moveStatusCol] || "").toString().trim();
+
+        if (moveStatus === "MOVED" || moveStatus === "DUPLICATE") continue;
+
+        if (status === "live" || status === "✅") {
+            const name = data[i][nameCol];
+            const website = data[i][webCol];
+            const cleanWeb = (website || "").toString().toLowerCase().trim();
+
+            if (existingWebsites.has(cleanWeb)) {
+                updates.push({ row: i + 1, status: "DUPLICATE" });
+            } else {
+                rowsToMove.push([name, website, "✅"]);
+                updates.push({ row: i + 1, status: "MOVED" });
+                existingWebsites.add(cleanWeb);
+            }
+        }
+    }
+
+    if (rowsToMove.length > 0) {
+        dest.getRange(dest.getLastRow() + 1, 1, rowsToMove.length, 3).setValues(rowsToMove);
+    }
+
+    updates.forEach(u => src.getRange(u.row, moveStatusCol + 1).setValue(u.status));
+    return {
+        movedCount: rowsToMove.length,
+        duplicateCount: updates.filter(u => u.status === "DUPLICATE").length
+    };
+}
+
+// === STAGE 2: SORTER (Validated -> Ultra / Hydro) ===
+function processPhase1Enrichment() {
+    const cfg = getPipelineConfig();
+    const ss = openPipelineSpreadsheet(cfg);
+    const src = ss.getSheetByName(cfg.tabValidated);
+    const ultra = ss.getSheetByName(cfg.tabUltra);
+
+    if (!src || !ultra) {
+        Logger.log("❌ Validated or Ultra tab missing.");
+        return;
+    }
+
+    const data = src.getDataRange().getValues();
+    if (data.length <= 1) return;
+
+    const headers = data[0].map(h => h.toString().toLowerCase());
+    const idx = (name) => headers.indexOf(name);
+
+    const colName = idx("name");
+    const colWeb = idx("website");
+    const colLi = idx("linkedin");
+    const colEmp = idx("linkedin employees");
+    const colPpl = idx("linkedin people link");
+
+    let colMoveStatus = idx("move status");
+    if (colMoveStatus === -1) {
+        colMoveStatus = headers.length;
+        src.getRange(1, colMoveStatus + 1).setValue("move status");
+    }
+
+    let readyCount = 0;
+    for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        if (row[colMoveStatus] && row[colMoveStatus].toString() !== "") continue;
+        if (row[colLi] && row[colLi].toString().trim() !== "") {
+            readyCount++;
+        }
+    }
+
+    if (readyCount < cfg.enrichQuota) {
+        Logger.log(`Stage 2: Waiting... Found ${readyCount}/${cfg.enrichQuota} rows.`);
+        return;
+    }
+
+    const ultraRows = [];
+    const hydroFormulaRows = [];
+    const hydroIncompleteRows = [];
+    const updates = [];
+
+    for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        if (row[colMoveStatus] && row[colMoveStatus].toString() !== "") continue;
+
+        const liRaw = row[colLi];
+        if (!liRaw || liRaw.toString().trim() === "") continue;
+
+        const name = row[colName];
+        const web = row[colWeb];
+        const emp = row[colEmp];
+        const ppl = row[colPpl];
+        const li = liRaw.toString();
+
+        const isGoogleSearch = li.includes("Google") || li.includes("search");
+        const isFormula = li.startsWith("=");
+        const hasLinkedIn = li.includes("linkedin.com");
+        const hasEmp = emp && emp.toString() !== "";
+        const hasPpl = ppl && ppl.toString() !== "";
+
+        if (isGoogleSearch || isFormula) {
+            hydroFormulaRows.push([name, web, li, emp, ppl]);
+            updates.push({ row: i + 1, status: "HYDRO_FORMULA" });
+        } else if (hasLinkedIn && hasEmp && hasPpl) {
+            ultraRows.push([name, web, li, emp, ppl]);
+            updates.push({ row: i + 1, status: "ULTRA" });
+        } else if (hasLinkedIn) {
+            hydroIncompleteRows.push([name, web, li, emp, ppl]);
+            updates.push({ row: i + 1, status: "HYDRO_INCOMPLETE" });
+        }
+    }
+
+    if (ultraRows.length > 0) {
+        ultra.getRange(ultra.getLastRow() + 1, 1, ultraRows.length, 5).setValues(ultraRows);
+    }
+
+    if (hydroFormulaRows.length > 0 || hydroIncompleteRows.length > 0) {
+        sendToHydroSheet(cfg, hydroFormulaRows, hydroIncompleteRows);
+    }
+
+    updates.forEach(u => src.getRange(u.row, colMoveStatus + 1).setValue(u.status));
+    Logger.log(`Moved: ${ultraRows.length} Ultra, ${hydroFormulaRows.length} Formula, ${hydroIncompleteRows.length} Hydro`);
+}
+
+function sendToHydroSheet(cfg, formulaRows, incompleteRows) {
+    const ssHydro = SpreadsheetApp.openById(cfg.hydroSheetId);
+
+    if (formulaRows.length > 0) {
+        let sheet = ssHydro.getSheetByName(cfg.hydroFormulaTab);
+        if (!sheet) sheet = ssHydro.insertSheet(cfg.hydroFormulaTab);
+        sheet.getRange(sheet.getLastRow() + 1, 1, formulaRows.length, 5).setValues(formulaRows);
+    }
+
+    if (incompleteRows.length > 0) {
+        let sheet = ssHydro.getSheetByName(cfg.hydroIncompleteTab);
+        if (!sheet) sheet = ssHydro.insertSheet(cfg.hydroIncompleteTab);
+        sheet.getRange(sheet.getLastRow() + 1, 1, incompleteRows.length, 5).setValues(incompleteRows);
+    }
+}
+
 // === 2. VALIDATE WEBSITES IN BATCHES OF 50 (auto-resumes) ===
 function validateWebsitesFromValidatedLeads() {
-    const ss = SpreadsheetApp.openById(SHEET_ID);
-    const sheet = ss.getSheetByName(SOURCE_TAB);
-    const destSheet = ss.getSheetByName(DEST_TAB) || ss.insertSheet(DEST_TAB);
-    const configSheet = ss.getSheetByName(CONFIG_TAB) || ss.insertSheet(CONFIG_TAB);
+    const cfg = getPipelineConfig();
+    const ss = openPipelineSpreadsheet(cfg);
+    const sheet = ss.getSheetByName(cfg.tabValidated);
+    const destSheet = ss.getSheetByName(cfg.tabUltra) || ss.insertSheet(cfg.tabUltra);
+    const configSheet = ss.getSheetByName(cfg.tabConfig) || ss.insertSheet(cfg.tabConfig);
 
     const data = sheet.getDataRange().getValues();
     if (data.length < 2) {
@@ -216,10 +589,11 @@ function validateWebsitesFromValidatedLeads() {
 
 // === 3. RESET FUNCTION (manual) ===
 function resetLeadValidationState() {
-    const ss = SpreadsheetApp.openById(SHEET_ID);
-    const sourceSheet = ss.getSheetByName(SOURCE_TAB);
-    const destSheet = ss.getSheetByName(DEST_TAB);
-    const configSheet = ss.getSheetByName(CONFIG_TAB);
+    const cfg = getPipelineConfig();
+    const ss = openPipelineSpreadsheet(cfg);
+    const sourceSheet = ss.getSheetByName(cfg.tabValidated);
+    const destSheet = ss.getSheetByName(cfg.tabUltra);
+    const configSheet = ss.getSheetByName(cfg.tabConfig);
 
     if (!sourceSheet || !destSheet) {
         throw new Error("❌ One of the main tabs (Validated_leads / Ultra_validated) is missing");
@@ -269,12 +643,13 @@ function resetLeadValidationState() {
 }
 
 function transferCompletedLeads() {
-    const ss = SpreadsheetApp.openById(SHEET_ID);
-    const sheet = ss.getSheetByName(SOURCE_TAB);
-    const dest = ss.getSheetByName(DEST_TAB) || ss.insertSheet(DEST_TAB);
+    const cfg = getPipelineConfig();
+    const ss = openPipelineSpreadsheet(cfg);
+    const sheet = ss.getSheetByName(cfg.tabValidated);
+    const dest = ss.getSheetByName(cfg.tabUltra) || ss.insertSheet(cfg.tabUltra);
 
     if (!sheet) {
-        Logger.log('❌ SOURCE_TAB not found: ' + SOURCE_TAB);
+        Logger.log('❌ Validated tab not found: ' + cfg.tabValidated);
         return;
     }
 
@@ -388,11 +763,12 @@ function transferCompletedLeads() {
 
 
 function transferHydroCandidates() {
-    const ss = SpreadsheetApp.openById(SHEET_ID);
-    const sheet = ss.getSheetByName(SOURCE_TAB);
+    const cfg = getPipelineConfig();
+    const ss = openPipelineSpreadsheet(cfg);
+    const sheet = ss.getSheetByName(cfg.tabValidated);
 
     if (!sheet) {
-        Logger.log('❌ SOURCE_TAB not found: ' + SOURCE_TAB);
+        Logger.log('❌ Validated tab not found: ' + cfg.tabValidated);
         return;
     }
 
@@ -502,13 +878,13 @@ function transferHydroCandidates() {
     }
 
     // ---- open external scoring sheet ----
-    const destBook = SpreadsheetApp.openById(HYDRO_DEST_SHEET_ID);
+    const destBook = SpreadsheetApp.openById(cfg.hydroSheetId);
 
     // --- write formula-type Hydro ---
     if (formulaRows.length > 0) {
-        let formulaSheet = destBook.getSheetByName(HYDRO_FORMULA_TAB_NAME);
+        let formulaSheet = destBook.getSheetByName(cfg.hydroFormulaTab);
         if (!formulaSheet) {
-            formulaSheet = destBook.insertSheet(HYDRO_FORMULA_TAB_NAME);
+            formulaSheet = destBook.insertSheet(cfg.hydroFormulaTab);
             formulaSheet.appendRow([
                 'name',
                 'website',
@@ -526,9 +902,9 @@ function transferHydroCandidates() {
 
     // --- write incomplete-type Hydro ---
     if (incompleteRows.length > 0) {
-        let incompleteSheet = destBook.getSheetByName(HYDRO_INCOMPLETE_TAB_NAME);
+        let incompleteSheet = destBook.getSheetByName(cfg.hydroIncompleteTab);
         if (!incompleteSheet) {
-            incompleteSheet = destBook.insertSheet(HYDRO_INCOMPLETE_TAB_NAME);
+            incompleteSheet = destBook.insertSheet(cfg.hydroIncompleteTab);
             incompleteSheet.appendRow([
                 'name',
                 'website',

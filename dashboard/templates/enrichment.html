@@ -4,13 +4,499 @@
 {% block page_title %}Enrichment{% endblock %}
 
 {% block content %}
-<div class="panel placeholder-page">
-    <i data-lucide="sparkles"></i>
-    <h3>Enrichment Pipeline</h3>
-    <p>Backlog monitoring, drain controls, enricher logs, and lock status will live here.</p>
-</div>
+<section class="enrichment-tabs-shell">
+    <div class="enrichment-tab-bar" role="tablist" aria-label="Enrichment Sections">
+        <button class="enrichment-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="enrichment-tab-linkedin" id="enrichment-tab-btn-linkedin" data-enrichment-tab="linkedin">
+            <i data-lucide="linkedin"></i>
+            <span>LinkedIn Enrichment</span>
+        </button>
+        <button class="enrichment-tab" type="button" role="tab" aria-selected="false" aria-controls="enrichment-tab-keywords" id="enrichment-tab-btn-keywords" data-enrichment-tab="keywords">
+            <i data-lucide="scan-search"></i>
+            <span>Keyword + Scoring</span>
+        </button>
+        <button class="enrichment-tab" type="button" role="tab" aria-selected="false" aria-controls="enrichment-tab-scraperv3" id="enrichment-tab-btn-scraperv3" data-enrichment-tab="scraperv3">
+            <i data-lucide="rocket"></i>
+            <span>Scraper V3</span>
+        </button>
+    </div>
+
+    <div class="enrichment-panels">
+        <section class="panel enrichment-tab-panel is-active" id="enrichment-tab-linkedin" role="tabpanel" aria-labelledby="enrichment-tab-btn-linkedin" data-enrichment-panel="linkedin">
+            <div class="config-panel-intro">
+                <h2>LinkedIn Enrichment</h2>
+                <p>Backlog pressure, drain logic, coverage, employee completion, logs, and lock state will live here.</p>
+            </div>
+            <section class="enrichment-summary-strip">
+                <div class="config-summary-stat">
+                    <span class="config-summary-label">State</span>
+                    <span id="enrich-summary-state" class="config-summary-value">--</span>
+                </div>
+                <div class="config-summary-stat">
+                    <span class="config-summary-label">Backlog</span>
+                    <span id="enrich-summary-backlog" class="config-summary-value">--</span>
+                </div>
+                <div class="config-summary-stat">
+                    <span class="config-summary-label">Coverage</span>
+                    <span id="enrich-summary-coverage" class="config-summary-value">--</span>
+                </div>
+                <div class="config-summary-stat">
+                    <span class="config-summary-label">Employee Fill</span>
+                    <span id="enrich-summary-employees" class="config-summary-value">--</span>
+                </div>
+            </section>
+
+            <div class="enrichment-live-grid">
+                <section class="enrichment-section-card">
+                    <div class="panel-header-inline">
+                        <h3>Backlog & Drain</h3>
+                        <span id="enrich-state-chip" class="pipeline-attention attn-info">Idle</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Pending First Pass</span>
+                        <span id="enrich-pending" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Backlog Share</span>
+                        <span id="enrich-backlog-share" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Wait Window</span>
+                        <span id="enrich-wait-window" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-progress-block">
+                        <div class="pipeline-progress-head">
+                            <span class="pipeline-progress-label">Drain Threshold</span>
+                            <span id="enrich-threshold-meta" class="pipeline-progress-meta">--</span>
+                        </div>
+                        <div class="pipeline-progress-bar">
+                            <span id="enrich-threshold-fill" class="pipeline-progress-fill"></span>
+                        </div>
+                        <div id="enrich-threshold-note" class="pipeline-progress-note">Waiting for enrichment telemetry</div>
+                    </div>
+                </section>
+
+                <section class="enrichment-section-card">
+                    <div class="panel-header-inline">
+                        <h3>Coverage & Quality</h3>
+                        <span id="enrich-quality-chip" class="pipeline-attention attn-info">Monitoring</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Checked</span>
+                        <span id="enrich-checked" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Coverage Rate</span>
+                        <span id="enrich-coverage-rate" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">FOUND / PERSON / NONE</span>
+                        <span id="enrich-quality" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Employee Completion</span>
+                        <span id="enrich-employee-fill" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                </section>
+
+                <section class="enrichment-section-card">
+                    <div class="panel-header-inline">
+                        <h3>Watcher Runtime</h3>
+                        <span id="enrich-watcher-chip" class="pipeline-attention attn-info">Watcher idle</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Lock Age</span>
+                        <span id="enrich-lock-age" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Launch Trigger</span>
+                        <span id="enrich-last-trigger" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Last Tick</span>
+                        <span id="enrich-last-tick" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Last Launch</span>
+                        <span id="enrich-last-launch" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Watcher / PID</span>
+                        <span id="enrich-watcher-runtime" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                </section>
+
+                <section class="enrichment-section-card enrichment-controls-card">
+                    <div class="panel-header-inline">
+                        <h3>Controls</h3>
+                        <span class="pipeline-attention attn-warning">LinkedIn Operations</span>
+                    </div>
+                    <div class="enrichment-controls-copy">Run the watcher immediately, force a drain when backlog is waiting, or reset the subsystem without leaving the page.</div>
+                    <div class="enrichment-controls-grid">
+                        <button id="btn-enrich-watcher-check" class="btn btn-primary btn-block" type="button">
+                            <i data-lucide="activity"></i>
+                            Run Watcher Check
+                        </button>
+                        <button id="btn-enrich-force-drain" class="btn btn-warning btn-block" type="button">
+                            <i data-lucide="play"></i>
+                            Force Drain Now
+                        </button>
+                        <button id="btn-enrich-reset-pointer" class="btn btn-success btn-block" type="button">
+                            <i data-lucide="rewind"></i>
+                            Reset Pointer
+                        </button>
+                        <button id="btn-enrich-hard-reset" class="btn btn-danger btn-block" type="button">
+                            <i data-lucide="rotate-ccw"></i>
+                            Hard Reset
+                        </button>
+                    </div>
+                    <div id="enrichment-linkedin-control-note" class="scraper-summary-note">Operate the LinkedIn subsystem directly here without touching the main system controls.</div>
+                </section>
+
+                <section class="enrichment-section-card">
+                    <div class="panel-header-inline">
+                        <h3>Validated Sheet</h3>
+                        <span id="enrich-sheet-chip" class="pipeline-attention attn-info">Monitoring</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Tab</span>
+                        <span id="enrich-sheet-tab" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Rows</span>
+                        <span id="enrich-sheet-rows" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Data Rows</span>
+                        <span id="enrich-sheet-data-rows" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Row-Cap State</span>
+                        <span id="enrich-sheet-note" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                </section>
+
+                <section class="enrichment-section-card enrichment-section-card-wide">
+                    <div class="panel-header-inline">
+                        <h3>Logs & Attention</h3>
+                        <div class="config-actions-inline">
+                            <button id="btn-refresh-enrichment-logs" class="btn btn-small btn-secondary" type="button">
+                                <i data-lucide="refresh-cw"></i>
+                                Refresh Logs
+                            </button>
+                        </div>
+                    </div>
+                    <div id="enrich-attention-list" class="attention-list">
+                        <div class="attention-empty">No enrichment-specific attention yet.</div>
+                    </div>
+                    <div class="log-viewer enrichment-log-viewer">
+                        <pre id="enrich-log-content">Loading enrichment logs...</pre>
+                    </div>
+                </section>
+            </div>
+        </section>
+
+        <section class="panel enrichment-tab-panel" id="enrichment-tab-keywords" role="tabpanel" aria-labelledby="enrichment-tab-btn-keywords" data-enrichment-panel="keywords" hidden>
+            <div class="config-panel-intro">
+                <h2>Keyword Detector + Scoring</h2>
+                <p>These two stages are tightly coupled inside the Ultra pipeline, so they share one workspace.</p>
+            </div>
+            <section class="enrichment-summary-strip">
+                <div class="config-summary-stat">
+                    <span class="config-summary-label">Watcher</span>
+                    <span id="keyword-summary-state" class="config-summary-value">--</span>
+                </div>
+                <div class="config-summary-stat">
+                    <span class="config-summary-label">Keyword Backlog</span>
+                    <span id="keyword-summary-pending" class="config-summary-value">--</span>
+                </div>
+                <div class="config-summary-stat">
+                    <span class="config-summary-label">Scoring Ready</span>
+                    <span id="keyword-summary-ready" class="config-summary-value">--</span>
+                </div>
+                <div class="config-summary-stat">
+                    <span class="config-summary-label">Moved</span>
+                    <span id="keyword-summary-moved" class="config-summary-value">--</span>
+                </div>
+            </section>
+
+            <div class="enrichment-live-grid">
+                <section class="enrichment-section-card">
+                    <div class="panel-header-inline">
+                        <h3>Keyword Detector</h3>
+                        <span id="keyword-state-chip" class="pipeline-attention attn-info">Idle</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Pending Keyword Check</span>
+                        <span id="keyword-pending" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Cat 1 / Cat 2 / Cat 3</span>
+                        <span id="keyword-outcomes" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Decision Coverage</span>
+                        <span id="keyword-coverage" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-progress-block">
+                        <div class="pipeline-progress-head">
+                            <span class="pipeline-progress-label">Watcher Threshold</span>
+                            <span id="keyword-threshold-meta" class="pipeline-progress-meta">--</span>
+                        </div>
+                        <div class="pipeline-progress-bar">
+                            <span id="keyword-threshold-fill" class="pipeline-progress-fill"></span>
+                        </div>
+                        <div id="keyword-threshold-note" class="pipeline-progress-note">Waiting for ultra-pipeline telemetry.</div>
+                    </div>
+                </section>
+
+                <section class="enrichment-section-card">
+                    <div class="panel-header-inline">
+                        <h3>Scoring & Settlement</h3>
+                        <span id="keyword-scoring-chip" class="pipeline-attention attn-info">Monitoring</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Ready To Classify</span>
+                        <span id="keyword-ready" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Moved</span>
+                        <span id="keyword-moved" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Base / High Settlement</span>
+                        <span id="keyword-settlement" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Moved Share</span>
+                        <span id="keyword-moved-share" class="pipeline-val">--</span>
+                    </div>
+                </section>
+
+                <section class="enrichment-section-card">
+                    <div class="panel-header-inline">
+                        <h3>Destination Tabs</h3>
+                        <span id="keyword-dest-chip" class="pipeline-attention attn-info">Sheet truth</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Alpha</span>
+                        <span id="keyword-dest-alpha" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Alpha High</span>
+                        <span id="keyword-dest-alpha-high" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Beta</span>
+                        <span id="keyword-dest-beta" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Beta High</span>
+                        <span id="keyword-dest-beta-high" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Gamma</span>
+                        <span id="keyword-dest-gamma" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Gamma High</span>
+                        <span id="keyword-dest-gamma-high" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">I-gamma</span>
+                        <span id="keyword-dest-i-gamma" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">pBin</span>
+                        <span id="keyword-dest-pbin" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Hydro</span>
+                        <span id="keyword-dest-hydro" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Hydro Formula</span>
+                        <span id="keyword-dest-hydro-formula" class="pipeline-val">--</span>
+                    </div>
+                </section>
+
+                <section class="enrichment-section-card">
+                    <div class="panel-header-inline">
+                        <h3>Ultra Watcher</h3>
+                        <span id="keyword-watcher-chip" class="pipeline-attention attn-info">Watcher idle</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Watcher State</span>
+                        <span id="keyword-watcher-state" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Lock Age</span>
+                        <span id="keyword-lock-age" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Ultra Rows</span>
+                        <span id="keyword-ultra-rows" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Ultra Sheet Note</span>
+                        <span id="keyword-ultra-note" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                </section>
+
+                <section class="enrichment-section-card">
+                    <div class="panel-header-inline">
+                        <h3>Attention</h3>
+                        <span id="keyword-attention-chip" class="pipeline-attention attn-info">No active issues</span>
+                    </div>
+                    <div id="keyword-attention-list" class="attention-list">
+                        <div class="attention-empty">No keyword/scoring attention yet.</div>
+                    </div>
+                </section>
+            </div>
+        </section>
+
+        <section class="panel enrichment-tab-panel" id="enrichment-tab-scraperv3" role="tabpanel" aria-labelledby="enrichment-tab-btn-scraperv3" data-enrichment-panel="scraperv3" hidden>
+            <div class="config-panel-intro">
+                <h2>Scraper V3</h2>
+                <p>This is the final source-sheet scraper that turns Alpha/Beta/Gamma families into usable person-and-email output. Monitor source backlog, watcher readiness, and recent run quality here.</p>
+            </div>
+            <section class="enrichment-summary-strip">
+                <div class="config-summary-stat">
+                    <span class="config-summary-label">State</span>
+                    <span id="scraperv3-summary-state" class="config-summary-value">--</span>
+                </div>
+                <div class="config-summary-stat">
+                    <span class="config-summary-label">Alpha+Beta Ready</span>
+                    <span id="scraperv3-summary-alpha-beta" class="config-summary-value">--</span>
+                </div>
+                <div class="config-summary-stat">
+                    <span class="config-summary-label">Total Source Backlog</span>
+                    <span id="scraperv3-summary-total" class="config-summary-value">--</span>
+                </div>
+                <div class="config-summary-stat">
+                    <span class="config-summary-label">Last Written</span>
+                    <span id="scraperv3-summary-written" class="config-summary-value">--</span>
+                </div>
+            </section>
+
+            <div class="enrichment-live-grid">
+                <section class="enrichment-section-card">
+                    <div class="panel-header-inline">
+                        <h3>Trigger State</h3>
+                        <span id="scraperv3-state-chip" class="pipeline-attention attn-info">Idle</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Alpha Family Ready</span>
+                        <span id="scraperv3-alpha-family" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Beta Family Ready</span>
+                        <span id="scraperv3-beta-family" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Gamma Family Ready</span>
+                        <span id="scraperv3-gamma-family" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                    <div class="pipeline-progress-block">
+                        <div class="pipeline-progress-head">
+                            <span class="pipeline-progress-label">Launch Threshold</span>
+                            <span id="scraperv3-threshold-meta" class="pipeline-progress-meta">--</span>
+                        </div>
+                        <div class="pipeline-progress-bar">
+                            <span id="scraperv3-threshold-fill" class="pipeline-progress-fill"></span>
+                        </div>
+                        <div id="scraperv3-threshold-note" class="pipeline-progress-note">Waiting for source backlog telemetry.</div>
+                    </div>
+                </section>
+
+                <section class="enrichment-section-card">
+                    <div class="panel-header-inline">
+                        <h3>Recent Output</h3>
+                        <span id="scraperv3-output-chip" class="pipeline-attention attn-info">No recent run</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Last Finished</span>
+                        <span id="scraperv3-last-finished" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Batch / Written</span>
+                        <span id="scraperv3-batch-written" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Write / Mark Health</span>
+                        <span id="scraperv3-write-mark-health" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Scraped OK / Error</span>
+                        <span id="scraperv3-scraped-outcome" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">LinkedIn / Emails / Persons</span>
+                        <span id="scraperv3-extracts" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                </section>
+
+                <section class="enrichment-section-card">
+                    <div class="panel-header-inline">
+                        <h3>Watcher Runtime</h3>
+                        <span id="scraperv3-watcher-chip" class="pipeline-attention attn-info">Watcher idle</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Lock Age</span>
+                        <span id="scraperv3-lock-age" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Reason / Status</span>
+                        <span id="scraperv3-reason" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Elapsed / Per Site</span>
+                        <span id="scraperv3-timing" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Wait / Interval</span>
+                        <span id="scraperv3-watch-window" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                </section>
+
+                <section class="enrichment-section-card">
+                    <div class="panel-header-inline">
+                        <h3>Source Sheet Coverage</h3>
+                        <span id="scraperv3-lanes-chip" class="pipeline-attention attn-info">Source webhook</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Alpha / Alpha High</span>
+                        <span id="scraperv3-alpha-split" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Beta / Beta High</span>
+                        <span id="scraperv3-beta-split" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Gamma / Gamma High</span>
+                        <span id="scraperv3-gamma-split" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Mark-only Resumes</span>
+                        <span id="scraperv3-mark-only" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                </section>
+
+                <section class="enrichment-section-card enrichment-section-card-wide">
+                    <div class="panel-header-inline">
+                        <h3>Operational Notes</h3>
+                        <span id="scraperv3-attention-chip" class="pipeline-attention attn-info">No active issues</span>
+                    </div>
+                    <div id="scraperv3-attention-list" class="attention-list">
+                        <div class="attention-empty">No Scraper V3-specific attention yet.</div>
+                    </div>
+                </section>
+            </div>
+        </section>
+    </div>
+</section>
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/js/enrichment.js"></script>
 <script>lucide.createIcons();</script>
 {% endblock %}

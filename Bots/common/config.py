@@ -1,8 +1,8 @@
 # Shared Configuration for Fixmypresence System
 
 # Webhook integration (Google Apps Script)
-# Using the URL found in the enricher as it appears to be the live one.
-WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyLmYnBgyBBMGGrDnp15yn-Xf0PC0xNTCuLosWiFpsiKtIhm1_9RL2SqEoNSf7iA6txEA/exec"
+# Config-driven pipeline Apps Script deployment.
+WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzqD2ny083z43T6vnD2nifpYMI7RdbRXhOvrsFuhKHrJdlvF0Ealy7QwsDxJpVeSaYo/exec"
 WEBHOOK_SECRET = "FMP-Scraper"
 WEBHOOK_SPREADSHEET_ID = "1KrKoeun-h6eEzSK6-cc4_MUHriuabg8GyAR9b8NR7fc"
 WEBHOOK_TAB_NAME = "Leads"
@@ -16,6 +16,8 @@ SOURCE_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwFHK6yToabfEPucGM
 # Deploy output_apps_script.js on the output sheet and paste the URL here.
 # Handles: POST companies=[...] (write grouped rows to Employee_db)
 OUTPUT_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyYNaJdNvpVItavLbn100lzvMJ_fLdDTISFOgKWOBmfT2IATZmxqkhYOCbeFxO8xMis8A/exec"
+OUTPUT_SPREADSHEET_ID = "1YTLSv2-vo8PkDJebRZzwbxIC3Agafw_Prj6bTfudZQ8"
+OUTPUT_TAB_NAME = "Employee_db"
 
 # User Agent
 USER_AGENT = (

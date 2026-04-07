@@ -8,8 +8,7 @@
 // =============================================================================
 
 let autoRefresh = true;
-let statusRefreshInterval = 3000; // 3 seconds
-let logsRefreshInterval = 5000; // 5 seconds when running, slower when stopped
+let logsRefreshInterval = 15000; // 15 seconds is enough for overview log freshness
 let isRunning = false; // Track if controller is running
 
 // =============================================================================
@@ -198,7 +197,7 @@ function updateScraperProgress(scraper, processRunning) {
         overall.total_leads_collected || '--';
 
     // Last saved - always show this
-    const lastSaved = progress.last_saved || scraper.checked_at || '--';
+    const lastSaved = progress.last_saved || '--';
     document.getElementById('scraper-last-saved').textContent =
         lastSaved !== '--' ? formatTimestamp(lastSaved) : '--';
 }
@@ -212,19 +211,20 @@ function formatTimestamp(isoString) {
     }
 }
 
+function applyStatusData(data) {
+    if (!data) return;
+    isRunning = Boolean(data.process?.running);
+    updateStatusIndicator(data.process?.running, data.scheduler?.phase);
+    updateButtonStates(data.process?.running);
+    updateProcessInfo(data.process || {});
+    updateSchedulerInfo(data.scheduler || {});
+    updateScraperProgress(data.scraper || {}, data.process?.running);
+}
+
 async function refreshStatus() {
     try {
         const data = await api('/status');
-
-        // Track running state globally
-        isRunning = data.process.running;
-
-        updateStatusIndicator(data.process.running, data.scheduler.phase);
-        updateButtonStates(data.process.running);
-        updateProcessInfo(data.process);
-        updateSchedulerInfo(data.scheduler);
-        updateScraperProgress(data.scraper, data.process.running);
-
+        applyStatusData(data);
     } catch (error) {
         console.error('Failed to refresh status:', error);
     }
@@ -423,13 +423,6 @@ function init() {
     refreshStatus();
     refreshLogs();
 
-    // Auto-refresh status every 3 seconds
-    setInterval(() => {
-        if (autoRefresh) {
-            refreshStatus();
-        }
-    }, statusRefreshInterval);
-
     // Auto-refresh logs - faster when running, slower when stopped
     setInterval(() => {
         if (autoRefresh) {
@@ -437,6 +430,11 @@ function init() {
             refreshLogs();
         }
     }, logsRefreshInterval);
+
+    // The shared common.js poll now owns the unified /status cadence.
+    window.addEventListener('status-update', (e) => {
+        applyStatusData(e.detail);
+    });
 }
 
 document.addEventListener('DOMContentLoaded', init);

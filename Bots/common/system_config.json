@@ -1,0 +1,256 @@
+{
+  "watchers": {
+    "delivery_sheet_capacity": {
+      "enabled": true,
+      "warning_row_threshold": 42000,
+      "stop_row_threshold": 45000
+    }
+  },
+  "pipeline_sheets": {
+    "active_sheet_key": "primary",
+    "sheets": [
+      {
+        "key": "primary",
+        "label": "Primary Pipeline",
+        "sheet_ref": "1KrKoeun-h6eEzSK6-cc4_MUHriuabg8GyAR9b8NR7fc",
+        "sheet_id": "1KrKoeun-h6eEzSK6-cc4_MUHriuabg8GyAR9b8NR7fc",
+        "tab_name": "Leads",
+        "inbox_tab": "Leads",
+        "validated_tab": "Validated_leads",
+        "ultra_tab": "Ultra_validated",
+        "config_tab": "config",
+        "inbox_quota": 5,
+        "enrich_quota": 5,
+        "hydro_sheet_id": "1YF8WvLTPu-Raf22rHaaphauj-w-n64CRu83ZeAtHYAc",
+        "hydro_formula_tab": "Hydro_formula",
+        "hydro_incomplete_tab": "Hydro_incomplete",
+        "enabled": true
+      }
+    ]
+  },
+  "delivery_sheets": {
+    "active_sheet_key": "primary",
+    "sheets": [
+      {
+        "key": "primary",
+        "label": "Primary Pipeline",
+        "sheet_ref": "1KrKoeun-h6eEzSK6-cc4_MUHriuabg8GyAR9b8NR7fc",
+        "sheet_id": "1KrKoeun-h6eEzSK6-cc4_MUHriuabg8GyAR9b8NR7fc",
+        "tab_name": "Leads",
+        "inbox_tab": "Leads",
+        "validated_tab": "Validated_leads",
+        "ultra_tab": "Ultra_validated",
+        "config_tab": "config",
+        "inbox_quota": 5,
+        "enrich_quota": 5,
+        "hydro_sheet_id": "1YF8WvLTPu-Raf22rHaaphauj-w-n64CRu83ZeAtHYAc",
+        "hydro_formula_tab": "Hydro_formula",
+        "hydro_incomplete_tab": "Hydro_incomplete",
+        "enabled": true
+      }
+    ]
+  },
+  "source_settlement": {
+    "active_sheet_key": "primary_source",
+    "sheets": [
+      {
+        "key": "primary_source",
+        "label": "Primary Source Settlement",
+        "sheet_ref": "1YF8WvLTPu-Raf22rHaaphauj-w-n64CRu83ZeAtHYAc",
+        "sheet_id": "1YF8WvLTPu-Raf22rHaaphauj-w-n64CRu83ZeAtHYAc",
+        "config_tab": "config",
+        "alpha_tab": "Alpha",
+        "alpha_high_tab": "Alpha_high",
+        "beta_tab": "Beta",
+        "beta_high_tab": "Beta_high",
+        "gamma_tab": "Gamma",
+        "gamma_high_tab": "Gamma_high",
+        "i_gamma_tab": "I-gamma",
+        "pbin_tab": "pBin",
+        "hydro_tab": "Hydro",
+        "hydro_formula_tab": "Hydro_formula",
+        "source_webhook_url": "https://script.google.com/macros/s/AKfycbwFHK6yToabfEPucGMVtGKtqwEIG0lWokrZLDn-J23aUahGq0-_sn5xo5rgw15AEHH79g/exec",
+        "enabled": true
+      }
+    ]
+  },
+  "output_target": {
+    "active_sheet_key": "primary_output",
+    "sheets": [
+      {
+        "key": "primary_output",
+        "label": "Primary Output",
+        "sheet_ref": "1YTLSv2-vo8PkDJebRZzwbxIC3Agafw_Prj6bTfudZQ8",
+        "sheet_id": "1YTLSv2-vo8PkDJebRZzwbxIC3Agafw_Prj6bTfudZQ8",
+        "tab_name": "Employee_db",
+        "enabled": true
+      }
+    ]
+  },
+  "managed_sheets": {
+    "entries": [
+      {
+        "key": "pipeline_inbox",
+        "label": "Pipeline Inbox",
+        "mode": "active_pipeline_inbox",
+        "enabled": true,
+        "warning_row_threshold": 42000,
+        "stop_row_threshold": 45000
+      },
+      {
+        "key": "validated",
+        "label": "Enrichment Sheet",
+        "mode": "active_pipeline_validated",
+        "enabled": true,
+        "warning_row_threshold": 42000,
+        "stop_row_threshold": 45000
+      },
+      {
+        "key": "ultra",
+        "label": "Ultra Queue",
+        "mode": "active_pipeline_ultra",
+        "enabled": true,
+        "warning_row_threshold": 42000,
+        "stop_row_threshold": 45000
+      },
+      {
+        "key": "source_settlement",
+        "label": "Source Settlement Sheet",
+        "mode": "active_source_settlement",
+        "enabled": true,
+        "warning_row_threshold": 42000,
+        "stop_row_threshold": 45000
+      },
+      {
+        "key": "output",
+        "label": "Final Output Sheet",
+        "mode": "active_output_sheet",
+        "enabled": true,
+        "warning_row_threshold": 42000,
+        "stop_row_threshold": 45000
+      },
+      {
+        "key": "ultra_queue",
+        "label": "Ultra Queue",
+        "mode": "active_pipeline_ultra",
+        "enabled": true,
+        "warning_row_threshold": 42000,
+        "stop_row_threshold": 45000
+      }
+    ]
+  },
+  "sheet_rotation": {
+    "copy_folder_id": "1ueB9eIcWTyfEjPeWT1ySftaNEe91i6Zq"
+  },
+  "enrichment": {
+    "linkedin": {
+      "runtime": {
+        "batch_size": 25,
+        "request_timeout_seconds": 12,
+        "website_workers": 2,
+        "linkedin_workers": 1,
+        "writer_flush_interval_seconds": 10.0,
+        "writer_flush_batch": 5,
+        "linkedin_delay_min_seconds": 2.0,
+        "linkedin_delay_max_seconds": 6.0,
+        "max_browsers": 3
+      },
+      "watcher": {
+        "min_backlog_to_drain": 200,
+        "max_wait_before_forced_drain_minutes": 60,
+        "watcher_interval_minutes": 10
+      }
+    },
+    "keyword_scoring": {
+      "keyword_detector": {
+        "batch_size": 25,
+        "request_timeout_seconds": 15,
+        "relevance_keywords": [
+          "capital",
+          "fund",
+          "funds",
+          "asset",
+          "assets",
+          "wealth",
+          "investment",
+          "investments",
+          "invest in",
+          "investment strategy",
+          "partners",
+          "equity",
+          "interest rate",
+          "interest rates",
+          "mortgage",
+          "mortgages",
+          "financial expert",
+          "financial advisor",
+          "strategy",
+          "kapitaal",
+          "fonds",
+          "fondsen",
+          "vermogen",
+          "vermogensbeheer",
+          "vermogensbeheerder",
+          "belegging",
+          "beleggingen",
+          "beleggingsfonds",
+          "beleggingsfondsen",
+          "investeer in",
+          "investeren in",
+          "beleggingsstrategie",
+          "hypotheek",
+          "hypotheken",
+          "rente",
+          "rentetarief",
+          "rentepercentage",
+          "financieel expert",
+          "financiele expert",
+          "financieel adviseur",
+          "financieel planner",
+          "strategie",
+          "financiele planning",
+          "estate planning"
+        ],
+        "qualifier_keywords": [
+          "trading strategies",
+          "trading strategy",
+          "currency pairs",
+          "forex market",
+          "forex pairs",
+          "factsheet",
+          "fact sheet",
+          "portfolio factsheet",
+          "market commentary",
+          "investment outlook"
+        ],
+        "qualifier_min_matches": 2
+      },
+      "watcher": {
+        "trigger_threshold": 50,
+        "watcher_interval_minutes": 10,
+        "lock_timeout_minutes": 30
+      },
+      "scoring": {
+        "batch_size": 50
+      }
+    },
+    "scraper_v3": {
+      "runtime": {
+        "site_timeout_seconds": 20,
+        "concurrent_sites": 3,
+        "playwright_limit": 6,
+        "subpage_limit": 40,
+        "level2_limit": 30,
+        "evidence_probe_limit": 50,
+        "playwright_concurrency": 3,
+        "output_write_chunk_size": 3
+      },
+      "watcher": {
+        "alpha_beta_trigger_threshold": 30,
+        "max_wait_before_forced_run_minutes": 60,
+        "watcher_interval_minutes": 10,
+        "stale_lock_timeout_minutes": 180
+      }
+    }
+  }
+}

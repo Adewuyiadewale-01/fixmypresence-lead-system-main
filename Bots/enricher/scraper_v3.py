@@ -14,6 +14,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from typing import List, Optional, Set, Dict, Tuple
 from datetime import datetime
+from pathlib import Path
 import aiohttp
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
@@ -27,15 +28,49 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+_SYSTEM_CONFIG_PATH = Path(__file__).resolve().parents[1] / "common" / "system_config.json"
+
+
+def _read_system_config() -> dict:
+    try:
+        data = json.loads(_SYSTEM_CONFIG_PATH.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _get_scraper_v3_runtime_config() -> dict:
+    config = _read_system_config()
+    enrichment = config.get("enrichment") if isinstance(config.get("enrichment"), dict) else {}
+    scraper_v3 = enrichment.get("scraper_v3") if isinstance(enrichment.get("scraper_v3"), dict) else {}
+    runtime = scraper_v3.get("runtime") if isinstance(scraper_v3.get("runtime"), dict) else {}
+    return runtime
+
+
+def _env_int(name: str, config_value, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw not in (None, ""):
+        try:
+            return int(raw)
+        except ValueError:
+            return default
+    try:
+        return int(config_value)
+    except (TypeError, ValueError):
+        return default
+
+
+_SCRAPER_V3_RUNTIME = _get_scraper_v3_runtime_config()
+
 # ─── Constants ───────────────────────────────────────────────────────────────
-TIMEOUT_SECONDS = 20
-CONCURRENT_SITES = 3       # Sites processed simultaneously
-PLAYWRIGHT_LIMIT = 6       # Max high-value pages getting full Playwright treatment
-SUBPAGE_LIMIT = 40          # Max subpages to check after scoring
-LEVEL2_LIMIT = 30           # Max level-2 links per high-value page
-EVIDENCE_PROBE_LIMIT = 50   # Max ranked candidates receiving cheap static evidence probe
+TIMEOUT_SECONDS = max(1, _env_int("SCRAPER_V3_TIMEOUT_SECONDS", _SCRAPER_V3_RUNTIME.get("site_timeout_seconds"), 20))
+CONCURRENT_SITES = max(1, _env_int("SCRAPER_V3_CONCURRENT_SITES", _SCRAPER_V3_RUNTIME.get("concurrent_sites"), 3))       # Sites processed simultaneously
+PLAYWRIGHT_LIMIT = max(1, _env_int("SCRAPER_V3_PLAYWRIGHT_LIMIT", _SCRAPER_V3_RUNTIME.get("playwright_limit"), 6))       # Max high-value pages getting full Playwright treatment
+SUBPAGE_LIMIT = max(1, _env_int("SCRAPER_V3_SUBPAGE_LIMIT", _SCRAPER_V3_RUNTIME.get("subpage_limit"), 40))          # Max subpages to check after scoring
+LEVEL2_LIMIT = max(1, _env_int("SCRAPER_V3_LEVEL2_LIMIT", _SCRAPER_V3_RUNTIME.get("level2_limit"), 30))           # Max level-2 links per high-value page
+EVIDENCE_PROBE_LIMIT = max(1, _env_int("SCRAPER_V3_EVIDENCE_PROBE_LIMIT", _SCRAPER_V3_RUNTIME.get("evidence_probe_limit"), 50))   # Max ranked candidates receiving cheap static evidence probe
 EVIDENCE_PROBE_CONCURRENCY = 6  # Concurrent static evidence probes
-PW_CONCURRENCY = 3          # Concurrent Playwright contexts for high-value pages
+PW_CONCURRENCY = max(1, _env_int("SCRAPER_V3_PLAYWRIGHT_CONCURRENCY", _SCRAPER_V3_RUNTIME.get("playwright_concurrency"), 3))          # Concurrent Playwright contexts for high-value pages
 XHR_MAX_BODY_SIZE = 500_000 # 500KB cap on XHR response body inspection
 XHR_TIMEOUT = 2.0           # Max seconds to spend parsing XHR responses
 SITE_PROCESS_TIMEOUT = 180  # Hard ceiling per site so one slow site doesn't stall the batch
@@ -48,7 +83,7 @@ DOMAIN_MAX_FAILURES = 3             # Consecutive failures before the domain is 
 REDUCED_EXPANSION_AFTER_FAILURES = 1  # After this many failures, cut subpage/L2 limits in half
 
 # ─── Write chunking ──────────────────────────────────────────────────────────
-OUTPUT_WRITE_CHUNK_SIZE = 3         # Companies per output webhook call
+OUTPUT_WRITE_CHUNK_SIZE = max(1, _env_int("SCRAPER_V3_OUTPUT_WRITE_CHUNK_SIZE", _SCRAPER_V3_RUNTIME.get("output_write_chunk_size"), 3))         # Companies per output webhook call
 
 # ─── Retry policy ─────────────────────────────────────────────────────────────
 TRANSIENT_RETRY_MAX = 3             # Max retries for transient webhook/network failures

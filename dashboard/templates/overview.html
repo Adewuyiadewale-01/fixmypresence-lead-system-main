@@ -70,7 +70,24 @@
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         ROW 3: Pipeline — Maps Scraper + LinkedIn Enrichment + Keyword Detection
+         ROW 3: Shared Sheet Volume Monitor
+         ═══════════════════════════════════════════════════════════════ -->
+
+    <section class="panel pipeline-card pgrid-full" id="card-sheet-volume">
+        <div class="pipeline-card-header">
+            <div class="pipeline-card-icon"><i data-lucide="database"></i></div>
+            <div>
+                <h2>Sheet Volume</h2>
+                <span class="pipeline-card-subtitle">Shared row-cap monitoring</span>
+            </div>
+        </div>
+        <div id="ov-sheet-volume" class="sheet-volume-grid">
+            <div class="sheet-volume-empty">Sheet volume data unavailable</div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         ROW 4: Pipeline — Maps Scraper + LinkedIn Enrichment + Keyword Detection
          ═══════════════════════════════════════════════════════════════ -->
 
     <section class="panel pipeline-card" id="card-scraper">
@@ -81,42 +98,38 @@
                 <span id="ov-scraper-badge" class="pipeline-badge badge-stopped">Stopped</span>
             </div>
         </div>
-        <div class="pipeline-card-body pipeline-two-col">
-            <div class="pipeline-col">
-                <div class="pipeline-row">
-                    <span class="pipeline-label">Searches</span>
-                    <span id="ov-scraper-searches" class="pipeline-val">--</span>
-                </div>
-                <div class="pipeline-row">
-                    <span class="pipeline-label">Search Pace</span>
-                    <span id="ov-scraper-search-pace" class="pipeline-val">--</span>
-                </div>
-                <div class="pipeline-row">
-                    <span class="pipeline-label">Yield</span>
-                    <span id="ov-scraper-yield" class="pipeline-val">--</span>
-                </div>
-                <div class="pipeline-row">
-                    <span class="pipeline-label">Website Rate</span>
-                    <span id="ov-scraper-website-rate" class="pipeline-val">--</span>
-                </div>
+        <div class="pipeline-card-body">
+            <div class="pipeline-row">
+                <span class="pipeline-label">Searches</span>
+                <span id="ov-scraper-searches" class="pipeline-val">--</span>
             </div>
-            <div class="pipeline-col">
-                <div class="pipeline-row">
-                    <span class="pipeline-label">Category</span>
-                    <span id="ov-scraper-category" class="pipeline-val">--</span>
-                </div>
-                <div class="pipeline-row">
-                    <span class="pipeline-label">Batches</span>
-                    <span id="ov-scraper-batches" class="pipeline-val">0</span>
-                </div>
-                <div class="pipeline-row">
-                    <span class="pipeline-label">Batch Yield</span>
-                    <span id="ov-scraper-batch-yield" class="pipeline-val">--</span>
-                </div>
-                <div class="pipeline-row">
-                    <span class="pipeline-label">Captcha / Errors</span>
-                    <span id="ov-scraper-risk" class="pipeline-val pipeline-val-stack">--</span>
-                </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Category</span>
+                <span id="ov-scraper-category" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Search Pace</span>
+                <span id="ov-scraper-search-pace" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Batches</span>
+                <span id="ov-scraper-batches" class="pipeline-val">0</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Yield</span>
+                <span id="ov-scraper-yield" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Batch Yield</span>
+                <span id="ov-scraper-batch-yield" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Website Rate</span>
+                <span id="ov-scraper-website-rate" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Captcha / Errors</span>
+                <span id="ov-scraper-risk" class="pipeline-val pipeline-val-stack">--</span>
             </div>
         </div>
         <div id="ov-scraper-staleness" class="staleness-indicator"></div>
@@ -137,17 +150,31 @@
                 <span id="ov-enrichment-status" class="pipeline-val">Idle</span>
             </div>
             <div class="pipeline-row">
-                <span class="pipeline-label">Pending</span>
-                <span id="ov-enrichment-pending" class="pipeline-val">--</span>
+                <span class="pipeline-label">Backlog</span>
+                <span id="ov-enrichment-backlog" class="pipeline-val pipeline-val-stack">--</span>
             </div>
             <div class="pipeline-row">
-                <span class="pipeline-label">Checked</span>
-                <span id="ov-enrichment-checked" class="pipeline-val">--</span>
+                <span class="pipeline-label">Coverage</span>
+                <span id="ov-enrichment-coverage" class="pipeline-val pipeline-val-stack">--</span>
             </div>
             <div class="pipeline-row">
-                <span class="pipeline-label">Employees</span>
-                <span id="ov-enrichment-employees" class="pipeline-val">--</span>
+                <span class="pipeline-label">Quality</span>
+                <span id="ov-enrichment-quality" class="pipeline-val pipeline-val-stack">--</span>
             </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Employee Fill</span>
+                <span id="ov-enrichment-employees" class="pipeline-val pipeline-val-stack">--</span>
+            </div>
+        </div>
+        <div class="pipeline-progress-block">
+            <div class="pipeline-progress-head">
+                <span class="pipeline-progress-label">Drain Threshold</span>
+                <span id="ov-enrichment-threshold" class="pipeline-progress-meta">--</span>
+            </div>
+            <div class="pipeline-progress-bar">
+                <span id="ov-enrichment-backlog-fill" class="pipeline-progress-fill"></span>
+            </div>
+            <div id="ov-enrichment-progress-note" class="pipeline-progress-note">Waiting for enrichment telemetry</div>
         </div>
         <div id="ov-enrichment-attention" class="pipeline-attention hidden"></div>
     </section>
@@ -177,12 +204,16 @@
                 <span class="pipeline-label">Cat 2</span>
                 <span id="ov-keyword-cat2" class="pipeline-val">--</span>
             </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Cat 3</span>
+                <span id="ov-keyword-cat3" class="pipeline-val">--</span>
+            </div>
         </div>
         <div id="ov-keyword-attention" class="pipeline-attention hidden"></div>
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         ROW 3: Scoring + Settlement + Scraper V3
+         ROW 4: Scoring + Settlement + Scraper V3
          ═══════════════════════════════════════════════════════════════ -->
 
     <section class="panel pipeline-card" id="card-scoring">
@@ -207,8 +238,16 @@
                 <span id="ov-scoring-moved" class="pipeline-val">--</span>
             </div>
             <div class="pipeline-row">
-                <span class="pipeline-label">A / B / G</span>
+                <span class="pipeline-label">Base A / B / G</span>
                 <span id="ov-scoring-dist" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">High A / B / G</span>
+                <span id="ov-scoring-dist-high" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">I-g / pBin / Hydro</span>
+                <span id="ov-scoring-other" class="pipeline-val">--</span>
             </div>
         </div>
     </section>
@@ -233,6 +272,18 @@
             <div class="pipeline-row">
                 <span class="pipeline-label">Gamma</span>
                 <span id="ov-settlement-gamma" class="pipeline-val">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">High A / B / G</span>
+                <span id="ov-settlement-high" class="pipeline-val pipeline-val-stack">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">I-g / pBin / Hydro</span>
+                <span id="ov-settlement-other" class="pipeline-val pipeline-val-stack">--</span>
+            </div>
+            <div class="pipeline-row">
+                <span class="pipeline-label">Hydro Formula</span>
+                <span id="ov-settlement-hydro-formula" class="pipeline-val">--</span>
             </div>
         </div>
     </section>
@@ -266,7 +317,7 @@
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         ROW 4: Watchers + Scheduler (half width each)
+         ROW 5: Watchers + Scheduler (half width each)
          ═══════════════════════════════════════════════════════════════ -->
 
     <section class="panel pipeline-card pgrid-span-half" id="card-watchers">
@@ -312,7 +363,7 @@
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         ROW 5: System Attention (full width)
+         ROW 6: System Attention (full width)
          ═══════════════════════════════════════════════════════════════ -->
 
     <section class="panel pipeline-card pgrid-full" id="card-attention">
@@ -395,6 +446,19 @@
         return `Last activity ${h}h ${m}m ago`;
     }
 
+    function fmtAgoShort(isoStr) {
+        if (!isoStr) return '--';
+        const diffMs = Date.now() - new Date(isoStr).getTime();
+        if (!Number.isFinite(diffMs) || diffMs < 0) return '--';
+        const mins = Math.floor(diffMs / 60000);
+        if (mins < 1) return 'just now';
+        if (mins < 60) return `${mins}m ago`;
+        const hours = Math.floor(mins / 60);
+        if (hours < 24) return `${hours}h ago`;
+        const days = Math.floor(hours / 24);
+        return `${days}d ago`;
+    }
+
     function setCardNote(el, text, tone = 'info') {
         if (!el) return;
         if (!text) {
@@ -406,6 +470,42 @@
         el.classList.remove('hidden', 'attn-info', 'attn-warning', 'attn-danger');
         el.classList.add(`attn-${tone}`);
         el.textContent = text;
+    }
+
+    function renderSheetVolume(entries) {
+        const container = document.getElementById('ov-sheet-volume');
+        if (!container) return;
+        if (!Array.isArray(entries) || entries.length === 0) {
+            container.innerHTML = '<div class="sheet-volume-empty">Sheet volume data unavailable</div>';
+            return;
+        }
+
+        container.innerHTML = entries.map((entry) => {
+            const state = entry.state || 'normal';
+            const pct = entry.progress_pct != null ? Math.max(0, Math.min(Number(entry.progress_pct), 100)) : 0;
+            const rows = entry.current_rows != null ? fmtNum(entry.current_rows) : '--';
+            const stop = entry.stop_threshold != null ? fmtNum(entry.stop_threshold) : '--';
+            const dataRows = entry.data_rows != null ? `${fmtNum(entry.data_rows)} data rows` : 'Data rows unavailable';
+            const note = entry.note || '';
+            return `
+                <div class="sheet-volume-item sheet-volume-${state}">
+                    <div class="sheet-volume-head">
+                        <div>
+                            <div class="sheet-volume-label">${entry.label || 'Sheet'}</div>
+                            <div class="sheet-volume-sub">${entry.tab_name || '--'}</div>
+                        </div>
+                        <div class="sheet-volume-meta">${rows} / ${stop}</div>
+                    </div>
+                    <div class="sheet-volume-bar">
+                        <span class="sheet-volume-fill" style="width:${pct}%"></span>
+                    </div>
+                    <div class="sheet-volume-foot">
+                        <span>${dataRows}</span>
+                        <span>${note}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
     // ── Helper: watcher state class ──
@@ -472,23 +572,30 @@
 
         // Settlement mini-stat
         document.getElementById('ov-settlement-breakdown').innerHTML = `
-            <span class="mini-main">A: ${fmtNum(ms.alpha)} · B: ${fmtNum(ms.beta)} · G: ${fmtNum(ms.gamma)}</span>
+            <span class="mini-main">A: ${fmtNum(ms.alpha)} + ${fmtNum(ms.alpha_high)} · B: ${fmtNum(ms.beta)} + ${fmtNum(ms.beta_high)} · G: ${fmtNum(ms.gamma)} + ${fmtNum(ms.gamma_high)}</span>
+            <span class="mini-sub">Base + High confidence</span>
         `;
 
         // Staleness — leads card
         document.getElementById('ov-leads-staleness').textContent =
             fmtStaleness(pl.snapshot_fetched_at);
 
+        // ════════════════════════════════════════
+        // SHEET VOLUME
+        // ════════════════════════════════════════
+        renderSheetVolume(pl.sheet_volume || []);
+
         // ── Feed waveform with real metric deltas ──
         if (wf) {
-            if (_prevSearches != null && ms.searches != null) {
-                const searchDelta = Math.max(0, ms.searches - _prevSearches);
+            const waveSearches = ms.run?.searches != null ? ms.run.searches : ms.searches;
+            if (_prevSearches != null && waveSearches != null) {
+                const searchDelta = Math.max(0, waveSearches - _prevSearches);
                 const captchaDelta = Math.max(0, (ms.captcha_count || 0) - _prevCaptcha);
                 let activity = Math.min(searchDelta / 3, 1);
                 if (captchaDelta > 0) activity = Math.min(activity + 0.35, 1);
                 wf.feedMetrics({ activity });
             }
-            _prevSearches = ms.searches != null ? ms.searches : _prevSearches;
+            _prevSearches = waveSearches != null ? waveSearches : _prevSearches;
             _prevCaptcha = ms.captcha_count || 0;
         }
 
@@ -503,19 +610,25 @@
         document.getElementById('ov-scraper-search-pace').textContent =
             ms.searches_per_hour != null ? `${fmtNum(ms.searches_per_hour)}/hr` : '--';
         document.getElementById('ov-scraper-yield').textContent =
-            ms.leads_per_100_searches != null ? `${fmtNum(ms.leads_per_100_searches)}/100` : '--';
+            ms.run?.leads_per_100_searches != null
+                ? `${fmtNum(ms.run.leads_per_100_searches)}/100`
+                : (ms.leads_per_100_searches != null ? `${fmtNum(ms.leads_per_100_searches)}/100` : '--');
         document.getElementById('ov-scraper-website-rate').textContent =
-            ms.website_found_rate != null ? `${fmtPct(ms.website_found_rate)} (${fmtNum(ms.website_found_count)})` : '--';
+            ms.run?.website_found_rate != null
+                ? `${fmtPct(ms.run.website_found_rate)} (${fmtNum(ms.run.website_found)})`
+                : (ms.website_found_rate != null ? `${fmtPct(ms.website_found_rate)} (${fmtNum(ms.website_found_count)})` : '--');
         document.getElementById('ov-scraper-category').textContent =
             ms.category || '--';
         document.getElementById('ov-scraper-batches').textContent = fmtNum(ms.batches);
         document.getElementById('ov-scraper-batch-yield').textContent =
-            ms.leads_per_batch != null ? `${fmtNum(ms.leads_per_batch)}/batch` : '--';
+            ms.run?.leads_per_batch != null
+                ? `${fmtNum(ms.run.leads_per_batch)}/batch`
+                : (ms.leads_per_batch != null ? `${fmtNum(ms.leads_per_batch)}/batch` : '--');
 
         // Captcha / errors — raw count + rate
         const hasRiskData = ms.captcha_count != null || ms.error_count != null || ms.run_started_at;
         const captchas = ms.captcha_count != null ? ms.captcha_count : 0;
-        const totalSearches = ms.searches || 0;
+        const totalSearches = ms.run?.searches || 0;
         const errors = ms.error_count != null ? ms.error_count : 0;
         let riskHtml = '--';
         if (hasRiskData) {
@@ -546,15 +659,110 @@
         // ENRICHMENT CARD
         // ════════════════════════════════════════
         const en = pl.enrichment || {};
-        setBadge(document.getElementById('ov-enrichment-badge'), en.status || 'idle');
-        document.getElementById('ov-enrichment-status').textContent =
-            en.locked ? (en.is_stale ? 'Stale lock' : 'Draining') : 'Idle';
-        document.getElementById('ov-enrichment-pending').textContent =
-            en.pending != null ? en.pending : '--';
-        document.getElementById('ov-enrichment-checked').textContent =
-            en.checked != null ? en.checked : '--';
-        document.getElementById('ov-enrichment-employees').textContent =
-            en.employees != null ? en.employees : '--';
+        setBadge(
+            document.getElementById('ov-enrichment-badge'),
+            en.is_stale ? 'stale' : (en.locked ? 'running' : 'idle')
+        );
+
+        let enrichmentState = 'Idle';
+        if (en.is_stale) enrichmentState = 'Stale lock';
+        else if (en.locked) enrichmentState = 'Draining';
+        else if (en.trigger_state === 'timeout_ready') enrichmentState = 'Forced drain due';
+        else if (en.trigger_state === 'threshold_ready') enrichmentState = 'Ready to drain';
+        else if ((en.pending || 0) > 0) enrichmentState = 'Watching backlog';
+        document.getElementById('ov-enrichment-status').textContent = enrichmentState;
+
+        const backlogThreshold = en.trigger_threshold != null ? en.trigger_threshold : null;
+        const backlogPending = en.pending != null ? en.pending : null;
+        document.getElementById('ov-enrichment-backlog').innerHTML =
+            backlogPending != null
+                ? `
+                    <span class="pipeline-main">${fmtNum(backlogPending)}${backlogThreshold != null ? ` / ${fmtNum(backlogThreshold)}` : ''}</span>
+                    <span class="pipeline-sub">${en.eligible_live != null ? `${fmtNum(en.eligible_live)} eligible live rows` : 'Backlog awaiting first-pass enrichment'}</span>
+                `
+                : '--';
+
+        document.getElementById('ov-enrichment-coverage').innerHTML =
+            (en.checked != null || en.eligible_live != null)
+                ? `
+                    <span class="pipeline-main">${fmtNum(en.checked)} / ${fmtNum(en.eligible_live)}</span>
+                    <span class="pipeline-sub">${en.coverage_rate != null ? `${fmtPct(en.coverage_rate)} of live rows checked` : 'Coverage unavailable'}</span>
+                `
+                : '--';
+
+        document.getElementById('ov-enrichment-quality').innerHTML =
+            (en.found != null || en.person != null || en.none != null)
+                ? `
+                    <span class="pipeline-main">${fmtNum(en.found)} found · ${fmtNum(en.person)} person · ${fmtNum(en.none)} none</span>
+                    <span class="pipeline-sub">LinkedIn outcome mix on checked rows</span>
+                `
+                : '--';
+
+        document.getElementById('ov-enrichment-employees').innerHTML =
+            (en.employees != null || en.found != null)
+                ? `
+                    <span class="pipeline-main">${fmtNum(en.employees)} / ${fmtNum(en.found)}</span>
+                    <span class="pipeline-sub">${en.employee_completion_rate != null ? `${fmtPct(en.employee_completion_rate)} of found companies with employee data` : 'Employee completion unavailable'}</span>
+                `
+                : '--';
+
+        const enrichmentThresholdEl = document.getElementById('ov-enrichment-threshold');
+        const enrichmentFillEl = document.getElementById('ov-enrichment-backlog-fill');
+        const enrichmentProgressNoteEl = document.getElementById('ov-enrichment-progress-note');
+        const thresholdPct = backlogPending != null && backlogThreshold
+            ? Math.max(0, Math.min((Number(backlogPending) / Number(backlogThreshold)) * 100, 100))
+            : 0;
+
+        if (enrichmentThresholdEl) {
+            enrichmentThresholdEl.textContent =
+                backlogPending != null && backlogThreshold != null
+                    ? `${fmtNum(backlogPending)} / ${fmtNum(backlogThreshold)}`
+                    : '--';
+        }
+        if (enrichmentFillEl) {
+            enrichmentFillEl.style.width = `${thresholdPct}%`;
+            enrichmentFillEl.classList.remove('is-warning', 'is-danger');
+            if (en.is_stale || en.trigger_state === 'timeout_ready') enrichmentFillEl.classList.add('is-danger');
+            else if (en.trigger_state === 'threshold_ready' || thresholdPct >= 75) enrichmentFillEl.classList.add('is-warning');
+        }
+        if (enrichmentProgressNoteEl) {
+            let progressNote = 'Waiting for enrichment telemetry';
+            if (en.is_stale) {
+                progressNote = `Stale lock for ${fmtAge(en.lock_age)}. Review the enricher before the next drain.`;
+            } else if (en.locked) {
+                progressNote = `Enricher launched${en.last_trigger ? ` via ${en.last_trigger}` : ''}${en.last_launch_at ? ` ${fmtAgoShort(en.last_launch_at)}` : ''}.`;
+            } else if (en.trigger_state === 'threshold_ready') {
+                progressNote = 'Backlog reached the drain threshold. The next watcher tick should launch enrichment.';
+            } else if (en.trigger_state === 'timeout_ready') {
+                progressNote = `Backlog has waited ${fmtAge(en.waiting_minutes)}. The next watcher tick should force a drain.`;
+            } else if ((en.pending || 0) > 0 && en.waiting_minutes != null && en.max_wait_minutes != null) {
+                progressNote = `Watching backlog for ${fmtAge(en.waiting_minutes)} of ${fmtAge(en.max_wait_minutes)} before forced drain.`;
+            } else if ((en.pending || 0) > 0) {
+                progressNote = 'Pending live rows are accumulating below the drain threshold.';
+            } else if (en.last_tick_at) {
+                progressNote = `No live rows currently need first-pass LinkedIn lookup. Last checked ${fmtAgoShort(en.last_tick_at)}.`;
+            } else {
+                progressNote = 'No live rows currently need first-pass LinkedIn lookup.';
+            }
+            enrichmentProgressNoteEl.textContent = progressNote;
+        }
+
+        let enrichmentNote = '';
+        let enrichmentTone = 'info';
+        if (en.is_stale) {
+            enrichmentNote = 'Enrichment watcher lock is stale. Investigate before assuming backlog is draining.';
+            enrichmentTone = 'danger';
+        } else if (en.trigger_state === 'timeout_ready') {
+            enrichmentNote = 'Forced-drain timeout has been reached. The watcher should launch enrichment on its next tick.';
+            enrichmentTone = 'warning';
+        } else if (en.trigger_state === 'threshold_ready') {
+            enrichmentNote = 'Backlog threshold reached. Enrichment is ready to drain on the next watcher tick.';
+            enrichmentTone = 'warning';
+        } else if (en.wait_progress_pct != null && en.wait_progress_pct >= 75 && (en.pending || 0) > 0) {
+            enrichmentNote = `Backlog wait window is ${fmtPct(en.wait_progress_pct)} used.`;
+            enrichmentTone = 'warning';
+        }
+        setCardNote(document.getElementById('ov-enrichment-attention'), enrichmentNote, enrichmentTone);
 
         // ════════════════════════════════════════
         // KEYWORD DETECTION CARD
@@ -569,6 +777,8 @@
             kw.cat1 != null ? kw.cat1 : '--';
         document.getElementById('ov-keyword-cat2').textContent =
             kw.cat2 != null ? kw.cat2 : '--';
+        document.getElementById('ov-keyword-cat3').textContent =
+            kw.cat3 != null ? kw.cat3 : '--';
 
         // ════════════════════════════════════════
         // SCORING CARD
@@ -585,6 +795,14 @@
             (sc2.alpha != null && sc2.beta != null && sc2.gamma != null)
                 ? `${sc2.alpha} / ${sc2.beta} / ${sc2.gamma}`
                 : '--';
+        document.getElementById('ov-scoring-dist-high').textContent =
+            (sc2.alpha_high != null && sc2.beta_high != null && sc2.gamma_high != null)
+                ? `${sc2.alpha_high} / ${sc2.beta_high} / ${sc2.gamma_high}`
+                : '--';
+        document.getElementById('ov-scoring-other').textContent =
+            (sc2.i_gamma != null && sc2.pbin != null && sc2.hydro != null)
+                ? `${sc2.i_gamma} / ${sc2.pbin} / ${sc2.hydro}`
+                : '--';
 
         // ════════════════════════════════════════
         // SETTLEMENT CARD
@@ -594,6 +812,16 @@
         document.getElementById('ov-settlement-alpha').textContent = st.alpha != null ? st.alpha : '--';
         document.getElementById('ov-settlement-beta').textContent = st.beta != null ? st.beta : '--';
         document.getElementById('ov-settlement-gamma').textContent = st.gamma != null ? st.gamma : '--';
+        document.getElementById('ov-settlement-high').textContent =
+            (st.alpha_high != null && st.beta_high != null && st.gamma_high != null)
+                ? `${st.alpha_high} / ${st.beta_high} / ${st.gamma_high}`
+                : '--';
+        document.getElementById('ov-settlement-other').textContent =
+            (st.i_gamma != null && st.pbin != null && st.hydro != null)
+                ? `${st.i_gamma} / ${st.pbin} / ${st.hydro}`
+                : '--';
+        document.getElementById('ov-settlement-hydro-formula').textContent =
+            st.hydro_formula != null ? st.hydro_formula : '--';
 
         // ════════════════════════════════════════
         // SCRAPER V3 CARD

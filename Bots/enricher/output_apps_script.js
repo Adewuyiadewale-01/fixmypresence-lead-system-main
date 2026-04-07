@@ -16,6 +16,80 @@
 const OUTPUT_SHEET_ID = '1YTLSv2-vo8PkDJebRZzwbxIC3Agafw_Prj6bTfudZQ8';
 const OUTPUT_TAB = 'Employee_db';
 const OUTPUT_SECRET = 'FMP-Scraper';
+const OUTPUT_CONFIG_PROPERTY = 'FMP_OUTPUT_SHEET_CONFIG';
+
+const DEFAULT_OUTPUT_CONFIG = {
+  sheetId: OUTPUT_SHEET_ID,
+  tabName: OUTPUT_TAB,
+};
+
+function extractDriveFolderId(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  const match = text.match(/\/folders\/([a-zA-Z0-9-_]+)/);
+  if (match) return match[1];
+  return /^[a-zA-Z0-9-_]+$/.test(text) ? text : '';
+}
+
+function clearWorksheetData(sheet) {
+  if (!sheet) return;
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  if (lastRow <= 1 || lastCol <= 0) return;
+  sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
+}
+
+function createOutputRotationCopy(options) {
+  const cfg = getOutputConfig();
+  const opts = options || {};
+  const title = String(opts.title || 'Final Output Next').trim() || 'Final Output Next';
+  const folderId = extractDriveFolderId(opts.folderId || opts.folder_id);
+  const sourceFile = DriveApp.getFileById(cfg.sheetId);
+  const copyFile = folderId
+    ? sourceFile.makeCopy(title, DriveApp.getFolderById(folderId))
+    : sourceFile.makeCopy(title);
+  const copiedSheetId = copyFile.getId();
+  const copiedSpreadsheet = SpreadsheetApp.openById(copiedSheetId);
+  clearWorksheetData(copiedSpreadsheet.getSheetByName(cfg.tabName));
+  return {
+    sheet_id: copiedSheetId,
+    sheet_ref: copiedSheetId,
+    title: copyFile.getName(),
+  };
+}
+
+function authorizeRotationAccess() {
+  DriveApp.getRootFolder();
+  SpreadsheetApp.getActive();
+  return true;
+}
+
+function normalizeOutputConfig(config) {
+  const data = config || {};
+  return {
+    sheetId: String(data.sheetId || data.sheet_id || DEFAULT_OUTPUT_CONFIG.sheetId).trim(),
+    tabName: String(data.tabName || data.tab_name || DEFAULT_OUTPUT_CONFIG.tabName).trim(),
+  };
+}
+
+function getOutputConfig() {
+  const raw = PropertiesService.getScriptProperties().getProperty(OUTPUT_CONFIG_PROPERTY);
+  if (!raw) return normalizeOutputConfig(DEFAULT_OUTPUT_CONFIG);
+  try {
+    return normalizeOutputConfig(JSON.parse(raw));
+  } catch (_err) {
+    return normalizeOutputConfig(DEFAULT_OUTPUT_CONFIG);
+  }
+}
+
+function saveOutputConfig(config) {
+  const normalized = normalizeOutputConfig(config);
+  PropertiesService.getScriptProperties().setProperty(
+    OUTPUT_CONFIG_PROPERTY,
+    JSON.stringify(normalized)
+  );
+  return normalized;
+}
 
 function doPost(e) {
   try {
@@ -26,6 +100,24 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    if (payload.action === 'sync_output_sheet_config') {
+      var saved = saveOutputConfig(payload.output || {});
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 'ok',
+        message: 'output config synced',
+        output: saved
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (payload.action === 'create_rotation_copy') {
+      var created = createOutputRotationCopy(payload.rotation || {});
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 'ok',
+        message: 'output rotation copy created',
+        copy: created
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     var companies = payload.companies;
     if (!Array.isArray(companies) || companies.length === 0) {
       return ContentService.createTextOutput(JSON.stringify({
@@ -33,10 +125,11 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    var ss = SpreadsheetApp.openById(OUTPUT_SHEET_ID);
-    var sheet = ss.getSheetByName(OUTPUT_TAB);
+    var cfg = getOutputConfig();
+    var ss = SpreadsheetApp.openById(cfg.sheetId);
+    var sheet = ss.getSheetByName(cfg.tabName);
     if (!sheet) {
-      sheet = ss.insertSheet(OUTPUT_TAB);
+      sheet = ss.insertSheet(cfg.tabName);
       sheet.appendRow([
         'ID', 'Company Name', 'Company Website', 'Company LinkedIn',
         'Person Name', 'Person Role', 'Person Email', 'Person LinkedIn', 'Class'

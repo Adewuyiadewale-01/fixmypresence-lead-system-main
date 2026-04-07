@@ -4,13 +4,224 @@
 {% block page_title %}Robot{% endblock %}
 
 {% block content %}
-<div class="panel placeholder-page">
-    <i data-lucide="bot"></i>
-    <h3>Robot Control Room</h3>
-    <p>Warnings, automated decisions, timed manual input prompts, and system call-outs will live here.</p>
+<div class="waveform-strip">
+    <canvas id="waveform-robot"></canvas>
 </div>
+
+<section class="panel robot-state-panel">
+    <div class="panel-header-inline">
+        <h2>Robot State</h2>
+        <span id="robot-posture-chip" class="pipeline-attention attn-info">Monitoring automation</span>
+    </div>
+    <div class="robot-state-grid">
+        <div class="robot-state-section">
+            <h3>Decision</h3>
+            <div class="progress-item">
+                <span class="label">Posture</span>
+                <span id="robot-decision-state" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Action</span>
+                <span id="robot-decision-action" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Source</span>
+                <span id="robot-decision-source" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Latest Note</span>
+                <span id="robot-decision-latest" class="value">--</span>
+            </div>
+        </div>
+
+        <div class="robot-state-section">
+            <h3>Live Context</h3>
+            <div class="progress-item">
+                <span class="label">Process</span>
+                <span id="robot-context-process" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Scheduler</span>
+                <span id="robot-context-scheduler" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Scraper Phase</span>
+                <span id="robot-context-scraper" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Batch</span>
+                <span id="robot-context-batch" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Run Window</span>
+                <span id="robot-context-window" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Last Activity</span>
+                <span id="robot-context-activity" class="value">--</span>
+            </div>
+        </div>
+
+        <div class="robot-state-section">
+            <h3>Review Queue</h3>
+            <div class="progress-item">
+                <span class="label">Critical</span>
+                <span id="robot-review-critical" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Warnings</span>
+                <span id="robot-review-warning" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Attention Flags</span>
+                <span id="robot-review-system" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Next Step</span>
+                <span id="robot-review-next" class="value">--</span>
+            </div>
+        </div>
+    </div>
+    <div id="robot-posture-summary" class="scraper-summary-note">Robot posture will update here as live status changes.</div>
+</section>
+
+<main class="main-grid robot-grid">
+    <section class="panel robot-callouts-panel">
+        <div class="panel-header-inline">
+            <h2>Decision Feed</h2>
+            <span id="robot-callouts-chip" class="pipeline-attention attn-info">Watching scraper signals</span>
+        </div>
+        <div id="robot-callouts-list" class="attention-list">
+            <div class="attention-empty">No scraper decisions on record yet.</div>
+        </div>
+    </section>
+
+    <section class="panel robot-enrichment-panel">
+        <div class="panel-header-inline">
+            <h2>Enrichment Lane</h2>
+            <span id="robot-enrichment-chip" class="pipeline-attention attn-info">Watching enrichment backlog</span>
+        </div>
+        <div class="pipeline-row">
+            <span class="pipeline-label">State</span>
+            <span id="robot-enrichment-state" class="pipeline-val">--</span>
+        </div>
+        <div class="pipeline-row">
+            <span class="pipeline-label">Backlog</span>
+            <span id="robot-enrichment-backlog" class="pipeline-val">--</span>
+        </div>
+        <div class="pipeline-row">
+            <span class="pipeline-label">Coverage</span>
+            <span id="robot-enrichment-coverage" class="pipeline-val">--</span>
+        </div>
+        <div class="pipeline-row">
+            <span class="pipeline-label">Employee Fill</span>
+            <span id="robot-enrichment-employees" class="pipeline-val">--</span>
+        </div>
+        <div class="pipeline-row">
+            <span class="pipeline-label">Wait Window</span>
+            <span id="robot-enrichment-window" class="pipeline-val">--</span>
+        </div>
+        <div class="pipeline-row">
+            <span class="pipeline-label">Last Launch</span>
+            <span id="robot-enrichment-launch" class="pipeline-val">--</span>
+        </div>
+        <div class="pipeline-progress-block robot-enrichment-progress">
+            <div class="pipeline-progress-head">
+                <span class="pipeline-progress-label">Drain Threshold</span>
+                <span id="robot-enrichment-threshold" class="pipeline-progress-meta">--</span>
+            </div>
+            <div class="pipeline-progress-bar">
+                <span id="robot-enrichment-fill" class="pipeline-progress-fill"></span>
+            </div>
+            <div id="robot-enrichment-note" class="pipeline-progress-note">Waiting for enrichment telemetry.</div>
+        </div>
+    </section>
+
+    <section class="panel robot-attention-panel">
+        <div class="panel-header-inline">
+            <h2>System Attention</h2>
+            <span id="robot-attention-chip" class="pipeline-attention attn-info">No active issues</span>
+        </div>
+        <div id="robot-attention-list" class="attention-list">
+            <div class="attention-empty">No system attention flags right now.</div>
+        </div>
+    </section>
+</main>
+
+<main class="main-grid robot-grid">
+    <section class="panel robot-automation-panel">
+        <h2>Automation Mesh</h2>
+        <div class="robot-subsystem-stack">
+            <div class="subsystem-row">
+                <span id="robot-dot-process" class="subsystem-dot"></span>
+                <span class="subsystem-name">Controller Process</span>
+                <span id="robot-mesh-process" class="subsystem-value">--</span>
+            </div>
+            <div class="subsystem-row">
+                <span id="robot-dot-scheduler" class="subsystem-dot"></span>
+                <span class="subsystem-name">Scheduler</span>
+                <span id="robot-mesh-scheduler" class="subsystem-value">--</span>
+            </div>
+            <div class="subsystem-row">
+                <span id="robot-dot-scraper" class="subsystem-dot"></span>
+                <span class="subsystem-name">Maps Scraper</span>
+                <span id="robot-mesh-scraper" class="subsystem-value">--</span>
+            </div>
+            <div class="subsystem-row">
+                <span id="robot-dot-enrichment" class="subsystem-dot"></span>
+                <span class="subsystem-name">Enrichment Watcher</span>
+                <span id="robot-mesh-enrichment" class="subsystem-value">--</span>
+            </div>
+            <div class="subsystem-row">
+                <span id="robot-dot-ultra" class="subsystem-dot"></span>
+                <span class="subsystem-name">Keyword / Scoring</span>
+                <span id="robot-mesh-ultra" class="subsystem-value">--</span>
+            </div>
+            <div class="subsystem-row">
+                <span id="robot-dot-scraperv3" class="subsystem-dot"></span>
+                <span class="subsystem-name">Scraper V3 Watcher</span>
+                <span id="robot-mesh-scraperv3" class="subsystem-value">--</span>
+            </div>
+        </div>
+        <div id="robot-mesh-note" class="scraper-summary-note">The robot monitors live automation here so you can tell quickly which layer is healthy, stale, or waiting.</div>
+    </section>
+
+    <section class="panel robot-actions-panel">
+        <h2>Jump To</h2>
+        <div class="robot-actions-grid">
+            <a href="/scraper" class="btn btn-secondary">Open Scraper</a>
+            <a href="/logs/view" class="btn btn-secondary">Review Logs</a>
+            <a href="/config" class="btn btn-secondary">Open Config</a>
+            <a href="/" class="btn btn-secondary">Back To Overview</a>
+        </div>
+        <div id="robot-actions-note" class="scraper-summary-note">The Robot page is the surface for automation decisions and review prompts. Use the linked pages for controls, deep metrics, and tuning.</div>
+    </section>
+</main>
 {% endblock %}
 
 {% block scripts %}
-<script>lucide.createIcons();</script>
+<script src="/static/js/waveform.js"></script>
+<script src="/static/js/robot.js"></script>
+<script>
+(function() {
+    const canvas = document.getElementById('waveform-robot');
+    if (!canvas) return;
+    const wf = new Waveform(canvas);
+
+    window.addEventListener('status-update', (e) => {
+        const process = e.detail.process || {};
+        const pipeline = e.detail.pipeline || {};
+        const scraper = pipeline.maps_scraper || {};
+        const attention = Array.isArray(pipeline.attention) ? pipeline.attention : [];
+        const hasDanger = attention.some((item) => item.level === 'danger') || scraper.current_phase === 'paused_critical';
+        const hasWarning = attention.some((item) => item.level === 'warning') || scraper.current_phase === 'confirming';
+
+        if (hasDanger) wf.setIntensity(0.78);
+        else if (hasWarning) wf.setIntensity(0.42);
+        else if (process.running) wf.setIntensity(0.24);
+        else if ((e.detail.scheduler || {}).phase === 'RESTING') wf.setIntensity(0.12);
+        else wf.setIntensity(0.06);
+    });
+})();
+</script>
 {% endblock %}

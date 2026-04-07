@@ -35,6 +35,7 @@ _PROJECT_ROOT = _CONTROLLER_DIR.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "Bots"))
 
 from common.google_client import GoogleClient  # noqa: E402
+from common.system_config import get_system_config  # noqa: E402
 
 
 CREDENTIALS_PATH = Path(
@@ -44,19 +45,75 @@ SHEET_ID = os.environ.get(
     "SHEET_ID", "1KrKoeun-h6eEzSK6-cc4_MUHriuabg8GyAR9b8NR7fc"
 )
 
-MIN_ALPHA_BETA_BACKLOG_TO_RUN = int(
-    os.environ.get("MIN_ALPHA_BETA_BACKLOG_TO_RUN", "30")
-)
-MAX_WAIT_BEFORE_FORCED_RUN_MINUTES = int(
-    os.environ.get("SCRAPER_V3_MAX_WAIT_MINUTES", "60")
-)
-WATCHER_INTERVAL_MINUTES = int(os.environ.get("WATCHER_INTERVAL_MINUTES", "10"))
-
 SCRAPER_V3_SCRIPT = _PROJECT_ROOT / "Bots" / "enricher" / "scraper_v3.py"
 LOG_DIR = _CONTROLLER_DIR / "logs"
 LOCK_FILE = _CONTROLLER_DIR / "scraper_v3_lock.json"
+BACKLOG_STATE_FILE = _CONTROLLER_DIR / "scraper_v3_backlog_state.json"
 
-_backlog_since_monotonic: Optional[float] = None
+
+def _env_int(name: str, config_value, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw not in (None, ""):
+        try:
+            return int(raw)
+        except ValueError:
+            return default
+    try:
+        return int(config_value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _get_scraper_v3_settings() -> dict:
+    config = get_system_config(include_live=False) or {}
+    enrichment = config.get("enrichment") if isinstance(config.get("enrichment"), dict) else {}
+    scraper_v3 = enrichment.get("scraper_v3") if isinstance(enrichment.get("scraper_v3"), dict) else {}
+    watcher = scraper_v3.get("watcher") if isinstance(scraper_v3.get("watcher"), dict) else {}
+    return {
+        "alpha_beta_trigger_threshold": max(
+            1,
+            _env_int(
+                "MIN_ALPHA_BETA_BACKLOG_TO_RUN",
+                watcher.get("alpha_beta_trigger_threshold"),
+                30,
+            ),
+        ),
+        "max_wait_before_forced_run_minutes": max(
+            1,
+            _env_int(
+                "SCRAPER_V3_MAX_WAIT_MINUTES",
+                watcher.get("max_wait_before_forced_run_minutes"),
+                60,
+            ),
+        ),
+        "watcher_interval_minutes": max(
+            1,
+            _env_int(
+                "WATCHER_INTERVAL_MINUTES",
+                watcher.get("watcher_interval_minutes"),
+                10,
+            ),
+        ),
+        "stale_lock_timeout_minutes": max(
+            1,
+            _env_int(
+                "SCRAPER_V3_STALE_LOCK_TIMEOUT_MINUTES",
+                watcher.get("stale_lock_timeout_minutes"),
+                30,
+            ),
+        ),
+    }
+
+
+def _tab_family(tab_name: str) -> Optional[str]:
+    key = str(tab_name or "").strip().lower()
+    if key in {"alpha", "alpha_high"}:
+        return "alpha"
+    if key in {"beta", "beta_high"}:
+        return "beta"
+    if key in {"gamma", "gamma_high"}:
+        return "gamma"
+    return None
 
 
 def _log(msg: str):
@@ -78,6 +135,16 @@ def _build_log_path() -> Path:
     return LOG_DIR / f"scraper_v3_{stamp}.log"
 
 
+def _parse_iso_datetime(value: object) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError:
+        return None
+
+
 def _read_lock() -> dict | None:
     if not LOCK_FILE.exists():
         return None
@@ -90,10 +157,21 @@ def _read_lock() -> dict | None:
 
 
 def is_locked() -> bool:
+    settings = _get_scraper_v3_settings()
     data = _read_lock()
     if not data:
         return False
     pid = data.get("pid")
+    locked_at = _parse_iso_datetime(data.get("locked_at"))
+    if locked_at is not None:
+        age_minutes = (datetime.now() - locked_at).total_seconds() / 60.0
+        if age_minutes >= settings["stale_lock_timeout_minutes"]:
+            _log(
+                f"⚠️ Clearing stale scraper_v3 lock ({age_minutes:.1f}m old, "
+                f"threshold {settings['stale_lock_timeout_minutes']}m)."
+            )
+            release_lock()
+            return False
     if not isinstance(pid, int) or not _pid_is_alive(pid):
         release_lock()
         return False
@@ -130,6 +208,38 @@ def release_lock():
         LOCK_FILE.unlink()
 
 
+def _read_backlog_state() -> dict | None:
+    if not BACKLOG_STATE_FILE.exists():
+        return None
+    try:
+        data = json.loads(BACKLOG_STATE_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else None
+    except (json.JSONDecodeError, OSError):
+        with contextlib.suppress(OSError):
+            BACKLOG_STATE_FILE.unlink()
+        return None
+
+
+def _get_backlog_since() -> datetime | None:
+    data = _read_backlog_state()
+    if not data:
+        return None
+    return _parse_iso_datetime(data.get("first_seen_at"))
+
+
+def _set_backlog_since(now: datetime | None = None):
+    timestamp = (now or datetime.now()).isoformat()
+    BACKLOG_STATE_FILE.write_text(
+        json.dumps({"first_seen_at": timestamp}),
+        encoding="utf-8",
+    )
+
+
+def _clear_backlog_since():
+    with contextlib.suppress(OSError):
+        BACKLOG_STATE_FILE.unlink()
+
+
 async def _fetch_ready_rows_async() -> list[dict]:
     async with aiohttp.ClientSession() as session:
         return await GoogleClient.fetch_source_urls(session)
@@ -140,13 +250,38 @@ def count_ready_rows() -> dict:
         rows = asyncio.run(_fetch_ready_rows_async())
     except Exception as exc:
         _log(f"❌ Failed to fetch source rows: {exc}")
-        return {"alpha": 0, "beta": 0, "gamma": 0, "total": 0}
+        return {
+            "alpha": 0,
+            "alpha_high": 0,
+            "beta": 0,
+            "beta_high": 0,
+            "gamma": 0,
+            "gamma_high": 0,
+            "alpha_family": 0,
+            "beta_family": 0,
+            "gamma_family": 0,
+            "total": 0,
+        }
 
-    counts = {"alpha": 0, "beta": 0, "gamma": 0, "total": 0}
+    counts = {
+        "alpha": 0,
+        "alpha_high": 0,
+        "beta": 0,
+        "beta_high": 0,
+        "gamma": 0,
+        "gamma_high": 0,
+        "alpha_family": 0,
+        "beta_family": 0,
+        "gamma_family": 0,
+        "total": 0,
+    }
     for row in rows:
         tab = str(row.get("tab") or "").strip().lower()
         if tab in counts:
             counts[tab] += 1
+        family = _tab_family(tab)
+        if family:
+            counts[f"{family}_family"] += 1
         counts["total"] += 1
     return counts
 
@@ -189,17 +324,16 @@ def run_scraper_v3(total_ready: int) -> int:
 
 
 def watcher_tick() -> bool:
-    global _backlog_since_monotonic
-
+    settings = _get_scraper_v3_settings()
     counts = count_ready_rows()
-    alpha = counts["alpha"]
-    beta = counts["beta"]
-    gamma = counts["gamma"]
+    alpha = counts["alpha_family"]
+    beta = counts["beta_family"]
+    gamma = counts["gamma_family"]
     total = counts["total"]
     alpha_beta = alpha + beta
 
     _log(
-        f"🔍 Ready rows — Alpha: {alpha}, Beta: {beta}, Gamma: {gamma}, "
+        f"🔍 Ready rows — Alpha family: {alpha}, Beta family: {beta}, Gamma family: {gamma}, "
         f"Alpha+Beta: {alpha_beta}, Total: {total}"
     )
 
@@ -207,8 +341,8 @@ def watcher_tick() -> bool:
         _log("🔒 Lock held (scraper_v3 running). Skipping this tick.")
         return False
 
-    if alpha_beta >= MIN_ALPHA_BETA_BACKLOG_TO_RUN:
-        _backlog_since_monotonic = None
+    if alpha_beta >= settings["alpha_beta_trigger_threshold"]:
+        _clear_backlog_since()
         if not acquire_lock(os.getpid(), "launching_scraper_v3"):
             _log("🔒 Could not acquire launch lock.")
             return False
@@ -220,7 +354,7 @@ def watcher_tick() -> bool:
             update_lock_pid(child_pid, "scraper_v3_sheet_batch")
             _log(
                 f"✅ Triggered scraper_v3 — threshold met "
-                f"(Alpha+Beta {alpha_beta} >= {MIN_ALPHA_BETA_BACKLOG_TO_RUN}, "
+                f"(Alpha+Beta {alpha_beta} >= {settings['alpha_beta_trigger_threshold']}, "
                 f"Gamma bonus {gamma}, total batch {total})."
             )
             return True
@@ -230,18 +364,19 @@ def watcher_tick() -> bool:
             return False
 
     if total > 0:
-        now_monotonic = time.monotonic()
-        if _backlog_since_monotonic is None:
-            _backlog_since_monotonic = now_monotonic
+        now = datetime.now()
+        backlog_since = _get_backlog_since()
+        if backlog_since is None:
+            _set_backlog_since(now)
             _log(
                 "⏳ Backlog detected below Alpha+Beta threshold. "
                 "Waiting for threshold or timeout."
             )
             return False
 
-        waited_minutes = (now_monotonic - _backlog_since_monotonic) / 60.0
-        if waited_minutes >= MAX_WAIT_BEFORE_FORCED_RUN_MINUTES:
-            _backlog_since_monotonic = None
+        waited_minutes = (now - backlog_since).total_seconds() / 60.0
+        if waited_minutes >= settings["max_wait_before_forced_run_minutes"]:
+            _clear_backlog_since()
             if not acquire_lock(os.getpid(), "launching_scraper_v3_timeout"):
                 _log("🔒 Could not acquire launch lock.")
                 return False
@@ -262,19 +397,21 @@ def watcher_tick() -> bool:
                 _log(f"❌ Failed to launch scraper_v3: {exc}")
                 return False
 
-        remaining = max(0, int(MAX_WAIT_BEFORE_FORCED_RUN_MINUTES - waited_minutes))
+        remaining = max(0, int(settings["max_wait_before_forced_run_minutes"] - waited_minutes))
         _log(
-            f"⏳ Waiting — Alpha+Beta {alpha_beta}/{MIN_ALPHA_BETA_BACKLOG_TO_RUN}; "
+            f"⏳ Waiting — Alpha+Beta {alpha_beta}/{settings['alpha_beta_trigger_threshold']}; "
             f"forced run in {remaining}m if backlog remains."
         )
         return False
 
-    _backlog_since_monotonic = None
+    _clear_backlog_since()
     _log("✅ No source backlog ready for scraper_v3.")
     return False
 
 
-def run_watcher_loop(interval_minutes: int = WATCHER_INTERVAL_MINUTES):
+def run_watcher_loop(interval_minutes: Optional[int] = None):
+    if interval_minutes is None:
+        interval_minutes = _get_scraper_v3_settings()["watcher_interval_minutes"]
     _log(f"🚀 Starting scraper_v3 watcher loop (interval: {interval_minutes}m)")
     try:
         while True:
@@ -285,6 +422,7 @@ def run_watcher_loop(interval_minutes: int = WATCHER_INTERVAL_MINUTES):
 
 
 def print_status():
+    settings = _get_scraper_v3_settings()
     counts = count_ready_rows()
     lock = _read_lock()
     print("")
@@ -296,11 +434,18 @@ def print_status():
         print(f"Locked at: {lock.get('locked_at')}")
     print(
         "Ready rows: "
-        f"Alpha={counts['alpha']} Beta={counts['beta']} Gamma={counts['gamma']} "
+        f"Alpha={counts['alpha']} + {counts['alpha_high']}h "
+        f"Beta={counts['beta']} + {counts['beta_high']}h "
+        f"Gamma={counts['gamma']} + {counts['gamma_high']}h "
         f"Total={counts['total']}"
     )
-    print(f"Threshold (Alpha+Beta): {MIN_ALPHA_BETA_BACKLOG_TO_RUN}")
-    print(f"Max wait: {MAX_WAIT_BEFORE_FORCED_RUN_MINUTES} minutes")
+    print(f"Threshold (Alpha+Beta families): {settings['alpha_beta_trigger_threshold']}")
+    print(f"Max wait: {settings['max_wait_before_forced_run_minutes']} minutes")
+    print(f"Stale lock timeout: {settings['stale_lock_timeout_minutes']} minutes")
+    backlog_since = _get_backlog_since()
+    if backlog_since:
+        waited_minutes = (datetime.now() - backlog_since).total_seconds() / 60.0
+        print(f"Backlog timer: active for {waited_minutes:.1f} minutes")
     print("")
 
 
@@ -311,8 +456,8 @@ def parse_args():
     parser.add_argument(
         "--interval",
         type=int,
-        default=WATCHER_INTERVAL_MINUTES,
-        help=f"Loop interval in minutes (default: {WATCHER_INTERVAL_MINUTES})",
+        default=None,
+        help="Loop interval in minutes (defaults to shared scraper_v3 watcher config)",
     )
     return parser.parse_args()
 

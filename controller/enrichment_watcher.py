@@ -29,6 +29,37 @@ gspread = None
 # CONFIGURATION
 # ============================================================================
 
+_SYSTEM_CONFIG_PATH = Path(__file__).resolve().parents[1] / "Bots" / "common" / "system_config.json"
+
+
+def _read_system_config() -> dict:
+    try:
+        data = json.loads(_SYSTEM_CONFIG_PATH.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _get_linkedin_watcher_config() -> dict:
+    config = _read_system_config()
+    enrichment = config.get("enrichment") if isinstance(config.get("enrichment"), dict) else {}
+    linkedin = enrichment.get("linkedin") if isinstance(enrichment.get("linkedin"), dict) else {}
+    watcher = linkedin.get("watcher") if isinstance(linkedin.get("watcher"), dict) else {}
+    return watcher
+
+
+def _env_int(name: str, config_value, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw not in (None, ""):
+        try:
+            return int(raw)
+        except ValueError:
+            return default
+    try:
+        return int(config_value)
+    except (TypeError, ValueError):
+        return default
+
 CREDENTIALS_PATH = Path(
     os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "~/sheet-bot-key.json")
 )
@@ -43,9 +74,20 @@ SCOPES = [
 ]
 
 # Watcher settings
-MIN_BACKLOG_TO_DRAIN = int(os.environ.get("MIN_BACKLOG_TO_DRAIN", "200"))
-MAX_WAIT_BEFORE_FORCED_DRAIN_MINUTES = int(os.environ.get("MAX_WAIT_BEFORE_FORCED_DRAIN_MINUTES", "60"))
-WATCHER_INTERVAL_MINUTES = int(os.environ.get("WATCHER_INTERVAL_MINUTES", "10"))
+_WATCHER_CONFIG = _get_linkedin_watcher_config()
+MIN_BACKLOG_TO_DRAIN = max(1, _env_int("MIN_BACKLOG_TO_DRAIN", _WATCHER_CONFIG.get("min_backlog_to_drain"), 200))
+MAX_WAIT_BEFORE_FORCED_DRAIN_MINUTES = max(
+    1,
+    _env_int(
+        "MAX_WAIT_BEFORE_FORCED_DRAIN_MINUTES",
+        _WATCHER_CONFIG.get("max_wait_before_forced_drain_minutes"),
+        60,
+    ),
+)
+WATCHER_INTERVAL_MINUTES = max(
+    1,
+    _env_int("WATCHER_INTERVAL_MINUTES", _WATCHER_CONFIG.get("watcher_interval_minutes"), 10),
+)
 
 # Valid "live" status values
 VALID_LIVE_STATUSES = {"✅", "live", "Live", "LIVE"}
@@ -58,9 +100,11 @@ LOG_DIR = _CONTROLLER_DIR / "logs"
 
 # Lock file
 LOCK_FILE = _CONTROLLER_DIR / "enrichment_lock.json"
+STATE_FILE = _CONTROLLER_DIR / "enrichment_watcher_state.json"
 
 # In-memory backlog timer (monotonic clock, safe against wall-clock changes)
 _backlog_since_monotonic: Optional[float] = None
+_backlog_since_iso: Optional[str] = None
 
 
 # ============================================================================
@@ -97,6 +141,24 @@ def _build_enricher_log_path() -> Path:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return LOG_DIR / f"enrich_linkedin_{stamp}.log"
+
+
+def _read_state() -> dict:
+    if not STATE_FILE.exists():
+        return {}
+    try:
+        return json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _write_state(**updates):
+    current = _read_state()
+    current.update(updates)
+    payload = json.dumps(current, ensure_ascii=True, indent=2)
+    tmp = STATE_FILE.with_suffix(".tmp")
+    tmp.write_text(payload, encoding="utf-8")
+    tmp.replace(STATE_FILE)
 
 
 # ============================================================================
@@ -164,7 +226,7 @@ def release_lock():
 # ============================================================================
 
 def count_ready_rows() -> int:
-    """Count rows with pending LinkedIn enrichment/backfill work."""
+    """Count rows that still need first-pass LinkedIn enrichment."""
     gc = _auth_client()
     sh = gc.open_by_key(SHEET_ID)
     ws = sh.worksheet(TAB_NAME)
@@ -215,11 +277,10 @@ def count_ready_rows() -> int:
         has_formula = linkedin_val.startswith("=")
         has_real_li = bool(linkedin_val) and not has_formula and "linkedin.com" in linkedin_val.lower()
         is_none = status_val == "NONE"
-        needs_link_lookup = (not has_real_li) and not is_none
-        employee_missing = not (emp_count_v and emp_link_v and company_id_v)
-        needs_backfill = has_real_li and employee_missing
+        is_person_profile = status_val == "PERSON_PROFILE_ONLY"
+        needs_link_lookup = (not has_real_li) and not is_none and not is_person_profile
 
-        if needs_link_lookup or needs_backfill:
+        if needs_link_lookup:
             ready_count += 1
 
     return ready_count
@@ -264,12 +325,21 @@ def run_enricher() -> int:
 
 def watcher_tick() -> bool:
     """Single watcher tick. Returns True if enrichment was triggered."""
-    global _backlog_since_monotonic
+    global _backlog_since_monotonic, _backlog_since_iso
 
     _log("🔍 Checking for ready rows...")
+    now_iso = datetime.now().isoformat()
 
     # Check lock state
     if is_locked():
+        _write_state(
+            last_tick_at=now_iso,
+            watcher_interval_minutes=WATCHER_INTERVAL_MINUTES,
+            min_backlog_to_drain=MIN_BACKLOG_TO_DRAIN,
+            max_wait_before_forced_drain_minutes=MAX_WAIT_BEFORE_FORCED_DRAIN_MINUTES,
+            lock_held=True,
+            trigger_state="locked",
+        )
         _log("🔒 Lock held (enricher running). Skipping this tick.")
         return False
 
@@ -281,6 +351,20 @@ def watcher_tick() -> bool:
             if _backlog_since_monotonic is not None:
                 _log("📭 Backlog cleared. Resetting timer.")
             _backlog_since_monotonic = None
+            _backlog_since_iso = None
+            _write_state(
+                last_tick_at=now_iso,
+                ready_count=0,
+                backlog_since=None,
+                waiting_minutes=0.0,
+                wait_progress_pct=0.0,
+                trigger_state="idle",
+                last_trigger=None,
+                lock_held=False,
+                watcher_interval_minutes=WATCHER_INTERVAL_MINUTES,
+                min_backlog_to_drain=MIN_BACKLOG_TO_DRAIN,
+                max_wait_before_forced_drain_minutes=MAX_WAIT_BEFORE_FORCED_DRAIN_MINUTES,
+            )
             _log("📊 Ready rows: 0. Nothing to do.")
             return False
 
@@ -290,22 +374,39 @@ def watcher_tick() -> bool:
         # Start timer on first sighting of a non-zero backlog
         if _backlog_since_monotonic is None:
             _backlog_since_monotonic = time.monotonic()
+            _backlog_since_iso = now_iso
 
         waited_minutes = (time.monotonic() - _backlog_since_monotonic) / 60
         wait_exceeded = waited_minutes >= MAX_WAIT_BEFORE_FORCED_DRAIN_MINUTES
+        wait_progress_pct = min((waited_minutes / MAX_WAIT_BEFORE_FORCED_DRAIN_MINUTES) * 100, 100) if MAX_WAIT_BEFORE_FORCED_DRAIN_MINUTES > 0 else None
 
         if threshold_met:
             trigger = "threshold"
+            trigger_state = "threshold_ready"
             _log(f"📊 Ready rows: {ready_count} >= {MIN_BACKLOG_TO_DRAIN}. Draining (threshold reached).")
         elif wait_exceeded:
             trigger = "timeout"
+            trigger_state = "timeout_ready"
             _log(
                 f"📊 Ready rows: {ready_count} (below {MIN_BACKLOG_TO_DRAIN}), "
                 f"but backlog waiting {waited_minutes:.0f}m >= {MAX_WAIT_BEFORE_FORCED_DRAIN_MINUTES}m. "
                 f"Draining (max wait exceeded)."
             )
         else:
+            trigger_state = "watching_backlog"
             remaining = MAX_WAIT_BEFORE_FORCED_DRAIN_MINUTES - waited_minutes
+            _write_state(
+                last_tick_at=now_iso,
+                ready_count=ready_count,
+                backlog_since=_backlog_since_iso,
+                waiting_minutes=round(waited_minutes, 1),
+                wait_progress_pct=round(wait_progress_pct, 1) if wait_progress_pct is not None else None,
+                trigger_state=trigger_state,
+                lock_held=False,
+                watcher_interval_minutes=WATCHER_INTERVAL_MINUTES,
+                min_backlog_to_drain=MIN_BACKLOG_TO_DRAIN,
+                max_wait_before_forced_drain_minutes=MAX_WAIT_BEFORE_FORCED_DRAIN_MINUTES,
+            )
             _log(
                 f"📊 Ready rows: {ready_count}/{MIN_BACKLOG_TO_DRAIN}. "
                 f"Waiting ({remaining:.0f}m until forced drain)."
@@ -314,28 +415,94 @@ def watcher_tick() -> bool:
 
         # --- Drain ---
         if not acquire_lock(os.getpid(), "launching_enricher"):
+            _write_state(
+                last_tick_at=now_iso,
+                ready_count=ready_count,
+                backlog_since=_backlog_since_iso,
+                waiting_minutes=round(waited_minutes, 1),
+                wait_progress_pct=round(wait_progress_pct, 1) if wait_progress_pct is not None else None,
+                trigger_state="lock_unavailable",
+                lock_held=True,
+                watcher_interval_minutes=WATCHER_INTERVAL_MINUTES,
+                min_backlog_to_drain=MIN_BACKLOG_TO_DRAIN,
+                max_wait_before_forced_drain_minutes=MAX_WAIT_BEFORE_FORCED_DRAIN_MINUTES,
+            )
             _log("❌ Could not acquire lock. Another process may be running.")
-            _backlog_since_monotonic = None  # reset to avoid stale forced-drain loop
+            _backlog_since_monotonic = None
+            _backlog_since_iso = None
             return False
 
         try:
             child_pid = run_enricher()
             if not child_pid:
                 release_lock()
+                _write_state(
+                    last_tick_at=now_iso,
+                    ready_count=ready_count,
+                    backlog_since=_backlog_since_iso,
+                    waiting_minutes=round(waited_minutes, 1),
+                    wait_progress_pct=round(wait_progress_pct, 1) if wait_progress_pct is not None else None,
+                    trigger_state="launch_failed",
+                    last_trigger=trigger,
+                    lock_held=False,
+                    watcher_interval_minutes=WATCHER_INTERVAL_MINUTES,
+                    min_backlog_to_drain=MIN_BACKLOG_TO_DRAIN,
+                    max_wait_before_forced_drain_minutes=MAX_WAIT_BEFORE_FORCED_DRAIN_MINUTES,
+                )
                 _backlog_since_monotonic = None
+                _backlog_since_iso = None
                 return False
             update_lock_pid(child_pid, "enricher_drain")
+            _write_state(
+                last_tick_at=now_iso,
+                ready_count=ready_count,
+                backlog_since=_backlog_since_iso,
+                waiting_minutes=round(waited_minutes, 1),
+                wait_progress_pct=round(wait_progress_pct, 1) if wait_progress_pct is not None else None,
+                trigger_state=trigger_state,
+                last_trigger=trigger,
+                last_launch_at=now_iso,
+                active_pid=child_pid,
+                lock_held=True,
+                watcher_interval_minutes=WATCHER_INTERVAL_MINUTES,
+                min_backlog_to_drain=MIN_BACKLOG_TO_DRAIN,
+                max_wait_before_forced_drain_minutes=MAX_WAIT_BEFORE_FORCED_DRAIN_MINUTES,
+            )
             _log(f"📝 Enricher started (trigger: {trigger}, pid={child_pid})")
-            _backlog_since_monotonic = None  # reset after launch
+            _backlog_since_monotonic = None
+            _backlog_since_iso = None
             return True
         except Exception:
-            _backlog_since_monotonic = None  # reset on failure
+            _write_state(
+                last_tick_at=now_iso,
+                ready_count=ready_count,
+                backlog_since=_backlog_since_iso,
+                waiting_minutes=round(waited_minutes, 1),
+                wait_progress_pct=round(wait_progress_pct, 1) if wait_progress_pct is not None else None,
+                trigger_state="error",
+                last_trigger=trigger,
+                lock_held=False,
+                watcher_interval_minutes=WATCHER_INTERVAL_MINUTES,
+                min_backlog_to_drain=MIN_BACKLOG_TO_DRAIN,
+                max_wait_before_forced_drain_minutes=MAX_WAIT_BEFORE_FORCED_DRAIN_MINUTES,
+            )
+            _backlog_since_monotonic = None
+            _backlog_since_iso = None
             release_lock()
             raise
 
     except Exception as e:
         _log(f"❌ Error during tick: {e}")
-        _backlog_since_monotonic = None  # reset to avoid stale loop
+        _write_state(
+            last_tick_at=now_iso,
+            trigger_state="error",
+            lock_held=False,
+            watcher_interval_minutes=WATCHER_INTERVAL_MINUTES,
+            min_backlog_to_drain=MIN_BACKLOG_TO_DRAIN,
+            max_wait_before_forced_drain_minutes=MAX_WAIT_BEFORE_FORCED_DRAIN_MINUTES,
+        )
+        _backlog_since_monotonic = None
+        _backlog_since_iso = None
         return False
 
 

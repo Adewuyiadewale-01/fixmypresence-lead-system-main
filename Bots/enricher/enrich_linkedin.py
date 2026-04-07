@@ -3,6 +3,7 @@ import os, re, sys, time, random, json, urllib.parse, html, datetime, contextlib
 import threading
 from queue import Queue, Empty
 from dataclasses import dataclass
+from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 import gspread
@@ -14,9 +15,70 @@ except Exception:
     PlaywrightTimeoutError = Exception
 
 # ------------------ config ------------------
-BATCH_SIZE = 25
+_SYSTEM_CONFIG_PATH = Path(__file__).resolve().parents[1] / "common" / "system_config.json"
+
+
+def _read_system_config():
+    try:
+        data = json.loads(_SYSTEM_CONFIG_PATH.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _get_linkedin_runtime_config():
+    config = _read_system_config()
+    enrichment = config.get("enrichment") if isinstance(config.get("enrichment"), dict) else {}
+    linkedin = enrichment.get("linkedin") if isinstance(enrichment.get("linkedin"), dict) else {}
+    runtime = linkedin.get("runtime") if isinstance(linkedin.get("runtime"), dict) else {}
+    return runtime
+
+
+def _get_active_pipeline_validated_target() -> tuple[str, str]:
+    config = _read_system_config()
+    pipeline = config.get("pipeline_sheets") if isinstance(config.get("pipeline_sheets"), dict) else {}
+    sheets = pipeline.get("sheets") if isinstance(pipeline.get("sheets"), list) else []
+    active_key = pipeline.get("active_sheet_key")
+    active = next((item for item in sheets if item.get("key") == active_key), sheets[0] if sheets else None)
+    if isinstance(active, dict):
+        return (
+            str(active.get("sheet_id") or "").strip(),
+            str(active.get("validated_tab") or "Validated_leads").strip() or "Validated_leads",
+        )
+    return "", "Validated_leads"
+
+
+def _env_int(name: str, config_value, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw not in (None, ""):
+        try:
+            return int(raw)
+        except ValueError:
+            return default
+    try:
+        return int(config_value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _env_float(name: str, config_value, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw not in (None, ""):
+        try:
+            return float(raw)
+        except ValueError:
+            return default
+    try:
+        return float(config_value)
+    except (TypeError, ValueError):
+        return default
+
+
+_RUNTIME_CONFIG = _get_linkedin_runtime_config()
+
+BATCH_SIZE = max(1, _env_int("ENRICHMENT_BATCH_SIZE", _RUNTIME_CONFIG.get("batch_size"), 25))
 WRITE_FLUSH_EVERY = 5
-TIMEOUT    = 12
+TIMEOUT = max(1, _env_int("ENRICHMENT_TIMEOUT_SECONDS", _RUNTIME_CONFIG.get("request_timeout_seconds"), 12))
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36")
 
@@ -53,13 +115,13 @@ STATUS_NONE  = "NONE"
 STATUS_PERSON_PROFILE = "PERSON_PROFILE_ONLY"
 
 # Pipeline concurrency
-WEBSITE_WORKERS       = 2
-LINKEDIN_WORKERS      = 1
-WRITER_FLUSH_INTERVAL = 10.0   # seconds between forced flushes
-WRITER_FLUSH_BATCH    = 5      # rows before each flush
-LI_DELAY_MIN          = 2.0    # min seconds between LinkedIn requests
-LI_DELAY_MAX          = 6.0    # max seconds (randomized jitter)
-MAX_BROWSERS          = 3      # hard cap on concurrent Playwright instances
+WEBSITE_WORKERS       = max(1, _env_int("ENRICHMENT_WEBSITE_WORKERS", _RUNTIME_CONFIG.get("website_workers"), 2))
+LINKEDIN_WORKERS      = max(1, _env_int("ENRICHMENT_LINKEDIN_WORKERS", _RUNTIME_CONFIG.get("linkedin_workers"), 1))
+WRITER_FLUSH_INTERVAL = max(0.1, _env_float("ENRICHMENT_WRITER_FLUSH_INTERVAL_SECONDS", _RUNTIME_CONFIG.get("writer_flush_interval_seconds"), 10.0))   # seconds between forced flushes
+WRITER_FLUSH_BATCH    = max(1, _env_int("ENRICHMENT_WRITER_FLUSH_BATCH", _RUNTIME_CONFIG.get("writer_flush_batch"), 5))      # rows before each flush
+LI_DELAY_MIN          = max(0.0, _env_float("ENRICHMENT_LINKEDIN_DELAY_MIN_SECONDS", _RUNTIME_CONFIG.get("linkedin_delay_min_seconds"), 2.0))    # min seconds between LinkedIn requests
+LI_DELAY_MAX          = max(LI_DELAY_MIN, _env_float("ENRICHMENT_LINKEDIN_DELAY_MAX_SECONDS", _RUNTIME_CONFIG.get("linkedin_delay_max_seconds"), 6.0))    # max seconds (randomized jitter)
+MAX_BROWSERS          = max(1, _env_int("ENRICHMENT_MAX_BROWSERS", _RUNTIME_CONFIG.get("max_browsers"), 3))      # hard cap on concurrent Playwright instances
 _SENTINEL = object()           # poison pill for queue shutdown (not None)
 # --------------------------------------------
 
@@ -77,10 +139,14 @@ def resolve_sheet_target() -> tuple[str, str]:
     env_tab_name = os.environ.get("TAB_NAME")
     profile_name = os.environ.get("SHEET_PROFILE", DEFAULT_SHEET_PROFILE)
     profile = SHEET_PROFILES.get(profile_name)
+    config_sheet_id, config_tab_name = _get_active_pipeline_validated_target()
 
     if env_sheet_id:
         tab = env_tab_name or (profile["tab_name"] if profile else "Main")
         return env_sheet_id, tab
+
+    if config_sheet_id:
+        return config_sheet_id, (env_tab_name or config_tab_name)
 
     if profile:
         tab = env_tab_name or profile.get("tab_name", "Main")
@@ -1088,12 +1154,10 @@ def main() -> bool:
         is_none      = status_val == STATUS_NONE
         is_person_profile = status_val == STATUS_PERSON_PROFILE
         needs_link_lookup = (not has_real_li) and not is_none and not is_person_profile
-        employee_missing = not (emp_count_v and emp_link_v and company_id_v)
-        needs_backfill = has_real_li and employee_missing
 
         if not website:
             continue
-        if not needs_link_lookup and not needs_backfill:
+        if not needs_link_lookup:
             continue
         work_rows.append(r)
         scanned += 1

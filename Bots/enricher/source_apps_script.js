@@ -10,7 +10,8 @@
 // 1. GLOBAL CONFIGURATION
 // ==========================================
 var SOURCE_SHEET_ID = "1YF8WvLTPu-Raf22rHaaphauj-w-n64CRu83ZeAtHYAc";
-var TABS_TO_PROCESS = ["alpha", "beta", "gamma"];
+var TABS_TO_PROCESS = ["Alpha", "Alpha_high", "Beta", "Beta_high", "Gamma", "Gamma_high"];
+const SOURCE_CONFIG_PROPERTY = "FMP_SOURCE_SHEET_CONFIG";
 
 // --- SCRAPER CONFIG (Column I) ---
 var URL_COLUMN = "website";
@@ -20,7 +21,7 @@ var STATUS_COLUMN = "Scrape Status";
 const TRANSFER_CONFIG = {
   DESTINATION_URL: "https://docs.google.com/spreadsheets/d/140KaXgBgoJUZuH6rbtZmnEpJFAL4k7WhUoWSNNtfzQ0/edit",
   DESTINATION_TAB_NAME: "Sheet1",
-  SOURCE_TABS: ["Alpha", "Beta", "Gamma"],
+  SOURCE_TABS: ["Alpha", "Alpha_high", "Beta", "Beta_high", "Gamma", "Gamma_high"],
   INSERTION_MODE: "TOP",
   STATUS_HEADER: "Eng status",
   TRIGGER_VALUE: "Pending",
@@ -36,15 +37,114 @@ const TRANSFER_CONFIG = {
   ]
 };
 
+const DEFAULT_SOURCE_CONFIG = {
+  sheetId: SOURCE_SHEET_ID,
+  tabsToProcess: TABS_TO_PROCESS,
+};
+
+function extractDriveFolderId(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  const match = text.match(/\/folders\/([a-zA-Z0-9-_]+)/);
+  if (match) return match[1];
+  return /^[a-zA-Z0-9-_]+$/.test(text) ? text : '';
+}
+
+function clearWorksheetData(sheet) {
+  if (!sheet) return;
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  if (lastRow <= 1 || lastCol <= 0) return;
+  sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
+}
+
+function createSourceRotationCopy(options) {
+  const cfg = getSourceConfig();
+  const opts = options || {};
+  const title = String(opts.title || 'Source Settlement Next').trim() || 'Source Settlement Next';
+  const folderId = extractDriveFolderId(opts.folderId || opts.folder_id);
+  const sourceFile = DriveApp.getFileById(cfg.sheetId);
+  const copyFile = folderId
+    ? sourceFile.makeCopy(title, DriveApp.getFolderById(folderId))
+    : sourceFile.makeCopy(title);
+  const copiedSheetId = copyFile.getId();
+  const copiedSpreadsheet = SpreadsheetApp.openById(copiedSheetId);
+  cfg.tabsToProcess.forEach(function(tabName) {
+    clearWorksheetData(copiedSpreadsheet.getSheetByName(tabName));
+  });
+  return {
+    sheet_id: copiedSheetId,
+    sheet_ref: copiedSheetId,
+    title: copyFile.getName(),
+  };
+}
+
+function authorizeRotationAccess() {
+  DriveApp.getRootFolder();
+  SpreadsheetApp.getActive();
+  return true;
+}
+
+function normalizeSourceConfig(config) {
+  const data = config || {};
+  const tabs = Array.isArray(data.tabsToProcess || data.tabs_to_process)
+    ? (data.tabsToProcess || data.tabs_to_process)
+    : DEFAULT_SOURCE_CONFIG.tabsToProcess;
+  return {
+    sheetId: String(data.sheetId || data.sheet_id || DEFAULT_SOURCE_CONFIG.sheetId).trim(),
+    tabsToProcess: tabs.map(function(tab) { return String(tab || '').trim(); }).filter(Boolean),
+  };
+}
+
+function getSourceConfig() {
+  const raw = PropertiesService.getScriptProperties().getProperty(SOURCE_CONFIG_PROPERTY);
+  if (!raw) return normalizeSourceConfig(DEFAULT_SOURCE_CONFIG);
+  try {
+    return normalizeSourceConfig(JSON.parse(raw));
+  } catch (_err) {
+    return normalizeSourceConfig(DEFAULT_SOURCE_CONFIG);
+  }
+}
+
+function openSourceSpreadsheet(config) {
+  const cfg = config || getSourceConfig();
+  return SpreadsheetApp.openById(cfg.sheetId);
+}
+
+function ensureSourceTriggers(config) {
+  const cfg = config || getSourceConfig();
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(function(trigger) {
+    if (trigger.getHandlerFunction() === 'transferLeadOnEdit') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+  ScriptApp.newTrigger('transferLeadOnEdit')
+    .forSpreadsheet(cfg.sheetId)
+    .onEdit()
+    .create();
+}
+
+function saveSourceConfig(config) {
+  const normalized = normalizeSourceConfig(config);
+  PropertiesService.getScriptProperties().setProperty(
+    SOURCE_CONFIG_PROPERTY,
+    JSON.stringify(normalized)
+  );
+  ensureSourceTriggers(normalized);
+  return normalized;
+}
+
 // ==========================================
 // 2. GET URLs (Scraper Logic) - returns unprocessed rows from Alpha/Beta/Gamma
 // ==========================================
 function doGet(e) {
     try {
-        var ss = SpreadsheetApp.openById(SOURCE_SHEET_ID);
+        var cfg = getSourceConfig();
+        var ss = openSourceSpreadsheet(cfg);
         var allUrls = [];
 
-        TABS_TO_PROCESS.forEach(function (tabName) {
+        cfg.tabsToProcess.forEach(function (tabName) {
             var sheet = ss.getSheetByName(tabName);
             if (!sheet) return;
 
@@ -101,6 +201,24 @@ function doPost(e) {
         var jsonData = JSON.parse(e.postData.contents);
         var action = jsonData.action || "";
 
+        if (action === "sync_source_sheet_config") {
+            var saved = saveSourceConfig(jsonData.source || {});
+            return ContentService.createTextOutput(JSON.stringify({
+                status: "ok",
+                message: "source config synced",
+                source: saved
+            })).setMimeType(ContentService.MimeType.JSON);
+        }
+
+        if (action === "create_rotation_copy") {
+            var created = createSourceRotationCopy(jsonData.rotation || {});
+            return ContentService.createTextOutput(JSON.stringify({
+                status: "ok",
+                message: "source rotation copy created",
+                copy: created
+            })).setMimeType(ContentService.MimeType.JSON);
+        }
+
         // --- New: mark_processed action ---
         if (action === "mark_processed") {
             return handleMarkProcessed(jsonData);
@@ -126,7 +244,7 @@ function doPost(e) {
 // 3a. Mark rows as processed in source sheet
 // ==========================================
 function handleMarkProcessed(jsonData) {
-    var ss = SpreadsheetApp.openById(SOURCE_SHEET_ID);
+    var ss = openSourceSpreadsheet();
     var updates = jsonData.updates || [];
 
     for (var u = 0; u < updates.length; u++) {
@@ -153,7 +271,7 @@ function handleMarkProcessed(jsonData) {
 // 3b. Legacy status update
 // ==========================================
 function updateSheetStatus(tabName, row, linkedinCount, emailCount) {
-    var ss = SpreadsheetApp.openById(SOURCE_SHEET_ID);
+    var ss = openSourceSpreadsheet();
     var sheet = ss.getSheetByName(tabName);
     if (!sheet) return;
 
@@ -175,9 +293,10 @@ function updateSheetStatus(tabName, row, linkedinCount, emailCount) {
 // ==========================================
 function transferLeadOnEdit(e) {
   if (!e) return;
+  const cfg = getSourceConfig();
 
   const sheet = e.range.getSheet();
-  if (!TRANSFER_CONFIG.SOURCE_TABS.includes(sheet.getName())) return;
+  if (!cfg.tabsToProcess.includes(sheet.getName())) return;
   if (e.value !== TRANSFER_CONFIG.TRIGGER_VALUE) return;
 
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
@@ -209,7 +328,8 @@ function transferLeadOnEdit(e) {
 // 5. FORCE PUSH (MANUAL TOOL)
 // ==========================================
 function moveAllPendingNow() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const cfg = getSourceConfig();
+  const ss = openSourceSpreadsheet(cfg);
   const ui = SpreadsheetApp.getUi();
 
   try {
@@ -219,7 +339,7 @@ function moveAllPendingNow() {
 
     let totalMoved = 0;
 
-    TRANSFER_CONFIG.SOURCE_TABS.forEach(tabName => {
+    cfg.tabsToProcess.forEach(tabName => {
       const sheet = ss.getSheetByName(tabName);
       if (!sheet) return;
 

@@ -4,13 +4,832 @@
 {% block page_title %}Config{% endblock %}
 
 {% block content %}
-<div class="panel placeholder-page">
-    <i data-lucide="settings"></i>
-    <h3>System Configuration</h3>
-    <p>Workers, batch size, headless toggle, enrichment thresholds, and all tunable values will live here.</p>
-</div>
+<section class="config-tabs-shell">
+    <div class="config-tab-bar" role="tablist" aria-label="Configuration Sections">
+        <button class="config-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="config-tab-scraper" id="config-tab-btn-scraper" data-config-tab="scraper">
+            <i data-lucide="scan-search"></i>
+            <span>Maps Scraper</span>
+        </button>
+        <button class="config-tab" type="button" role="tab" aria-selected="false" aria-controls="config-tab-controller" id="config-tab-btn-controller" data-config-tab="controller">
+            <i data-lucide="radio-tower"></i>
+            <span>Controller / Watchers</span>
+        </button>
+        <button class="config-tab" type="button" role="tab" aria-selected="false" aria-controls="config-tab-enrichment" id="config-tab-btn-enrichment" data-config-tab="enrichment">
+            <i data-lucide="sparkles"></i>
+            <span>Enrichment</span>
+        </button>
+        <button class="config-tab" type="button" role="tab" aria-selected="false" aria-controls="config-tab-locations" id="config-tab-btn-locations" data-config-tab="locations">
+            <i data-lucide="map-pin"></i>
+            <span>Locations</span>
+        </button>
+        <button class="config-tab" type="button" role="tab" aria-selected="false" aria-controls="config-tab-sheets" id="config-tab-btn-sheets" data-config-tab="sheets">
+            <i data-lucide="table-properties"></i>
+            <span>Google Sheets</span>
+        </button>
+    </div>
+
+    <div class="config-panels">
+        <section class="panel config-tab-panel is-active" id="config-tab-scraper" role="tabpanel" aria-labelledby="config-tab-btn-scraper" data-config-panel="scraper">
+            <div class="config-panel-intro">
+                <h2>Maps Scraper</h2>
+                <p>Scraper throughput, aggression, batching, and health rules can be edited here. Saved changes apply to future scraper starts.</p>
+            </div>
+            <section class="config-scraper-summary">
+                <div class="config-summary-stat">
+                    <span class="config-summary-label">Runtime Profile</span>
+                    <span id="scraper-config-summary-runtime" class="config-summary-value">--</span>
+                </div>
+                <div class="config-summary-stat">
+                    <span class="config-summary-label">Locations</span>
+                    <span id="scraper-config-summary-locations" class="config-summary-value">--</span>
+                </div>
+                <div class="config-summary-stat">
+                    <span class="config-summary-label">Keywords</span>
+                    <span id="scraper-config-summary-keywords" class="config-summary-value">--</span>
+                </div>
+                <div class="config-summary-stat">
+                    <span class="config-summary-label">Guardrails</span>
+                    <span id="scraper-config-summary-guardrails" class="config-summary-value">--</span>
+                </div>
+            </section>
+
+            <div class="config-scraper-grid">
+                <section class="config-section-card">
+                    <div class="config-section-head">
+                        <h3>Runtime</h3>
+                        <span class="config-section-kicker">Operational Settings</span>
+                    </div>
+                    <p class="config-section-copy">These settings directly shape scraper throughput and pacing.</p>
+                    <div class="config-form-grid">
+                        <label class="config-field">
+                            <span class="config-field-label">Workers</span>
+                            <input id="scraper-num-workers" type="number" min="1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Batch Size</span>
+                            <input id="scraper-batch-size" type="number" min="1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Website Workers</span>
+                            <input id="scraper-website-workers" type="number" min="1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Captcha Backoff (s)</span>
+                            <input id="scraper-captcha-backoff" type="number" min="1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Inter-request Min (s)</span>
+                            <input id="scraper-delay-min" type="number" min="0" step="0.1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Inter-request Max (s)</span>
+                            <input id="scraper-delay-max" type="number" min="0" step="0.1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Worker Stagger Min (s)</span>
+                            <input id="scraper-stagger-min" type="number" min="0" step="0.1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Worker Stagger Max (s)</span>
+                            <input id="scraper-stagger-max" type="number" min="0" step="0.1">
+                        </label>
+                        <label class="config-field config-field-wide">
+                            <span class="config-field-label">Category Advance Timeout (minutes)</span>
+                            <input id="scraper-category-timeout" type="number" min="1">
+                        </label>
+                    </div>
+                </section>
+
+                <section class="config-section-card">
+                    <div class="config-section-head">
+                        <h3>Guardrails</h3>
+                        <span class="config-section-kicker">Health Rules</span>
+                    </div>
+                    <p class="config-section-copy">These thresholds drive callouts, confirmation, and auto-pause behavior.</p>
+                    <div class="config-form-grid">
+                        <label class="config-field">
+                            <span class="config-field-label">Warn Error Rate (%)</span>
+                            <input id="scraper-warn-error-rate" type="number" min="0" step="0.1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Critical Error Rate (%)</span>
+                            <input id="scraper-critical-error-rate" type="number" min="0" step="0.1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Warn Website Rate (%)</span>
+                            <input id="scraper-warn-website-rate" type="number" min="0" step="0.1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Healthy Website Rate (%)</span>
+                            <input id="scraper-normal-website-rate" type="number" min="0" step="0.1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Warn Yield / 100</span>
+                            <input id="scraper-warn-yield" type="number" min="0" step="0.1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Healthy Yield / 100</span>
+                            <input id="scraper-normal-yield" type="number" min="0" step="0.1">
+                        </label>
+                    </div>
+                    <div class="scraper-summary-note">Critical signals still use one-batch confirmation before auto-pausing the scraper.</div>
+                </section>
+            </div>
+
+            <section class="config-section-card config-section-card-wide">
+                <div class="config-section-head">
+                    <h3>Locations</h3>
+                    <span class="config-section-kicker">Input Pool</span>
+                </div>
+                <p class="config-section-copy">Choose whether scraper locations come from the inline list or from a sheet-backed sync that resolves a clean list for future scraper runs.</p>
+                <div class="config-source-mode">
+                    <label class="config-toggle">
+                        <input type="radio" name="scraper-location-source-mode" value="inline" checked>
+                        <span>Inline List</span>
+                    </label>
+                    <label class="config-toggle">
+                        <input type="radio" name="scraper-location-source-mode" value="sheet_csv">
+                        <span>Sheet-backed CSV</span>
+                    </label>
+                </div>
+                <div class="config-source-panels">
+                    <section id="scraper-location-inline-panel" class="config-source-panel is-active">
+                        <label class="config-field">
+                            <span class="config-field-label">Locations List</span>
+                            <textarea id="scraper-locations-list" class="config-textarea config-textarea-lg" spellcheck="false"></textarea>
+                            <span id="scraper-locations-meta" class="config-field-meta">--</span>
+                        </label>
+                    </section>
+
+                    <section id="scraper-location-sheet-panel" class="config-source-panel" hidden>
+                        <div class="config-form-grid">
+                            <label class="config-field config-field-wide">
+                                <span class="config-field-label">Share Sheet With</span>
+                                <div class="config-copy-row">
+                                    <input id="scraper-location-service-email" type="text" readonly>
+                                    <button id="btn-copy-scraper-service-email" class="btn btn-secondary btn-small" type="button">Copy</button>
+                                </div>
+                                <span class="config-field-meta">Add this service-account email to the sheet’s Share dialog so the dashboard can read the selected tab and column.</span>
+                            </label>
+                            <label class="config-field config-field-wide">
+                                <span class="config-field-label">Sheet URL</span>
+                                <input id="scraper-location-sheet-url" type="url" placeholder="https://docs.google.com/spreadsheets/d/...">
+                            </label>
+                            <label class="config-field config-field-wide">
+                                <span class="config-field-label">Source Tabs</span>
+                                <textarea id="scraper-location-tab-names" class="config-textarea" spellcheck="false" placeholder="Locations&#10;Locations_Beta&#10;Locations_Gamma"></textarea>
+                                <span class="config-field-meta">Use one tab per line. The scraper can auto-advance across this list after the configured delay.</span>
+                            </label>
+                            <label class="config-field">
+                                <span class="config-field-label">Active Tab</span>
+                                <input id="scraper-location-active-tab" type="text" readonly placeholder="Will follow the current sync cursor">
+                            </label>
+                            <label class="config-field">
+                                <span class="config-field-label">Column Name</span>
+                                <input id="scraper-location-column-name" type="text" placeholder="location or A">
+                            </label>
+                            <div class="config-field">
+                                <span class="config-field-label">Auto Advance</span>
+                                <label class="config-checkbox-card" for="scraper-location-auto-advance">
+                                    <span class="config-checkbox-copy">
+                                        <span class="config-checkbox-title">Enable delayed tab progression</span>
+                                        <span class="config-checkbox-description">Move to the next tab automatically after the configured delay window.</span>
+                                    </span>
+                                    <input id="scraper-location-auto-advance" type="checkbox">
+                                </label>
+                            </div>
+                            <label class="config-field">
+                                <span class="config-field-label">Advance Delay (minutes)</span>
+                                <input id="scraper-location-advance-delay" type="number" min="1" step="1">
+                            </label>
+                            <label class="config-field config-field-wide">
+                                <span class="config-field-label">CSV Export URL</span>
+                                <div class="config-copy-row">
+                                    <input id="scraper-location-csv-url" type="text" readonly>
+                                    <button id="btn-copy-scraper-csv-url" class="btn btn-secondary btn-small" type="button">Copy</button>
+                                </div>
+                                <span class="config-field-meta">Copy this if you want the underlying worksheet CSV export link after sync.</span>
+                            </label>
+                        </div>
+                        <div class="config-actions-inline">
+                            <button id="btn-sync-scraper-locations" class="btn btn-secondary" type="button">
+                                <i data-lucide="refresh-cw"></i>
+                                Sync From Sheet
+                            </button>
+                            <button id="btn-advance-scraper-locations" class="btn btn-secondary" type="button">
+                                <i data-lucide="skip-forward"></i>
+                                Advance To Next Tab
+                            </button>
+                            <div id="scraper-location-sync-note" class="config-inline-note">Sync the selected sheet tab and column to refresh the resolved location list.</div>
+                        </div>
+                        <label class="config-field">
+                            <span class="config-field-label">Resolved Preview</span>
+                            <textarea id="scraper-location-resolved-preview" class="config-textarea" spellcheck="false" readonly></textarea>
+                            <span id="scraper-location-resolved-meta" class="config-field-meta">--</span>
+                        </label>
+                    </section>
+                </div>
+            </section>
+
+            <section class="config-section-card config-section-card-wide">
+                <div class="config-section-head">
+                    <h3>Keyword Categories</h3>
+                    <span class="config-section-kicker">Search Matrix</span>
+                </div>
+                <p class="config-section-copy">Each category is processed in order. Enter one keyword per line.</p>
+                <div class="config-keyword-columns">
+                    <label class="config-field config-keyword-editor">
+                        <span class="config-field-label">Category 1</span>
+                        <textarea id="scraper-keywords-1" class="config-textarea" spellcheck="false"></textarea>
+                        <span id="scraper-keywords-1-meta" class="config-field-meta">--</span>
+                    </label>
+                    <label class="config-field config-keyword-editor">
+                        <span class="config-field-label">Category 2</span>
+                        <textarea id="scraper-keywords-2" class="config-textarea" spellcheck="false"></textarea>
+                        <span id="scraper-keywords-2-meta" class="config-field-meta">--</span>
+                    </label>
+                    <label class="config-field config-keyword-editor">
+                        <span class="config-field-label">Category 3</span>
+                        <textarea id="scraper-keywords-3" class="config-textarea" spellcheck="false"></textarea>
+                        <span id="scraper-keywords-3-meta" class="config-field-meta">--</span>
+                    </label>
+                    <label class="config-field config-keyword-editor">
+                        <span class="config-field-label">Category 4</span>
+                        <textarea id="scraper-keywords-4" class="config-textarea" spellcheck="false"></textarea>
+                        <span id="scraper-keywords-4-meta" class="config-field-meta">--</span>
+                    </label>
+                </div>
+            </section>
+
+            <section class="config-actions-row">
+                <button id="btn-save-scraper-config" class="btn btn-primary" type="button">
+                    <i data-lucide="save"></i>
+                    Save Scraper Config
+                </button>
+                <button id="btn-reset-scraper-config" class="btn btn-secondary" type="button">
+                    <i data-lucide="rotate-ccw"></i>
+                    Reset Form
+                </button>
+                <div id="scraper-config-note" class="scraper-summary-note">Changes here are saved as overrides and will apply to future scraper starts.</div>
+            </section>
+        </section>
+
+        <section class="panel config-tab-panel" id="config-tab-controller" role="tabpanel" aria-labelledby="config-tab-btn-controller" data-config-panel="controller" hidden>
+            <div class="config-panel-intro">
+                <h2>Controller / Watchers</h2>
+                <p>Cycle timing, protection thresholds, and automation pause rules live here.</p>
+            </div>
+            <div class="main-grid">
+                <section class="config-section-card">
+                    <div class="config-section-head">
+                        <h3>Cycle Schedule</h3>
+                        <span class="config-section-kicker">Controller</span>
+                    </div>
+                    <div class="config-form-grid">
+                        <label class="config-field">
+                            <span class="config-field-label">Run Hours</span>
+                            <input id="system-run-hours" type="number" min="1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Rest Hours</span>
+                            <input id="system-rest-hours" type="number" min="1">
+                        </label>
+                    </div>
+                </section>
+                <section class="config-section-card">
+                    <div class="config-section-head">
+                        <h3>Delivery Sheet Guardrails</h3>
+                        <span class="config-section-kicker">Watcher Policy</span>
+                    </div>
+                    <div class="config-form-grid">
+                        <div class="config-field config-field-wide">
+                            <span class="config-field-label">Capacity Watcher</span>
+                            <label class="config-checkbox-card" for="system-watch-delivery-enabled">
+                                <span class="config-checkbox-copy">
+                                    <span class="config-checkbox-title">Protect delivery sheets from row-cap overflow</span>
+                                    <span class="config-checkbox-description">Warn as the active delivery sheet approaches its cap and stop cleanly when the hard threshold is reached.</span>
+                                </span>
+                                <input id="system-watch-delivery-enabled" type="checkbox">
+                            </label>
+                        </div>
+                        <label class="config-field">
+                            <span class="config-field-label">Warning Row Threshold</span>
+                            <input id="system-watch-warning-rows" type="number" min="1" step="1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Hard Stop Row Threshold</span>
+                            <input id="system-watch-stop-rows" type="number" min="1" step="1">
+                        </label>
+                    </div>
+                    <div class="scraper-summary-note" id="system-watch-note">These limits are checked before each batch delivery into the active pipeline sheet and surfaced on the Robot page.</div>
+                </section>
+            </div>
+            <section class="config-actions-row">
+                <button id="btn-save-system-watchers" class="btn btn-primary" type="button">
+                    <i data-lucide="save"></i>
+                    Save Watcher Policy
+                </button>
+                <button id="btn-reset-system-watchers" class="btn btn-secondary" type="button">
+                    <i data-lucide="rotate-ccw"></i>
+                    Reset
+                </button>
+                <div id="system-watchers-config-note" class="scraper-summary-note">Watcher and schedule changes apply to the shared system config immediately.</div>
+            </section>
+        </section>
+
+        <section class="panel config-tab-panel" id="config-tab-enrichment" role="tabpanel" aria-labelledby="config-tab-btn-enrichment" data-config-panel="enrichment" hidden>
+            <div class="config-panel-intro">
+                <h2>Enrichment</h2>
+                <p>Configure the supporting subsystems that sit behind enrichment flow: LinkedIn drain behavior, keyword and scoring rules, and Scraper V3 watcher policy.</p>
+            </div>
+
+            <section class="config-subtabs-shell">
+                <div class="config-subtab-bar" role="tablist" aria-label="Enrichment Config Areas">
+                    <button class="config-subtab is-active" type="button" role="tab" aria-selected="true" aria-controls="config-enrichment-subtab-linkedin" id="config-enrichment-subtab-btn-linkedin" data-config-subtab="linkedin">
+                        <i data-lucide="linkedin"></i>
+                        <span>LinkedIn</span>
+                    </button>
+                    <button class="config-subtab" type="button" role="tab" aria-selected="false" aria-controls="config-enrichment-subtab-keywords" id="config-enrichment-subtab-btn-keywords" data-config-subtab="keywords">
+                        <i data-lucide="scan-search"></i>
+                        <span>Keyword + Scoring</span>
+                    </button>
+                    <button class="config-subtab" type="button" role="tab" aria-selected="false" aria-controls="config-enrichment-subtab-scraperv3" id="config-enrichment-subtab-btn-scraperv3" data-config-subtab="scraperv3">
+                        <i data-lucide="rocket"></i>
+                        <span>Scraper V3</span>
+                    </button>
+                </div>
+
+                <div class="config-subtab-panels">
+                    <section class="config-subtab-panel is-active" id="config-enrichment-subtab-linkedin" role="tabpanel" aria-labelledby="config-enrichment-subtab-btn-linkedin" data-config-subpanel="linkedin">
+                        <div class="config-subtab-intro">
+                            <h3>LinkedIn Enrichment</h3>
+                            <p>Drain thresholds, forced wait behavior, runtime pacing, browser caps, and worker controls will live here.</p>
+                        </div>
+                        <div class="config-subtab-grid">
+                            <section class="config-section-card">
+                                <div class="config-section-head">
+                                    <h3>Runtime</h3>
+                                    <span class="config-section-kicker">Drain Worker</span>
+                                </div>
+                                <div class="config-form-grid">
+                                    <label class="config-field">
+                                        <span class="config-field-label">Batch Size</span>
+                                        <input id="enrich-batch-size" type="number" min="1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Request Timeout (s)</span>
+                                        <input id="enrich-timeout-seconds" type="number" min="1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Website Workers</span>
+                                        <input id="enrich-website-workers" type="number" min="1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">LinkedIn Workers</span>
+                                        <input id="enrich-linkedin-workers" type="number" min="1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Flush Interval (s)</span>
+                                        <input id="enrich-flush-interval" type="number" min="0.1" step="0.1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Flush Batch</span>
+                                        <input id="enrich-flush-batch" type="number" min="1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">LinkedIn Delay Min (s)</span>
+                                        <input id="enrich-delay-min" type="number" min="0" step="0.1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">LinkedIn Delay Max (s)</span>
+                                        <input id="enrich-delay-max" type="number" min="0" step="0.1">
+                                    </label>
+                                    <label class="config-field config-field-wide">
+                                        <span class="config-field-label">Max Browsers</span>
+                                        <input id="enrich-max-browsers" type="number" min="1">
+                                    </label>
+                                </div>
+                            </section>
+                            <section class="config-section-card">
+                                <div class="config-section-head">
+                                    <h3>Watcher Policy</h3>
+                                    <span class="config-section-kicker">Backlog Controls</span>
+                                </div>
+                                <div class="config-form-grid">
+                                    <label class="config-field">
+                                        <span class="config-field-label">Drain Threshold</span>
+                                        <input id="enrich-drain-threshold" type="number" min="1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Forced Drain Wait (m)</span>
+                                        <input id="enrich-max-wait-minutes" type="number" min="1">
+                                    </label>
+                                    <label class="config-field config-field-wide">
+                                        <span class="config-field-label">Watcher Interval (m)</span>
+                                        <input id="enrich-watcher-interval" type="number" min="1">
+                                    </label>
+                                </div>
+                                <div class="scraper-summary-note">These watcher settings control when backlog is allowed to accumulate and when the drain run should be forced.</div>
+                            </section>
+                        </div>
+                        <section class="config-actions-row">
+                            <button id="btn-save-enrichment-linkedin-config" class="btn btn-primary" type="button">
+                                <i data-lucide="save"></i>
+                                Save LinkedIn Config
+                            </button>
+                            <button id="btn-reset-enrichment-linkedin-config" class="btn btn-secondary" type="button">
+                                <i data-lucide="rotate-ccw"></i>
+                                Reset
+                            </button>
+                            <div id="enrichment-linkedin-config-note" class="scraper-summary-note">LinkedIn enrichment settings apply to future watcher ticks and future drain runs.</div>
+                        </section>
+
+                    </section>
+
+                    <section class="config-subtab-panel" id="config-enrichment-subtab-keywords" role="tabpanel" aria-labelledby="config-enrichment-subtab-btn-keywords" data-config-subpanel="keywords" hidden>
+                        <div class="config-subtab-intro">
+                            <h3>Keyword + Scoring</h3>
+                            <p>Keyword detector and scoring/classifier live together because they share the same ultra-pipeline lane and watcher.</p>
+                        </div>
+                        <div class="config-subtab-grid">
+                            <section class="config-section-card config-section-card-wide">
+                                <div class="config-section-head">
+                                    <h3>Keyword Detector</h3>
+                                    <span class="config-section-kicker">Ultra Intake</span>
+                                </div>
+                                <div class="config-form-grid">
+                                    <label class="config-field">
+                                        <span class="config-field-label">Detector Batch Size</span>
+                                        <input id="keyword-batch-size" type="number" min="1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Request Timeout (s)</span>
+                                        <input id="keyword-timeout-seconds" type="number" min="1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Cat 3 Min Matches</span>
+                                        <input id="keyword-qualifier-min-matches" type="number" min="1">
+                                    </label>
+                                    <label class="config-field config-field-wide">
+                                        <span class="config-field-label">Watcher Trigger Threshold</span>
+                                        <input id="keyword-trigger-threshold" type="number" min="1">
+                                        <span class="config-field-meta">How many Ultra rows should accumulate before the watcher launches keyword detection and scoring.</span>
+                                    </label>
+                                    <div class="config-field-row config-field-wide">
+                                        <label class="config-field">
+                                            <span class="config-field-label">Relevance Keywords</span>
+                                            <textarea id="keyword-relevance-keywords" class="config-textarea config-textarea-lg" rows="10" placeholder="One keyword or phrase per line"></textarea>
+                                            <span class="config-field-meta">This preserves the old model: if any of these keywords appear, the lead stays in the qualified lane. If none appear, it falls to Cat 2.</span>
+                                        </label>
+                                        <label class="config-field">
+                                            <span class="config-field-label">Cat 3 Qualifier Keywords</span>
+                                            <textarea id="keyword-qualifier-keywords" class="config-textarea config-textarea-lg" rows="10" placeholder="One high-confidence qualifier per line"></textarea>
+                                            <span class="config-field-meta">If at least the configured minimum number of these terms are found, the lead is promoted into Cat 3.</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </section>
+                            <section class="config-section-card">
+                                <div class="config-section-head">
+                                    <h3>Scoring & Classifier</h3>
+                                    <span class="config-section-kicker">Settlement Flow</span>
+                                </div>
+                                <div class="config-form-grid">
+                                    <label class="config-field">
+                                        <span class="config-field-label">Scoring Batch Size</span>
+                                        <input id="scoring-batch-size" type="number" min="1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Watcher Interval (m)</span>
+                                        <input id="keyword-watcher-interval" type="number" min="1">
+                                    </label>
+                                    <label class="config-field config-field-wide">
+                                        <span class="config-field-label">Lock Timeout (m)</span>
+                                        <input id="keyword-lock-timeout" type="number" min="1">
+                                        <span class="config-field-meta">If the ultra watcher lock exceeds this age, it is treated as stale and can be auto-cleared on the next tick.</span>
+                                    </label>
+                                </div>
+                                <div class="scraper-summary-note">Cat 3 leads route into <strong>Alpha_high</strong>, <strong>Beta_high</strong>, or <strong>Gamma_high</strong>. I-gamma stays excluded from the high-confidence lane.</div>
+                            </section>
+                        </div>
+                        <section class="config-actions-row">
+                            <button id="btn-save-enrichment-keyword-config" class="btn btn-primary" type="button">
+                                <i data-lucide="save"></i>
+                                Save Keyword + Scoring Config
+                            </button>
+                            <button id="btn-reset-enrichment-keyword-config" class="btn btn-secondary" type="button">
+                                <i data-lucide="rotate-ccw"></i>
+                                Reset
+                            </button>
+                            <div id="enrichment-keyword-config-note" class="scraper-summary-note">Keyword and scoring changes apply to future ultra watcher ticks, detector runs, and classification runs.</div>
+                        </section>
+                    </section>
+
+                    <section class="config-subtab-panel" id="config-enrichment-subtab-scraperv3" role="tabpanel" aria-labelledby="config-enrichment-subtab-btn-scraperv3" data-config-subpanel="scraperv3" hidden>
+                        <div class="config-subtab-intro">
+                            <h3>Scraper V3</h3>
+                            <p>Configure how the final source-sheet scraper launches from Alpha/Beta/Gamma families, how long backlog can wait, and when a running lock should be considered stale.</p>
+                        </div>
+                        <div class="config-subtab-grid">
+                            <section class="config-section-card config-section-card-wide">
+                                <div class="config-section-head">
+                                    <h3>Runtime</h3>
+                                    <span class="config-section-kicker">Scraper Engine</span>
+                                </div>
+                                <div class="config-form-grid">
+                                    <label class="config-field">
+                                        <span class="config-field-label">Site Timeout (s)</span>
+                                        <input id="scraperv3-site-timeout" type="number" min="1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Concurrent Sites</span>
+                                        <input id="scraperv3-concurrent-sites" type="number" min="1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Playwright Limit</span>
+                                        <input id="scraperv3-playwright-limit" type="number" min="1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Playwright Concurrency</span>
+                                        <input id="scraperv3-playwright-concurrency" type="number" min="1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Subpage Limit</span>
+                                        <input id="scraperv3-subpage-limit" type="number" min="1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Level-2 Limit</span>
+                                        <input id="scraperv3-level2-limit" type="number" min="1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Evidence Probe Limit</span>
+                                        <input id="scraperv3-evidence-probe-limit" type="number" min="1">
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Output Write Chunk</span>
+                                        <input id="scraperv3-output-chunk-size" type="number" min="1">
+                                    </label>
+                                </div>
+                            </section>
+
+                            <section class="config-section-card config-section-card-wide">
+                                <div class="config-section-head">
+                                    <h3>Trigger Policy</h3>
+                                    <span class="config-section-kicker">Watcher</span>
+                                </div>
+                                <div class="config-form-grid">
+                                    <label class="config-field">
+                                        <span class="config-field-label">Alpha+Beta Trigger Threshold</span>
+                                        <input id="scraperv3-trigger-threshold" type="number" min="1">
+                                        <span class="config-field-meta">Only Alpha and Beta families count toward the trigger threshold. High tabs are included in those families.</span>
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Forced Run Wait (m)</span>
+                                        <input id="scraperv3-max-wait-minutes" type="number" min="1">
+                                        <span class="config-field-meta">If any backlog remains for this long, the watcher launches Scraper V3 even below threshold.</span>
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Watcher Interval (m)</span>
+                                        <input id="scraperv3-watcher-interval" type="number" min="1">
+                                        <span class="config-field-meta">How often the watcher checks the source Apps Script for ready rows.</span>
+                                    </label>
+                                    <label class="config-field">
+                                        <span class="config-field-label">Stale Lock Timeout (m)</span>
+                                        <input id="scraperv3-stale-lock-timeout" type="number" min="1">
+                                        <span class="config-field-meta">If a live lock exceeds this age, the dashboard marks Scraper V3 as stale for operator review.</span>
+                                    </label>
+                                </div>
+                            </section>
+                            <section class="config-section-card">
+                                <div class="config-section-head">
+                                    <h3>Source Logic</h3>
+                                    <span class="config-section-kicker">Operational Notes</span>
+                                </div>
+                                <div class="scraper-summary-note">Scraper V3 pulls from the source Apps Script, which now includes <strong>Alpha</strong>, <strong>Alpha_high</strong>, <strong>Beta</strong>, <strong>Beta_high</strong>, <strong>Gamma</strong>, and <strong>Gamma_high</strong>. Gamma family rows do not count toward the launch threshold, but they ride along in the batch once a run starts.</div>
+                            </section>
+                        </div>
+                        <section class="config-actions-row">
+                            <button id="btn-save-enrichment-scraperv3-config" class="btn btn-primary" type="button">
+                                <i data-lucide="save"></i>
+                                Save Scraper V3 Config
+                            </button>
+                            <button id="btn-reset-enrichment-scraperv3-config" class="btn btn-secondary" type="button">
+                                <i data-lucide="rotate-ccw"></i>
+                                Reset
+                            </button>
+                            <div id="enrichment-scraperv3-config-note" class="scraper-summary-note">Scraper V3 runtime and watcher settings apply to future runs, future watcher ticks, and stale-lock evaluation.</div>
+                        </section>
+                    </section>
+                </div>
+            </section>
+        </section>
+
+        <section class="panel config-tab-panel" id="config-tab-locations" role="tabpanel" aria-labelledby="config-tab-btn-locations" data-config-panel="locations" hidden>
+            <div class="config-panel-intro">
+                <h2>Locations</h2>
+                <p>Location sources, generation modes, and task-matrix inputs will live here, with the dedicated Locations page staying available for deeper workflows.</p>
+            </div>
+            <div class="main-grid">
+                <section class="panel">
+                    <h2>Source Sets</h2>
+                    <div class="scraper-summary-note">Active location files, generation presets, and source-selection rules will be wired here.</div>
+                </section>
+                <section class="panel">
+                    <h2>Workflow Link</h2>
+                    <div class="scraper-summary-note">This tab will summarize location settings and link out to the dedicated Locations page when deeper editing is needed.</div>
+                </section>
+            </div>
+        </section>
+
+        <section class="panel config-tab-panel" id="config-tab-sheets" role="tabpanel" aria-labelledby="config-tab-btn-sheets" data-config-panel="sheets" hidden>
+            <div class="config-panel-intro">
+                <h2>Google Sheets</h2>
+                <p>Manage pipeline-sheet rotation and the separate capacity policies for the critical sheets that feed, enrich, queue, and receive final output.</p>
+            </div>
+            <section class="config-subtabs-shell">
+                <div class="config-subtab-bar" role="tablist" aria-label="Google Sheets Areas">
+                    <button class="config-sheets-subtab is-active" type="button" role="tab" aria-selected="true" aria-controls="config-sheets-subtab-pipeline" id="config-sheets-subtab-btn-pipeline" data-config-sheets-subtab="pipeline">
+                        <i data-lucide="git-branch-plus"></i>
+                        <span>Pipeline</span>
+                    </button>
+                    <button class="config-sheets-subtab" type="button" role="tab" aria-selected="false" aria-controls="config-sheets-subtab-capacity" id="config-sheets-subtab-btn-capacity" data-config-sheets-subtab="capacity">
+                        <i data-lucide="gauge"></i>
+                        <span>Managed Capacity</span>
+                    </button>
+                    <button class="config-sheets-subtab" type="button" role="tab" aria-selected="false" aria-controls="config-sheets-subtab-source" id="config-sheets-subtab-btn-source" data-config-sheets-subtab="source">
+                        <i data-lucide="database-zap"></i>
+                        <span>Source Settlement</span>
+                    </button>
+                    <button class="config-sheets-subtab" type="button" role="tab" aria-selected="false" aria-controls="config-sheets-subtab-output" id="config-sheets-subtab-btn-output" data-config-sheets-subtab="output">
+                        <i data-lucide="inbox"></i>
+                        <span>Final Output</span>
+                    </button>
+                </div>
+
+                <div class="config-subtab-panels">
+                    <section class="config-sheets-subtab-panel is-active" id="config-sheets-subtab-pipeline" role="tabpanel" aria-labelledby="config-sheets-subtab-btn-pipeline" data-config-sheets-subpanel="pipeline">
+                        <section class="config-section-card config-section-card-wide">
+                            <div class="config-section-head">
+                                <h3>Pipeline Target</h3>
+                                <span class="config-section-kicker">Active Pipeline Sheet</span>
+                            </div>
+                            <div class="config-form-grid">
+                                <label class="config-field config-field-wide">
+                                    <span class="config-field-label">Share New Sheets With</span>
+                                    <div class="config-copy-row">
+                                        <input id="system-sheet-service-email" type="text" readonly>
+                                        <button id="btn-copy-system-service-email" class="btn btn-secondary btn-small" type="button">Copy</button>
+                                    </div>
+                                    <span class="config-field-meta">Add this service-account email to any delivery sheet you want the scraper to write into.</span>
+                                </label>
+                                <label class="config-field">
+                                    <span class="config-field-label">Active Pipeline Sheet</span>
+                                    <select id="system-active-pipeline-sheet"></select>
+                                </label>
+                                <div class="config-field">
+                                    <span class="config-field-label">Live Status</span>
+                                    <div id="system-active-pipeline-status" class="scraper-summary-note">--</div>
+                                </div>
+                            </div>
+                            <div class="config-actions-inline">
+                                <div id="system-pipeline-rotation-status" class="config-inline-note">No pending pipeline rotation.</div>
+                                <button id="btn-approve-pipeline-rotation" class="btn btn-warning btn-small" type="button" hidden>
+                                    <i data-lucide="check-check"></i>
+                                    Approve Move
+                                </button>
+                            </div>
+                        </section>
+
+                        <section class="config-section-card config-section-card-wide">
+                            <div class="config-section-head">
+                                <h3>Registered Pipeline Sheets</h3>
+                                <span class="config-section-kicker">Routing Pool</span>
+                            </div>
+                            <div id="pipeline-sheet-list" class="delivery-sheet-list"></div>
+                            <div class="config-actions-inline">
+                                <button id="btn-add-pipeline-sheet" class="btn btn-secondary" type="button">
+                                    <i data-lucide="plus"></i>
+                                    Add Pipeline Sheet
+                                </button>
+                                <div id="system-sheets-note" class="config-inline-note">Each row is a full pipeline sheet the scraper can feed. Set one active pipeline at a time.</div>
+                            </div>
+                        </section>
+                    </section>
+
+                    <section class="config-sheets-subtab-panel" id="config-sheets-subtab-capacity" role="tabpanel" aria-labelledby="config-sheets-subtab-btn-capacity" data-config-sheets-subpanel="capacity" hidden>
+                        <section class="config-section-card config-section-card-wide">
+                            <div class="config-section-head">
+                                <h3>Managed Capacity Sheets</h3>
+                                <span class="config-section-kicker">Warning + Defense</span>
+                            </div>
+                            <p class="config-section-copy">These are the other sheet surfaces we monitor for row-cap pressure. Each one can carry its own warning and hard-stop threshold instead of reusing the same policy everywhere.</p>
+                            <div id="managed-sheet-list" class="delivery-sheet-list"></div>
+                            <div class="config-actions-inline">
+                                <div id="system-managed-sheets-note" class="config-inline-note">Pipeline Inbox follows the active pipeline sheet automatically. Static entries are used for external sheets like the final output destination.</div>
+                            </div>
+                        </section>
+                    </section>
+
+                    <section class="config-sheets-subtab-panel" id="config-sheets-subtab-source" role="tabpanel" aria-labelledby="config-sheets-subtab-btn-source" data-config-sheets-subpanel="source" hidden>
+                        <section class="config-section-card config-section-card-wide">
+                            <div class="config-section-head">
+                                <h3>Active Source Settlement Sheet</h3>
+                                <span class="config-section-kicker">Current Source</span>
+                            </div>
+                            <div class="config-form-grid">
+                                <label class="config-field">
+                                    <span class="config-field-label">Active Sheet</span>
+                                    <select id="system-active-source-settlement-sheet"></select>
+                                </label>
+                                <div class="config-field">
+                                    <span class="config-field-label">Live Role</span>
+                                    <div id="system-active-source-settlement-status" class="scraper-summary-note">--</div>
+                                </div>
+                            </div>
+                            <div class="config-actions-inline">
+                                <div id="system-source-rotation-status" class="config-inline-note">No pending source-sheet rotation.</div>
+                                <button id="btn-approve-source-rotation" class="btn btn-warning btn-small" type="button" hidden>
+                                    <i data-lucide="check-check"></i>
+                                    Approve Move
+                                </button>
+                            </div>
+                        </section>
+                        <section class="config-section-card config-section-card-wide">
+                            <div class="config-section-head">
+                                <h3>Registered Source Settlement Sheets</h3>
+                                <span class="config-section-kicker">Alpha / Beta / Gamma Families</span>
+                            </div>
+                            <p class="config-section-copy">These are the live settlement sheets classification can write into and the source Apps Script can read from for Scraper V3. Older full sheets can stay registered while a new one becomes active.</p>
+                            <div id="source-settlement-sheet-list" class="delivery-sheet-list"></div>
+                            <div class="config-actions-inline">
+                                <button id="btn-add-source-settlement-sheet" class="btn btn-secondary" type="button">
+                                    <i data-lucide="plus"></i>
+                                    Add Source Sheet
+                                </button>
+                                <div id="system-source-settlement-note" class="config-inline-note">Keep previous source sheets registered so you can still inspect them after rotation.</div>
+                            </div>
+                        </section>
+                    </section>
+
+                    <section class="config-sheets-subtab-panel" id="config-sheets-subtab-output" role="tabpanel" aria-labelledby="config-sheets-subtab-btn-output" data-config-sheets-subpanel="output" hidden>
+                        <section class="config-section-card config-section-card-wide">
+                            <div class="config-section-head">
+                                <h3>Active Final Output Sheet</h3>
+                                <span class="config-section-kicker">Current Output</span>
+                            </div>
+                            <div class="config-form-grid">
+                                <label class="config-field">
+                                    <span class="config-field-label">Active Output Sheet</span>
+                                    <select id="system-active-output-target-sheet"></select>
+                                </label>
+                                <div class="config-field">
+                                    <span class="config-field-label">Live Role</span>
+                                    <div id="system-active-output-target-status" class="scraper-summary-note">--</div>
+                                </div>
+                            </div>
+                            <div class="config-actions-inline">
+                                <div id="system-output-rotation-status" class="config-inline-note">No pending output-sheet rotation.</div>
+                                <button id="btn-approve-output-rotation" class="btn btn-warning btn-small" type="button" hidden>
+                                    <i data-lucide="check-check"></i>
+                                    Approve Move
+                                </button>
+                            </div>
+                        </section>
+                        <section class="config-section-card config-section-card-wide">
+                            <div class="config-section-head">
+                                <h3>Registered Final Output Sheets</h3>
+                                <span class="config-section-kicker">Employee DB</span>
+                            </div>
+                            <p class="config-section-copy">These are the output sheets Scraper V3 can write into. Keep the old ones registered so previous delivery generations stay visible after rotation.</p>
+                            <div id="output-target-sheet-list" class="delivery-sheet-list"></div>
+                            <div class="config-actions-inline">
+                                <button id="btn-add-output-target-sheet" class="btn btn-secondary" type="button">
+                                    <i data-lucide="plus"></i>
+                                    Add Output Sheet
+                                </button>
+                                <div id="system-output-target-note" class="config-inline-note">Switch the active output sheet when the current Employee DB target nears capacity.</div>
+                            </div>
+                        </section>
+                    </section>
+                </div>
+            </section>
+
+            <section class="config-actions-row">
+                <button id="btn-save-system-sheets" class="btn btn-primary" type="button">
+                    <i data-lucide="save"></i>
+                    Save Sheet Registry
+                </button>
+                <button id="btn-reset-system-sheets" class="btn btn-secondary" type="button">
+                    <i data-lucide="rotate-ccw"></i>
+                    Reset
+                </button>
+                <div id="system-sheets-config-note" class="scraper-summary-note">Routing changes apply to future batch deliveries immediately, and managed-sheet thresholds update the shared warning and cap surfaces across the dashboard.</div>
+            </section>
+        </section>
+    </div>
+</section>
 {% endblock %}
 
 {% block scripts %}
-<script>lucide.createIcons();</script>
+<script src="/static/js/config.js"></script>
 {% endblock %}

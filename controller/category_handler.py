@@ -10,8 +10,10 @@ import sys
 import time
 from typing import Optional
 
-# Default timeout for category transition prompt (30 minutes)
-DEFAULT_TIMEOUT_MINUTES = 30
+try:
+    from Bots.maps_scraper.config import CATEGORY_ADVANCE_TIMEOUT_MINUTES as DEFAULT_TIMEOUT_MINUTES
+except Exception:
+    DEFAULT_TIMEOUT_MINUTES = 30
 
 
 def prompt_category_advance(timeout_minutes: int = DEFAULT_TIMEOUT_MINUTES) -> bool:

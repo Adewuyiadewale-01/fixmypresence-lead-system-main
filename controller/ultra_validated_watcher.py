@@ -13,6 +13,7 @@ Usage:
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -26,6 +27,37 @@ gspread = None
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
+
+_SYSTEM_CONFIG_PATH = Path(__file__).resolve().parents[1] / "Bots" / "common" / "system_config.json"
+
+
+def _read_system_config() -> dict:
+    try:
+        data = json.loads(_SYSTEM_CONFIG_PATH.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _get_keyword_watcher_config() -> dict:
+    config = _read_system_config()
+    enrichment = config.get("enrichment") if isinstance(config.get("enrichment"), dict) else {}
+    keyword_scoring = enrichment.get("keyword_scoring") if isinstance(enrichment.get("keyword_scoring"), dict) else {}
+    watcher = keyword_scoring.get("watcher") if isinstance(keyword_scoring.get("watcher"), dict) else {}
+    return watcher
+
+
+def _env_int(name: str, config_value, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw not in (None, ""):
+        try:
+            return int(raw)
+        except ValueError:
+            return default
+    try:
+        return int(config_value)
+    except (TypeError, ValueError):
+        return default
 
 CREDENTIALS_PATH = Path(
     os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "~/sheet-bot-key.json")
@@ -42,10 +74,11 @@ SCOPES = [
 
 # Watcher settings
 # Trigger when 50 rows are ready (website present, but no keyword status)
-TRIGGER_THRESHOLD = int(os.environ.get("ULTRA_TRIGGER_THRESHOLD", "50"))
-WATCHER_INTERVAL_MINUTES = int(os.environ.get("WATCHER_INTERVAL_MINUTES", "10"))
+_WATCHER_CONFIG = _get_keyword_watcher_config()
+TRIGGER_THRESHOLD = max(1, _env_int("ULTRA_TRIGGER_THRESHOLD", _WATCHER_CONFIG.get("trigger_threshold"), 50))
+WATCHER_INTERVAL_MINUTES = max(1, _env_int("WATCHER_INTERVAL_MINUTES", _WATCHER_CONFIG.get("watcher_interval_minutes"), 10))
 # Stale lock timeout - auto-clear locks older than this (prevents permanent blockage from crashes)
-LOCK_TIMEOUT_MINUTES = int(os.environ.get("LOCK_TIMEOUT_MINUTES", "30"))
+LOCK_TIMEOUT_MINUTES = max(1, _env_int("LOCK_TIMEOUT_MINUTES", _WATCHER_CONFIG.get("lock_timeout_minutes"), 30))
 
 # Paths
 _CONTROLLER_DIR = Path(__file__).parent
@@ -69,6 +102,7 @@ def _log(msg: str):
 
 def _auth_client():
     """Authenticate with Google Sheets (lazy import)."""
+    global gspread
     import gspread
     from google.oauth2 import service_account
     

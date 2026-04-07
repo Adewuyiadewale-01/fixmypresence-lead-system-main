@@ -15,17 +15,22 @@ import queue
 from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Set, Tuple, Optional, Dict
+from typing import Any, List, Set, Tuple, Optional, Dict
 from multiprocessing import Process, Queue
 
 from config import (
     ALL_KEYWORD_CATEGORIES,
     BATCH_SIZE,
+    BATCH_CRITICAL_ERROR_RATE,
+    BATCH_NORMAL_WEBSITE_RATE,
+    BATCH_NORMAL_YIELD,
+    BATCH_WARNING_ERROR_RATE,
+    BATCH_WARNING_WEBSITE_RATE,
+    BATCH_WARNING_YIELD,
     CATEGORY_STATE_FILE,
     INTER_REQUEST_DELAY_MIN,
     INTER_REQUEST_DELAY_MAX,
     KEYWORDS,
-    LOCATIONS,
     MASTER_OUTPUT,
     NUM_WORKERS,
     OUTPUT_DIR,
@@ -39,10 +44,24 @@ from config import (
     WORKER_STAGGER_DELAY_MIN,
     WORKER_STAGGER_DELAY_MAX,
     PLAYWRIGHT_USER_DATA,
+    SCRAPER_CALLOUTS_FILE,
     SCRAPER_HEALTH_FILE,
+    SCRAPER_STATS_FILE,
+    get_locations,
+    sync_location_source_now,
     WEBSITE_STATUS_WORKERS,
 )
 from utils import normalize_domain
+
+
+CALLOUTS_RETAIN_COUNT = 200
+CALLOUT_SIGNAL_NORMAL = "normal"
+CALLOUT_SIGNAL_WARNING = "warning"
+CALLOUT_SIGNAL_CRITICAL = "critical"
+PHASE_HEALTHY = "healthy"
+PHASE_WARNING = "warning"
+PHASE_CONFIRMING = "confirming"
+PHASE_PAUSED_CRITICAL = "paused_critical"
 
 
 # ============================================================================
@@ -64,6 +83,32 @@ def _pid_is_alive(pid: int) -> bool:
         return True
     except OSError:
         return False
+
+
+def _append_jsonl(path: Path, payload: dict):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+
+def _tail_valid_jsonl(path: Path, limit: int) -> List[dict]:
+    if not path.exists():
+        return []
+    items: List[dict] = []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(data, dict):
+                    items.append(data)
+    except OSError:
+        return []
+    return items[-limit:]
 
 def _load_category_state() -> int:
     """Load the current category index from state file. Returns 0 if not found."""
@@ -246,11 +291,23 @@ class ParallelOrchestrator:
         self.pending_batch_path = PENDING_BATCH_FILE
         self.run_lock_path = RUN_LOCK_FILE
         self.health_path = SCRAPER_HEALTH_FILE
+        self.callouts_path = SCRAPER_CALLOUTS_FILE
+        self.stats_path = SCRAPER_STATS_FILE
         self._health_started_at: Optional[str] = None
         self._health_ended_at: Optional[str] = None
         self._health_last_activity: Optional[str] = None
+        self._health_phase = PHASE_HEALTHY
         self._captcha_count = 0
         self._error_count = 0
+        self._run_searches = 0
+        self._run_leads = 0
+        self._run_batches = 0
+        self._run_website_found = 0
+        self._run_website_total = 0
+        self._current_batch_number = 0
+        self._pending_critical_signals: Dict[str, Dict[str, Any]] = {}
+        self._last_callout_severity: Optional[str] = None
+        self._all_time_stats = self._load_all_time_stats()
         
         # Load existing leads to prevent duplicates across runs
         self._load_existing_leads()
@@ -259,14 +316,161 @@ class ParallelOrchestrator:
     def _utc_now_iso() -> str:
         return datetime.now(timezone.utc).isoformat()
 
+    @staticmethod
+    def _new_batch_observation() -> Dict[str, int]:
+        return {
+            "searches": 0,
+            "captchas": 0,
+            "errors": 0,
+            "unique_leads": 0,
+        }
+
+    def _default_all_time_stats(self) -> Dict[str, Optional[int]]:
+        return {
+            "total_searches": None,
+            "total_leads": None,
+            "total_batches": None,
+            "total_website_found": None,
+            "total_website_total": None,
+            "total_captchas": None,
+            "total_errors": None,
+        }
+
+    def _derive_existing_all_time_stats(self) -> Dict[str, Optional[int]]:
+        stats = self._default_all_time_stats()
+
+        if TASKS_PROGRESS_FILE.exists():
+            try:
+                with open(TASKS_PROGRESS_FILE, "r", encoding="utf-8") as f:
+                    stats["total_searches"] = sum(1 for line in f if line.strip())
+            except OSError:
+                stats["total_searches"] = None
+        else:
+            stats["total_searches"] = 0
+
+        if MASTER_OUTPUT.exists():
+            try:
+                import csv
+
+                total_rows = 0
+                website_found = 0
+                with open(MASTER_OUTPUT, "r", encoding="utf-8", newline="") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        total_rows += 1
+                        if (row.get("website") or "").strip():
+                            website_found += 1
+                stats["total_leads"] = total_rows
+                stats["total_website_total"] = total_rows
+                stats["total_website_found"] = website_found
+            except OSError:
+                stats["total_leads"] = None
+                stats["total_website_total"] = None
+                stats["total_website_found"] = None
+        else:
+            stats["total_leads"] = 0
+            stats["total_website_total"] = 0
+            stats["total_website_found"] = 0
+
+        if OUTPUT_DIR.exists():
+            try:
+                stats["total_batches"] = len(list(OUTPUT_DIR.glob("leads_batch_*.csv")))
+            except OSError:
+                stats["total_batches"] = None
+        else:
+            stats["total_batches"] = 0
+
+        return stats
+
+    def _load_all_time_stats(self) -> Dict[str, Optional[int]]:
+        stats = self._derive_existing_all_time_stats()
+        if self.stats_path.exists():
+            try:
+                payload = json.loads(self.stats_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                payload = {}
+            if isinstance(payload, dict):
+                for key in stats:
+                    if key in payload:
+                        stats[key] = payload.get(key)
+        return stats
+
+    def _write_all_time_stats(self):
+        try:
+            _atomic_write_json(self.stats_path, self._all_time_stats)
+        except Exception as e:
+            print(f"⚠️ Could not write scraper stats: {e}")
+
+    def _increment_all_time_stat(self, key: str, amount: int):
+        current = self._all_time_stats.get(key)
+        if current is None:
+            current = 0
+        self._all_time_stats[key] = current + amount
+
+    def _trim_callouts_file(self):
+        items = _tail_valid_jsonl(self.callouts_path, CALLOUTS_RETAIN_COUNT)
+        if not items:
+            if self.callouts_path.exists():
+                try:
+                    self.callouts_path.unlink()
+                except OSError:
+                    pass
+            return
+        try:
+            self.callouts_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.callouts_path, "w", encoding="utf-8") as f:
+                for item in items:
+                    f.write(json.dumps(item, ensure_ascii=False) + "\n")
+        except OSError as e:
+            print(f"⚠️ Could not trim scraper callouts: {e}")
+
+    def _append_callout(
+        self,
+        severity: str,
+        signal_type: str,
+        batch_number: int,
+        message: str,
+        details: Dict[str, Any],
+        action: str,
+        confirmed: bool = False,
+        window: str = "batch",
+    ):
+        payload = {
+            "timestamp": self._utc_now_iso(),
+            "severity": severity,
+            "signal_type": signal_type,
+            "window": window,
+            "batch_number": batch_number,
+            "message": message,
+            "details": details,
+            "action": action,
+            "confirmed": confirmed,
+        }
+        try:
+            _append_jsonl(self.callouts_path, payload)
+            self._last_callout_severity = severity
+        except OSError as e:
+            print(f"⚠️ Could not write scraper callout: {e}")
+
+    def _set_phase(self, phase: str):
+        self._health_phase = phase
+        self._mark_activity()
+
     def _write_health(self):
         payload = {
             "pid": os.getpid(),
             "started_at": self._health_started_at,
             "ended_at": self._health_ended_at,
             "last_activity": self._health_last_activity,
+            "current_phase": self._health_phase,
             "captcha_count": self._captcha_count,
             "error_count": self._error_count,
+            "run_searches": self._run_searches,
+            "run_leads": self._run_leads,
+            "run_batches": self._run_batches,
+            "run_website_found": self._run_website_found,
+            "run_website_total": self._run_website_total,
+            "current_batch_number": self._current_batch_number,
         }
         try:
             _atomic_write_json(self.health_path, payload)
@@ -276,14 +480,26 @@ class ParallelOrchestrator:
     def _mark_activity(self):
         self._health_last_activity = self._utc_now_iso()
         self._write_health()
+        self._write_all_time_stats()
 
     def _start_health_tracking(self):
+        self._trim_callouts_file()
         self._health_started_at = self._utc_now_iso()
         self._health_ended_at = None
         self._health_last_activity = self._health_started_at
+        self._health_phase = PHASE_HEALTHY
         self._captcha_count = 0
         self._error_count = 0
+        self._run_searches = 0
+        self._run_leads = 0
+        self._run_batches = 0
+        self._run_website_found = 0
+        self._run_website_total = 0
+        self._current_batch_number = self.batch_number
+        self._pending_critical_signals = {}
+        self._last_callout_severity = None
         self._write_health()
+        self._write_all_time_stats()
 
     def _finish_health_tracking(self):
         if not self._health_started_at:
@@ -546,9 +762,9 @@ class ParallelOrchestrator:
         self,
         current_batch: List[dict],
         tasks_completed: int,
-    ) -> Tuple[List[dict], int, bool]:
+        batch_obs: Dict[str, int],
+    ) -> Tuple[List[dict], int]:
         """Drain already-finished worker results after pausing workers."""
-        captcha_detected = False
         while self.result_queue:
             try:
                 result = self.result_queue.get_nowait()
@@ -557,15 +773,13 @@ class ParallelOrchestrator:
 
             tasks_completed += 1
             if result.captcha_detected:
-                self._captcha_count += 1
-                self._mark_activity()
-                captcha_detected = True
+                self._record_result_observation(batch_obs, captcha=True)
                 continue
             if result.error and not result.captcha_detected:
-                self._error_count += 1
-                self._mark_activity()
+                self._record_result_observation(batch_obs, errored=True)
                 continue
 
+            self._record_result_observation(batch_obs)
             unique_leads = []
             for lead_dict in result.leads:
                 if self._dedupe_lead(lead_dict):
@@ -573,12 +787,13 @@ class ParallelOrchestrator:
 
             if unique_leads:
                 current_batch.extend(unique_leads)
+                self._record_unique_leads(batch_obs, unique_leads)
 
             self._save_pending_batch(current_batch)
             self._save_completed_task(result.keyword, result.location)
             self._mark_activity()
 
-        return current_batch, tasks_completed, captcha_detected
+        return current_batch, tasks_completed
     
     def _dedupe_lead(self, lead_dict: dict) -> bool:
         """Check if lead is unique. Returns True if unique, False if duplicate."""
@@ -640,6 +855,186 @@ class ParallelOrchestrator:
         except Exception as e:
             print(f"⚠️ Could not save completed task: {e}")
 
+    def _record_result_observation(self, batch_obs: Dict[str, int], *, captcha: bool = False, errored: bool = False):
+        self._run_searches += 1
+        self._increment_all_time_stat("total_searches", 1)
+        batch_obs["searches"] += 1
+        if captcha:
+            self._captcha_count += 1
+            self._increment_all_time_stat("total_captchas", 1)
+            batch_obs["captchas"] += 1
+        if errored:
+            self._error_count += 1
+            self._increment_all_time_stat("total_errors", 1)
+            batch_obs["errors"] += 1
+        self._mark_activity()
+
+    def _record_unique_leads(self, batch_obs: Dict[str, int], unique_leads: List[dict]):
+        if not unique_leads:
+            return
+        lead_count = len(unique_leads)
+        self._run_leads += lead_count
+        batch_obs["unique_leads"] += lead_count
+
+    def _classify_batch_signals(self, batch_obs: Dict[str, int], batch_metrics: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+        searches = batch_obs.get("searches", 0)
+        captchas = batch_obs.get("captchas", 0)
+        errors = batch_obs.get("errors", 0)
+        leads = batch_metrics.get("leads", 0) or 0
+        website_total = batch_metrics.get("website_total", 0) or 0
+        website_found = batch_metrics.get("website_found", 0) or 0
+
+        signals: Dict[str, Dict[str, Any]] = {}
+        error_rate = (errors / searches * 100.0) if searches > 0 else None
+        website_rate = (website_found / website_total * 100.0) if website_total > 0 else None
+        yield_rate = (leads / searches * 100.0) if searches > 0 else None
+
+        if captchas >= 2:
+            signals["captcha"] = {"severity": CALLOUT_SIGNAL_CRITICAL, "details": {"captchas": captchas, "searches": searches}}
+        elif captchas == 1:
+            signals["captcha"] = {"severity": CALLOUT_SIGNAL_WARNING, "details": {"captchas": captchas, "searches": searches}}
+
+        if error_rate is not None:
+            if error_rate > BATCH_CRITICAL_ERROR_RATE:
+                signals["error_rate"] = {"severity": CALLOUT_SIGNAL_CRITICAL, "details": {"errors": errors, "searches": searches, "error_rate": round(error_rate, 1)}}
+            elif error_rate >= BATCH_WARNING_ERROR_RATE:
+                signals["error_rate"] = {"severity": CALLOUT_SIGNAL_WARNING, "details": {"errors": errors, "searches": searches, "error_rate": round(error_rate, 1)}}
+
+        if website_rate is not None:
+            if website_rate < BATCH_WARNING_WEBSITE_RATE:
+                signals["website_rate"] = {"severity": CALLOUT_SIGNAL_CRITICAL, "details": {"website_found": website_found, "website_total": website_total, "website_rate": round(website_rate, 1)}}
+            elif website_rate <= BATCH_NORMAL_WEBSITE_RATE:
+                signals["website_rate"] = {"severity": CALLOUT_SIGNAL_WARNING, "details": {"website_found": website_found, "website_total": website_total, "website_rate": round(website_rate, 1)}}
+
+        if yield_rate is not None:
+            if yield_rate < BATCH_WARNING_YIELD:
+                signals["yield"] = {"severity": CALLOUT_SIGNAL_CRITICAL, "details": {"leads": leads, "searches": searches, "yield_per_100": round(yield_rate, 1)}}
+            elif yield_rate <= BATCH_NORMAL_YIELD:
+                signals["yield"] = {"severity": CALLOUT_SIGNAL_WARNING, "details": {"leads": leads, "searches": searches, "yield_per_100": round(yield_rate, 1)}}
+
+        return signals
+
+    def _signal_message(self, signal_type: str, details: Dict[str, Any], batch_number: int, *, confirmed: bool = False, batch_specific: bool = False) -> str:
+        prefix = f"Batch {batch_number}"
+        if signal_type == "captcha":
+            base = f"{prefix} saw {details.get('captchas', 0)} captcha event(s)"
+        elif signal_type == "error_rate":
+            base = f"{prefix} saw {details.get('error_rate', 0):.1f}% worker error rate"
+        elif signal_type == "website_rate":
+            base = f"{prefix} landed at {details.get('website_rate', 0):.1f}% website-found rate"
+        elif signal_type == "yield":
+            base = f"{prefix} yielded {details.get('yield_per_100', 0):.1f} leads per 100 searches"
+        else:
+            base = f"{prefix} triggered a scraper system signal"
+
+        if confirmed:
+            return f"{base}. Confirmed across consecutive batches; scraper auto-paused for review."
+        if batch_specific:
+            return f"{base}. The next batch recovered, so the signal looks batch-specific."
+        return f"{base}. Watching the next batch before escalating."
+
+    def _maybe_emit_normal_callout(self, batch_number: int, batch_obs: Dict[str, int], batch_metrics: Dict[str, Any]):
+        if self._last_callout_severity == CALLOUT_SIGNAL_NORMAL and not self._pending_critical_signals:
+            return
+        searches = batch_obs.get("searches", 0)
+        website_total = batch_metrics.get("website_total", 0) or 0
+        website_found = batch_metrics.get("website_found", 0) or 0
+        leads = batch_metrics.get("leads", 0) or 0
+        yield_rate = round((leads / searches) * 100.0, 1) if searches > 0 else None
+        website_rate = round((website_found / website_total) * 100.0, 1) if website_total > 0 else None
+        message = f"Batch {batch_number} completed cleanly and the current run looks healthy."
+        self._append_callout(
+            CALLOUT_SIGNAL_NORMAL,
+            "system",
+            batch_number,
+            message,
+            {
+                "searches": searches,
+                "leads": leads,
+                "yield_per_100": yield_rate,
+                "website_rate": website_rate,
+            },
+            action="continue",
+            confirmed=False,
+        )
+
+    def _evaluate_batch_signals(self, batch_obs: Dict[str, int], batch_metrics: Dict[str, Any]) -> bool:
+        batch_number = batch_metrics.get("batch_number", self.batch_number)
+        signals = self._classify_batch_signals(batch_obs, batch_metrics)
+        criticals = {k: v for k, v in signals.items() if v["severity"] == CALLOUT_SIGNAL_CRITICAL}
+        warnings = {k: v for k, v in signals.items() if v["severity"] == CALLOUT_SIGNAL_WARNING}
+        auto_pause = False
+
+        for signal_type, pending in list(self._pending_critical_signals.items()):
+            if signal_type in criticals:
+                details = dict(criticals[signal_type]["details"])
+                details["previous_batch_number"] = pending.get("batch_number")
+                self._append_callout(
+                    CALLOUT_SIGNAL_CRITICAL,
+                    signal_type,
+                    batch_number,
+                    self._signal_message(signal_type, criticals[signal_type]["details"], batch_number, confirmed=True),
+                    details,
+                    action="auto_paused",
+                    confirmed=True,
+                )
+                auto_pause = True
+            else:
+                self._append_callout(
+                    CALLOUT_SIGNAL_WARNING,
+                    signal_type,
+                    batch_number,
+                    self._signal_message(signal_type, pending.get("details", {}), pending.get("batch_number", batch_number), batch_specific=True),
+                    {
+                        **pending.get("details", {}),
+                        "resolved_by_batch": batch_number,
+                    },
+                    action="continue",
+                    confirmed=False,
+                )
+            self._pending_critical_signals.pop(signal_type, None)
+
+        for signal_type, payload in criticals.items():
+            if auto_pause:
+                continue
+            self._pending_critical_signals[signal_type] = {
+                "batch_number": batch_number,
+                "details": payload["details"],
+            }
+            self._append_callout(
+                CALLOUT_SIGNAL_CRITICAL,
+                signal_type,
+                batch_number,
+                self._signal_message(signal_type, payload["details"], batch_number),
+                payload["details"],
+                action="confirming",
+                confirmed=False,
+            )
+
+        for signal_type, payload in warnings.items():
+            self._append_callout(
+                CALLOUT_SIGNAL_WARNING,
+                signal_type,
+                batch_number,
+                self._signal_message(signal_type, payload["details"], batch_number).replace("Watching the next batch before escalating.", "Continuing with a warning."),
+                payload["details"],
+                action="continue",
+                confirmed=False,
+            )
+
+        if auto_pause:
+            self._health_phase = PHASE_PAUSED_CRITICAL
+        elif self._pending_critical_signals:
+            self._health_phase = PHASE_CONFIRMING
+        elif warnings:
+            self._health_phase = PHASE_WARNING
+        else:
+            self._health_phase = PHASE_HEALTHY
+            self._maybe_emit_normal_callout(batch_number, batch_obs, batch_metrics)
+
+        self._mark_activity()
+        return auto_pause
+
     def _generate_tasks(self) -> List[Tuple[str, str]]:
         """Generate keyword × location combinations, skipping completed ones."""
         # Use current category keywords instead of hardcoded KEYWORDS
@@ -647,8 +1042,9 @@ class ParallelOrchestrator:
         category_index = _load_category_state()
         print(f"📂 Using Category {category_index + 1} keywords: {current_keywords}")
         
+        current_locations = get_locations()
         all_tasks = []
-        for location in LOCATIONS:
+        for location in current_locations:
             for keyword in current_keywords:
                 all_tasks.append((keyword, location))
         
@@ -664,7 +1060,7 @@ class ParallelOrchestrator:
             
         return needed_tasks
     
-    def _process_batch(self, batch: List[dict], master_path: Path) -> bool:
+    def _process_batch(self, batch: List[dict], master_path: Path) -> Tuple[bool, Optional[Dict[str, Any]], bool]:
         """Validate, upload, and persist a completed batch."""
         from utils import Lead, append_to_master, export_batch
         from webhook import send_batch_to_webhook
@@ -690,15 +1086,78 @@ class ParallelOrchestrator:
             )
             validated_leads.append(lead)
 
-        if not send_batch_to_webhook(self.batch_number, validated_leads):
+        delivery_result = send_batch_to_webhook(self.batch_number, validated_leads)
+        if not delivery_result.get("ok"):
+            if delivery_result.get("blocked") and delivery_result.get("reason") == "sheet_capacity_reached":
+                sheet_status = delivery_result.get("sheet_status") or {}
+                label = sheet_status.get("sheet_label") or "Delivery sheet"
+                tab_name = sheet_status.get("tab_name") or "Leads"
+                projected = sheet_status.get("projected_rows")
+                stop_threshold = sheet_status.get("stop_row_threshold")
+                self._append_callout(
+                    CALLOUT_SIGNAL_CRITICAL,
+                    "pipeline_sheet",
+                    self.batch_number,
+                    f"{label} / {tab_name} reached the configured stop threshold ({projected}/{stop_threshold}). Scraper paused until a new pipeline sheet is configured.",
+                    dict(sheet_status),
+                    action="auto_paused",
+                    confirmed=True,
+                    window="run",
+                )
+                self._health_phase = PHASE_PAUSED_CRITICAL
+                self._mark_activity()
+                self.batch_number -= 1
+                return False, None, True
+
             self.batch_number -= 1
-            return False
+            return False, None, False
 
         # Export only after remote delivery succeeds so local state mirrors pipeline state.
         destination = OUTPUT_DIR / f"leads_batch_{self.batch_number:03d}.csv"
         export_batch(validated_leads, destination)
         append_to_master(master_path, validated_leads)
+        website_found = sum(1 for lead in validated_leads if lead.website)
+        website_total = len(validated_leads)
+        self._run_batches += 1
+        self._run_website_found += website_found
+        self._run_website_total += website_total
+        self._current_batch_number = self.batch_number
+        self._increment_all_time_stat("total_leads", len(validated_leads))
+        self._increment_all_time_stat("total_batches", 1)
+        self._increment_all_time_stat("total_website_found", website_found)
+        self._increment_all_time_stat("total_website_total", website_total)
         self._mark_activity()
+
+        sheet_status = delivery_result.get("sheet_status") or {}
+        if sheet_status.get("warning"):
+            label = sheet_status.get("sheet_label") or "Delivery sheet"
+            tab_name = sheet_status.get("tab_name") or "Leads"
+            current_rows = sheet_status.get("current_rows")
+            warning_threshold = sheet_status.get("warning_row_threshold")
+            rows_remaining = sheet_status.get("rows_remaining_to_stop")
+            self._append_callout(
+                CALLOUT_SIGNAL_WARNING,
+                "pipeline_sheet",
+                self.batch_number,
+                f"{label} / {tab_name} is approaching its row cap ({current_rows}/{warning_threshold}+). {rows_remaining} rows remain before the stop threshold.",
+                dict(sheet_status),
+                action="continue",
+                confirmed=False,
+                window="run",
+            )
+
+        stage2_status = delivery_result.get("stage2") or {}
+        if stage2_status and not stage2_status.get("ok"):
+            self._append_callout(
+                CALLOUT_SIGNAL_WARNING,
+                "pipeline_stage2",
+                self.batch_number,
+                f"Stage 2 sorter did not confirm successfully after batch delivery. {stage2_status.get('message') or 'Manual review may be needed.'}",
+                dict(stage2_status),
+                action="continue",
+                confirmed=False,
+                window="run",
+            )
         
         # Summary
         print(f"\n--- Batch {self.batch_number} ({len(validated_leads)} leads) ---")
@@ -710,7 +1169,12 @@ class ParallelOrchestrator:
         
         print(f"Saved batch {self.batch_number} → {destination}")
         print(f"Updated consolidated dataset → {master_path}")
-        return True
+        return True, {
+            "batch_number": self.batch_number,
+            "leads": len(validated_leads),
+            "website_found": website_found,
+            "website_total": website_total,
+        }, False
     
     def run(self):
         """Main execution loop with parallel task distribution."""
@@ -721,7 +1185,7 @@ class ParallelOrchestrator:
         total_tasks = len(tasks)
         
         if total_tasks == 0:
-            print("No tasks to execute. Check LOCATIONS and KEYWORDS in config.")
+            print("No tasks to execute. Check active locations and keywords in config.")
             return
 
         self._start_health_tracking()
@@ -736,21 +1200,30 @@ class ParallelOrchestrator:
         self._register_pending_batch(current_batch)
         tasks_sent = 0
         tasks_completed = 0
-        captcha_abort = False
         stop_requested = False
         workers_paused = False
+        batch_obs = self._new_batch_observation()
         
         try:
             while len(current_batch) >= target_batch_size:
                 batch_to_process = current_batch[:target_batch_size]
                 current_batch = current_batch[target_batch_size:]
-                if self._process_batch(batch_to_process, master_path):
+                success, batch_metrics, force_stop = self._process_batch(batch_to_process, master_path)
+                if success:
+                    if batch_metrics and batch_obs.get("searches", 0) > 0:
+                        stop_requested = self._evaluate_batch_signals(batch_obs, batch_metrics) or stop_requested
+                    batch_obs = self._new_batch_observation()
                     self._save_pending_batch(current_batch)
                 else:
                     current_batch = batch_to_process + current_batch
                     self._save_pending_batch(current_batch)
-                    print("❌ Could not deliver restored pending batch. Stopping to avoid data loss.")
+                    if force_stop:
+                        print("🛑 Delivery sheet cap reached. Stopping cleanly until a new sheet is configured.")
+                    else:
+                        print("❌ Could not deliver restored pending batch. Stopping to avoid data loss.")
                     return
+                if stop_requested:
+                    break
 
             # Send initial tasks
             tasks_sent = self._seed_tasks(tasks, tasks_sent, tasks_completed)
@@ -758,18 +1231,29 @@ class ParallelOrchestrator:
             print(f"=== Started processing {tasks_sent} tasks ===\n")
             
             # Process results and send more tasks
-            while tasks_completed < total_tasks and not captcha_abort:
+            while tasks_completed < total_tasks and not stop_requested:
                 if len(current_batch) >= target_batch_size:
                     batch_to_process = current_batch[:target_batch_size]
                     remaining_batch = current_batch[target_batch_size:]
-                    if self._process_batch(batch_to_process, master_path):
+                    success, batch_metrics, force_stop = self._process_batch(batch_to_process, master_path)
+                    if success:
+                        if batch_metrics:
+                            stop_requested = self._evaluate_batch_signals(batch_obs, batch_metrics) or stop_requested
+                        batch_obs = self._new_batch_observation()
                         current_batch = remaining_batch
                         self._save_pending_batch(current_batch)
                     else:
                         current_batch = batch_to_process + remaining_batch
                         self._save_pending_batch(current_batch)
-                        print("❌ Webhook delivery failed. Stopping to preserve buffered leads.")
+                        if force_stop:
+                            print("🛑 Delivery sheet cap reached. Pausing the scraper until a new delivery sheet is configured.")
+                        else:
+                            print("❌ Delivery failed. Stopping to preserve buffered leads.")
                         stop_requested = True
+                        break
+
+                    if stop_requested:
+                        print(f"\n🛑 Batch {self.batch_number} confirmed a critical scraper signal. Auto-pausing for review.")
                         break
 
                     if self.continuous:
@@ -777,11 +1261,11 @@ class ParallelOrchestrator:
                     else:
                         # Quiesce workers before prompting so no extra scrape work happens in the background.
                         self.stop_workers()
-                        current_batch, tasks_completed, drained_captcha = self._drain_completed_results(
+                        current_batch, tasks_completed = self._drain_completed_results(
                             current_batch,
                             tasks_completed,
+                            batch_obs,
                         )
-                        captcha_abort = captcha_abort or drained_captcha
                         self._save_pending_batch(current_batch)
 
                         print(f"\nBatch {self.batch_number} ready. Press Enter for next {target_batch_size} leads or 'q' to stop:", end=" ")
@@ -797,7 +1281,7 @@ class ParallelOrchestrator:
                         workers_paused = True
                         continue
 
-                if workers_paused and not captcha_abort and not stop_requested and tasks_sent < total_tasks:
+                if workers_paused and not stop_requested and tasks_sent < total_tasks:
                     self.start_workers()
                     tasks_sent = self._seed_tasks(tasks, tasks_sent, tasks_completed)
                     workers_paused = False
@@ -807,17 +1291,15 @@ class ParallelOrchestrator:
                     tasks_completed += 1
                     
                     if result.captcha_detected:
-                        self._captcha_count += 1
-                        self._mark_activity()
-                        print("\n🛑 CAPTCHA detected - aborting to protect session.")
-                        captcha_abort = True
-                        break
+                        self._record_result_observation(batch_obs, captcha=True)
+                        print(f"   [W{result.worker_id + 1}] CAPTCHA detected; recording for batch evaluation.")
+                        continue
                     
                     if result.error and not result.captcha_detected:
-                        self._error_count += 1
-                        self._mark_activity()
+                        self._record_result_observation(batch_obs, errored=True)
                         print(f"   [W{result.worker_id + 1}] Skipping due to error")
                     else:
+                        self._record_result_observation(batch_obs)
                         # Process leads with deduplication
                         unique_leads = []
                         for lead_dict in result.leads:
@@ -826,6 +1308,7 @@ class ParallelOrchestrator:
 
                         if unique_leads:
                             current_batch.extend(unique_leads)
+                            self._record_unique_leads(batch_obs, unique_leads)
 
                         # Persist buffered leads before marking the task completed.
                         self._save_pending_batch(current_batch)
@@ -838,6 +1321,8 @@ class ParallelOrchestrator:
                         
                 except queue.Empty:
                     self._error_count += 1
+                    self._increment_all_time_stat("total_errors", 1)
+                    batch_obs["errors"] += 1
                     self._mark_activity()
                     print("⚠️ Timeout waiting for worker results. Checking worker status...")
                     # Check if workers are still alive
@@ -847,12 +1332,18 @@ class ParallelOrchestrator:
                         break
             
             # Final batch
-            if current_batch and not captcha_abort and not stop_requested:
-                if self._process_batch(current_batch, master_path):
+            if current_batch and not stop_requested:
+                success, batch_metrics, force_stop = self._process_batch(current_batch, master_path)
+                if success:
+                    if batch_metrics:
+                        stop_requested = self._evaluate_batch_signals(batch_obs, batch_metrics) or stop_requested
                     self._save_pending_batch([])
                 else:
                     self._save_pending_batch(current_batch)
-                    print("❌ Final batch delivery failed. Buffered leads were preserved for retry.")
+                    if force_stop:
+                        print("🛑 Delivery sheet cap reached during final flush. Buffered leads were preserved for retry after sheet rotation.")
+                    else:
+                        print("❌ Final batch delivery failed. Buffered leads were preserved for retry.")
             else:
                 self._save_pending_batch(current_batch)
                 
@@ -871,6 +1362,11 @@ def run_parallel(headless: bool = False, next_category: bool = False, continuous
         continuous: Skip batch prompts (for non-interactive runs like dashboard)
     """
     
+    try:
+        sync_location_source_now(respect_delay=True)
+    except Exception as exc:
+        print(f"⚠️ Could not refresh sheet-backed locations before run start: {exc}")
+
     # Handle --next-category flag
     if next_category:
         _advance_to_next_category()

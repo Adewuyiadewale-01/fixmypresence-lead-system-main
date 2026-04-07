@@ -1,12 +1,84 @@
 """Configuration for the Google Maps lead scraper."""
 
+import json
 import sys
 from pathlib import Path
 
 # Add Bots folder to path so common module can be found
-_BOTS_DIR = Path(__file__).parent.parent
+_SCRAPER_DIR = Path(__file__).parent
+_BOTS_DIR = _SCRAPER_DIR.parent
 if str(_BOTS_DIR) not in sys.path:
     sys.path.insert(0, str(_BOTS_DIR))
+
+CONFIG_OVERRIDES_FILE = _SCRAPER_DIR / "config_overrides.json"
+
+
+def _read_overrides() -> dict:
+    if not CONFIG_OVERRIDES_FILE.exists():
+        return {}
+    try:
+        data = json.loads(CONFIG_OVERRIDES_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _write_overrides(data: dict) -> None:
+    tmp = CONFIG_OVERRIDES_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(CONFIG_OVERRIDES_FILE)
+
+
+def _as_int(value, default: int, minimum: int = 0) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, parsed)
+
+
+def _as_float(value, default: float, minimum: float = 0.0) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, parsed)
+
+
+def _as_bool(value, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "on"}:
+        return True
+    if text in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
+def _clean_string_list(values) -> list[str]:
+    if not isinstance(values, list):
+        return []
+    cleaned: list[str] = []
+    for item in values:
+        text = str(item).strip()
+        if text:
+            cleaned.append(text)
+    return cleaned
+
+
+def _clean_keyword_categories(values, fallback: list[list[str]]) -> list[list[str]]:
+    if not isinstance(values, list):
+        return [list(group) for group in fallback]
+
+    cleaned: list[list[str]] = []
+    for idx in range(4):
+        group = values[idx] if idx < len(values) else []
+        parsed = _clean_string_list(group if isinstance(group, list) else [])
+        cleaned.append(parsed or list(fallback[idx]))
+    return cleaned
 
 
 # ============================================================================
@@ -498,7 +570,7 @@ _FULL_LOCATIONS = [
 ]
 
 # Public alias for locations (used by progress_status.py)
-LOCATIONS = _FULL_LOCATIONS
+_DEFAULT_LOCATIONS = list(_FULL_LOCATIONS)
 
 # Keywords organized by category - scraper processes one category at a time.
 # Use --next-category to advance to the next category.
@@ -535,13 +607,139 @@ KEYWORD_CATEGORY_4 = [
 ]
 
 # All categories in processing order
-ALL_KEYWORD_CATEGORIES = [
+_DEFAULT_KEYWORD_CATEGORIES = [
     KEYWORD_CATEGORY_1,
     KEYWORD_CATEGORY_2,
     KEYWORD_CATEGORY_3,
     KEYWORD_CATEGORY_4,
 ]
 
+_OVERRIDES = _read_overrides()
+
+LOCATION_SOURCE_MODE_INLINE = "inline"
+LOCATION_SOURCE_MODE_SHEET = "sheet_csv"
+
+
+def _clean_location_source(value: dict | None) -> dict:
+    data = value if isinstance(value, dict) else {}
+    mode = str(data.get("mode") or LOCATION_SOURCE_MODE_INLINE).strip().lower()
+    if mode not in {LOCATION_SOURCE_MODE_INLINE, LOCATION_SOURCE_MODE_SHEET}:
+        mode = LOCATION_SOURCE_MODE_INLINE
+    tab_names = _clean_string_list(data.get("tab_names"))
+    legacy_tab_name = str(data.get("tab_name") or "").strip()
+    if not tab_names and legacy_tab_name:
+        tab_names = [legacy_tab_name]
+    active_tab_index = _as_int(data.get("active_tab_index"), 0, minimum=0)
+    return {
+        "mode": mode,
+        "sheet_url": str(data.get("sheet_url") or "").strip(),
+        "tab_name": legacy_tab_name,
+        "tab_names": tab_names,
+        "active_tab_index": active_tab_index,
+        "active_tab_name": tab_names[active_tab_index] if tab_names and active_tab_index < len(tab_names) else (tab_names[0] if tab_names else legacy_tab_name),
+        "auto_advance_enabled": _as_bool(data.get("auto_advance_enabled"), False),
+        "auto_advance_delay_minutes": _as_int(data.get("auto_advance_delay_minutes"), 30, minimum=1),
+        "column_name": str(data.get("column_name") or "").strip(),
+        "last_synced_at": str(data.get("last_synced_at") or "").strip(),
+        "csv_export_url": str(data.get("csv_export_url") or "").strip(),
+    }
+
+
+def _resolve_locations(overrides: dict) -> list[str]:
+    source = _clean_location_source(overrides.get("location_source"))
+    inline_locations = _clean_string_list(overrides.get("locations")) or _DEFAULT_LOCATIONS
+    resolved_locations = _clean_string_list(overrides.get("location_resolved_locations"))
+    if source["mode"] == LOCATION_SOURCE_MODE_SHEET and resolved_locations:
+        return resolved_locations
+    return inline_locations
+
+
+def get_locations() -> list[str]:
+    """Return the current effective location list from the latest overrides."""
+    return _resolve_locations(_read_overrides())
+
+
+def _sheet_client():
+    import gspread
+    from google.oauth2.service_account import Credentials
+    import os
+
+    creds_path = os.path.expanduser(os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "~/sheet-bot-key.json"))
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    creds = Credentials.from_service_account_file(creds_path, scopes=scopes)
+    return gspread.authorize(creds)
+
+
+def _extract_sheet_id(sheet_url: str) -> str:
+    import re
+
+    match = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", sheet_url or "")
+    if not match:
+        raise ValueError("Invalid Google Sheet URL.")
+    return match.group(1)
+
+
+def _column_index_from_ref(header: list[str], column_name: str) -> int:
+    value = (column_name or "").strip()
+    if not value:
+        raise ValueError("Column name is required.")
+
+    normalized = value.lower()
+    for idx, cell in enumerate(header):
+        if str(cell).strip().lower() == normalized:
+            return idx
+
+    upper = value.upper()
+    if upper.isalpha():
+        idx = 0
+        for ch in upper:
+            idx = idx * 26 + (ord(ch) - ord("A") + 1)
+        return idx - 1
+
+    raise ValueError(f"Column '{value}' not found in the sheet header.")
+
+
+def _build_csv_export_url(sheet_id: str, worksheet_gid: int) -> str:
+    return f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={worksheet_gid}"
+
+
+def _fetch_sheet_tab_locations(sheet_url: str, tab_name: str, column_name: str) -> tuple[list[str], str]:
+    client = _sheet_client()
+    sheet_id = _extract_sheet_id(sheet_url)
+    book = client.open_by_key(sheet_id)
+    ws = book.worksheet(tab_name)
+    values = ws.get_all_values()
+    header = values[0] if values else []
+    if not header:
+        return [], _build_csv_export_url(sheet_id, ws.id)
+
+    column_idx = _column_index_from_ref(header, column_name)
+    locations: list[str] = []
+    seen: set[str] = set()
+    for row in values[1:]:
+        if column_idx >= len(row):
+            continue
+        text = str(row[column_idx]).strip()
+        if not text:
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        locations.append(text)
+
+    return locations, _build_csv_export_url(sheet_id, ws.id)
+
+
+LOCATIONS = _resolve_locations(_OVERRIDES)
+ALL_KEYWORD_CATEGORIES = _clean_keyword_categories(
+    _OVERRIDES.get("keyword_categories"),
+    _DEFAULT_KEYWORD_CATEGORIES,
+)
+KEYWORD_CATEGORY_1, KEYWORD_CATEGORY_2, KEYWORD_CATEGORY_3, KEYWORD_CATEGORY_4 = ALL_KEYWORD_CATEGORIES
 TOTAL_CATEGORIES = len(ALL_KEYWORD_CATEGORIES)
 
 # Legacy KEYWORDS for backward compatibility with parallel_scraper
@@ -550,10 +748,9 @@ KEYWORDS = KEYWORD_CATEGORY_1
 # Number of unique leads (post-deduplication) to collect before pausing to
 # request operator confirmation to continue. This is the total batch size for
 # the run, not a per-worker multiplier.
-BATCH_SIZE = 40
+BATCH_SIZE = _as_int(_OVERRIDES.get("batch_size"), 40, minimum=1)
 
 # Where batch CSVs should be written (absolute path for consistent behavior).
-_SCRAPER_DIR = Path(__file__).parent
 OUTPUT_DIR = _SCRAPER_DIR / "output"
 
 # Consolidated CSV containing every lead gathered during a session. Resets at
@@ -569,6 +766,8 @@ CATEGORY_STATE_FILE = OUTPUT_DIR / "category_state.json"
 # Progress tracking file to enable resuming after crashes/stops.
 PROGRESS_FILE = OUTPUT_DIR / "scraper_progress.json"
 SCRAPER_HEALTH_FILE = OUTPUT_DIR / "scraper_health.json"
+SCRAPER_CALLOUTS_FILE = OUTPUT_DIR / "scraper_callouts.jsonl"
+SCRAPER_STATS_FILE = OUTPUT_DIR / "scraper_stats.json"
 
 # Webhook integration (Google Apps Script)
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzqD2ny083z43T6vnD2nifpYMI7RdbRXhOvrsFuhKHrJdlvF0Ealy7QwsDxJpVeSaYo/exec"
@@ -596,29 +795,264 @@ SCROLL_WAIT_MS = 900
 
 # When Google presents a captcha we back off for this many seconds before
 # surfacing the issue. Keeping it generous prevents lockouts.
-CAPTCHA_BACKOFF_S = 45
+CAPTCHA_BACKOFF_S = _as_int(_OVERRIDES.get("captcha_backoff_s"), 45, minimum=1)
+CATEGORY_ADVANCE_TIMEOUT_MINUTES = _as_int(
+    _OVERRIDES.get("category_advance_timeout_minutes"),
+    30,
+    minimum=1,
+)
 
 # ============================================================================
 # PARALLEL SCRAPING CONFIGURATION
 # ============================================================================
 # Number of parallel browser instances. Set to 1 to disable parallel mode.
-NUM_WORKERS = 4
+NUM_WORKERS = _as_int(_OVERRIDES.get("num_workers"), 4, minimum=1)
 
 # Delay range (seconds) between requests. Actual delay is randomized within this range.
-INTER_REQUEST_DELAY_MIN = 6
-INTER_REQUEST_DELAY_MAX = 10
+INTER_REQUEST_DELAY_MIN = _as_float(_OVERRIDES.get("inter_request_delay_min"), 6.0, minimum=0.0)
+INTER_REQUEST_DELAY_MAX = max(
+    INTER_REQUEST_DELAY_MIN,
+    _as_float(_OVERRIDES.get("inter_request_delay_max"), 10.0, minimum=0.0),
+)
 
 # Stagger delay range (seconds) between starting each worker.
 # Using a range for randomized stagger to appear more human-like.
-WORKER_STAGGER_DELAY_MIN = 3
-WORKER_STAGGER_DELAY_MAX = 8
+WORKER_STAGGER_DELAY_MIN = _as_float(_OVERRIDES.get("worker_stagger_delay_min"), 3.0, minimum=0.0)
+WORKER_STAGGER_DELAY_MAX = max(
+    WORKER_STAGGER_DELAY_MIN,
+    _as_float(_OVERRIDES.get("worker_stagger_delay_max"), 8.0, minimum=0.0),
+)
 
 # Validation and webhook hardening
-WEBSITE_STATUS_WORKERS = 8
+WEBSITE_STATUS_WORKERS = _as_int(_OVERRIDES.get("website_status_workers"), 8, minimum=1)
 WEBHOOK_MAX_RETRIES = 3
 WEBHOOK_RETRY_BACKOFF_S = 3
+
+# Batch-level guardrails
+BATCH_WARNING_ERROR_RATE = _as_float(_OVERRIDES.get("batch_warning_error_rate"), 5.0, minimum=0.0)
+BATCH_CRITICAL_ERROR_RATE = max(
+    BATCH_WARNING_ERROR_RATE,
+    _as_float(_OVERRIDES.get("batch_critical_error_rate"), 15.0, minimum=0.0),
+)
+BATCH_WARNING_WEBSITE_RATE = _as_float(_OVERRIDES.get("batch_warning_website_rate"), 45.0, minimum=0.0)
+BATCH_NORMAL_WEBSITE_RATE = max(
+    BATCH_WARNING_WEBSITE_RATE,
+    _as_float(_OVERRIDES.get("batch_normal_website_rate"), 65.0, minimum=0.0),
+)
+BATCH_WARNING_YIELD = _as_float(_OVERRIDES.get("batch_warning_yield"), 80.0, minimum=0.0)
+BATCH_NORMAL_YIELD = max(
+    BATCH_WARNING_YIELD,
+    _as_float(_OVERRIDES.get("batch_normal_yield"), 150.0, minimum=0.0),
+)
 
 # Worker shutdown tuning
 WORKER_JOIN_TIMEOUT_S = 15
 WORKER_TERMINATE_JOIN_TIMEOUT_S = 3
 WORKER_KILL_JOIN_TIMEOUT_S = 2
+
+
+def get_dashboard_config() -> dict:
+    """Return scraper config in a dashboard-friendly shape."""
+    overrides = _read_overrides()
+    inline_locations = _clean_string_list(overrides.get("locations")) or _DEFAULT_LOCATIONS
+    resolved_locations = _clean_string_list(overrides.get("location_resolved_locations"))
+    location_source = _clean_location_source(overrides.get("location_source"))
+    effective_locations = resolved_locations if location_source["mode"] == LOCATION_SOURCE_MODE_SHEET and resolved_locations else inline_locations
+    keyword_categories = _clean_keyword_categories(
+        overrides.get("keyword_categories"),
+        _DEFAULT_KEYWORD_CATEGORIES,
+    )
+    return {
+        "runtime": {
+            "num_workers": _as_int(overrides.get("num_workers"), 4, minimum=1),
+            "batch_size": _as_int(overrides.get("batch_size"), 40, minimum=1),
+            "website_status_workers": _as_int(overrides.get("website_status_workers"), 8, minimum=1),
+            "inter_request_delay_min": _as_float(overrides.get("inter_request_delay_min"), 6.0, minimum=0.0),
+            "inter_request_delay_max": max(
+                _as_float(overrides.get("inter_request_delay_min"), 6.0, minimum=0.0),
+                _as_float(overrides.get("inter_request_delay_max"), 10.0, minimum=0.0),
+            ),
+            "worker_stagger_delay_min": _as_float(overrides.get("worker_stagger_delay_min"), 3.0, minimum=0.0),
+            "worker_stagger_delay_max": max(
+                _as_float(overrides.get("worker_stagger_delay_min"), 3.0, minimum=0.0),
+                _as_float(overrides.get("worker_stagger_delay_max"), 8.0, minimum=0.0),
+            ),
+            "captcha_backoff_s": _as_int(overrides.get("captcha_backoff_s"), 45, minimum=1),
+            "category_advance_timeout_minutes": _as_int(
+                overrides.get("category_advance_timeout_minutes"),
+                30,
+                minimum=1,
+            ),
+        },
+        "guardrails": {
+            "batch_warning_error_rate": _as_float(overrides.get("batch_warning_error_rate"), 5.0, minimum=0.0),
+            "batch_critical_error_rate": max(
+                _as_float(overrides.get("batch_warning_error_rate"), 5.0, minimum=0.0),
+                _as_float(overrides.get("batch_critical_error_rate"), 15.0, minimum=0.0),
+            ),
+            "batch_warning_website_rate": _as_float(overrides.get("batch_warning_website_rate"), 45.0, minimum=0.0),
+            "batch_normal_website_rate": max(
+                _as_float(overrides.get("batch_warning_website_rate"), 45.0, minimum=0.0),
+                _as_float(overrides.get("batch_normal_website_rate"), 65.0, minimum=0.0),
+            ),
+            "batch_warning_yield": _as_float(overrides.get("batch_warning_yield"), 80.0, minimum=0.0),
+            "batch_normal_yield": max(
+                _as_float(overrides.get("batch_warning_yield"), 80.0, minimum=0.0),
+                _as_float(overrides.get("batch_normal_yield"), 150.0, minimum=0.0),
+            ),
+        },
+        "locations": inline_locations,
+        "location_source": location_source,
+        "location_resolved_locations": resolved_locations,
+        "effective_locations": effective_locations,
+        "keyword_categories": keyword_categories,
+        "meta": {
+            "locations_count": len(effective_locations),
+            "inline_locations_count": len(inline_locations),
+            "resolved_locations_count": len(resolved_locations),
+            "keyword_counts": [len(group) for group in keyword_categories],
+            "overrides_file": str(CONFIG_OVERRIDES_FILE),
+        },
+    }
+
+
+def save_dashboard_config(payload: dict) -> dict:
+    """Persist dashboard-managed scraper config overrides."""
+    runtime = payload.get("runtime") if isinstance(payload.get("runtime"), dict) else {}
+    guardrails = payload.get("guardrails") if isinstance(payload.get("guardrails"), dict) else {}
+    current = _read_overrides()
+    current_source = _clean_location_source(current.get("location_source"))
+    incoming_source = payload.get("location_source") if isinstance(payload.get("location_source"), dict) else {}
+    source = _clean_location_source({**current_source, **incoming_source})
+    overrides = {
+        "num_workers": _as_int(runtime.get("num_workers"), 4, minimum=1),
+        "batch_size": _as_int(runtime.get("batch_size"), 40, minimum=1),
+        "website_status_workers": _as_int(runtime.get("website_status_workers"), 8, minimum=1),
+        "inter_request_delay_min": _as_float(runtime.get("inter_request_delay_min"), 6.0, minimum=0.0),
+        "inter_request_delay_max": max(
+            _as_float(runtime.get("inter_request_delay_min"), 6.0, minimum=0.0),
+            _as_float(runtime.get("inter_request_delay_max"), 10.0, minimum=0.0),
+        ),
+        "worker_stagger_delay_min": _as_float(runtime.get("worker_stagger_delay_min"), 3.0, minimum=0.0),
+        "worker_stagger_delay_max": max(
+            _as_float(runtime.get("worker_stagger_delay_min"), 3.0, minimum=0.0),
+            _as_float(runtime.get("worker_stagger_delay_max"), 8.0, minimum=0.0),
+        ),
+        "captcha_backoff_s": _as_int(runtime.get("captcha_backoff_s"), 45, minimum=1),
+        "category_advance_timeout_minutes": _as_int(
+            runtime.get("category_advance_timeout_minutes"),
+            30,
+            minimum=1,
+        ),
+        "batch_warning_error_rate": _as_float(guardrails.get("batch_warning_error_rate"), 5.0, minimum=0.0),
+        "batch_critical_error_rate": max(
+            _as_float(guardrails.get("batch_warning_error_rate"), 5.0, minimum=0.0),
+            _as_float(guardrails.get("batch_critical_error_rate"), 15.0, minimum=0.0),
+        ),
+        "batch_warning_website_rate": _as_float(guardrails.get("batch_warning_website_rate"), 45.0, minimum=0.0),
+        "batch_normal_website_rate": max(
+            _as_float(guardrails.get("batch_warning_website_rate"), 45.0, minimum=0.0),
+            _as_float(guardrails.get("batch_normal_website_rate"), 65.0, minimum=0.0),
+        ),
+        "batch_warning_yield": _as_float(guardrails.get("batch_warning_yield"), 80.0, minimum=0.0),
+        "batch_normal_yield": max(
+            _as_float(guardrails.get("batch_warning_yield"), 80.0, minimum=0.0),
+            _as_float(guardrails.get("batch_normal_yield"), 150.0, minimum=0.0),
+        ),
+        "locations": _clean_string_list(payload.get("locations")) or _DEFAULT_LOCATIONS,
+        "location_source": source,
+        "location_resolved_locations": _clean_string_list(current.get("location_resolved_locations")),
+        "keyword_categories": _clean_keyword_categories(
+            payload.get("keyword_categories"),
+            _DEFAULT_KEYWORD_CATEGORIES,
+        ),
+    }
+    _write_overrides(overrides)
+    return get_dashboard_config()
+
+
+def save_location_sheet_sync(
+    sheet_url: str,
+    tab_name: str,
+    column_name: str,
+    resolved_locations: list[str],
+    *,
+    last_synced_at: str,
+    csv_export_url: str = "",
+) -> dict:
+    """Persist synced sheet-backed locations into the scraper overrides."""
+    current = _read_overrides()
+    source = _clean_location_source(current.get("location_source"))
+    source.update({
+        "mode": LOCATION_SOURCE_MODE_SHEET,
+        "sheet_url": str(sheet_url or "").strip(),
+        "tab_name": str(tab_name or "").strip(),
+        "column_name": str(column_name or "").strip(),
+        "last_synced_at": str(last_synced_at or "").strip(),
+        "csv_export_url": str(csv_export_url or "").strip(),
+    })
+    source = _clean_location_source(source)
+    current.update({
+        "location_source": source,
+        "location_resolved_locations": _clean_string_list(resolved_locations),
+    })
+    _write_overrides(current)
+    return get_dashboard_config()
+
+
+def save_location_source_settings(source_payload: dict) -> dict:
+    """Persist sheet-backed location source settings without syncing rows yet."""
+    current = _read_overrides()
+    source = _clean_location_source({
+        **_clean_location_source(current.get("location_source")),
+        **(source_payload if isinstance(source_payload, dict) else {}),
+    })
+    current["location_source"] = source
+    _write_overrides(current)
+    return get_dashboard_config()
+
+
+def sync_location_source_now(*, advance: bool = False, respect_delay: bool = False) -> dict:
+    """Sync the active sheet-backed location source into resolved locations."""
+    current = _read_overrides()
+    source = _clean_location_source(current.get("location_source"))
+    if source["mode"] != LOCATION_SOURCE_MODE_SHEET:
+        return get_dashboard_config()
+
+    tab_names = source.get("tab_names") or ([source["tab_name"]] if source.get("tab_name") else [])
+    if not tab_names:
+        raise ValueError("No source tabs configured for sheet-backed locations.")
+
+    active_index = min(source.get("active_tab_index", 0), len(tab_names) - 1)
+    if advance and len(tab_names) > 1:
+        active_index = (active_index + 1) % len(tab_names)
+    elif respect_delay and source.get("auto_advance_enabled") and len(tab_names) > 1 and source.get("last_synced_at"):
+        try:
+            from datetime import datetime, timedelta
+            last_synced = datetime.fromisoformat(source["last_synced_at"])
+            if datetime.now() - last_synced >= timedelta(minutes=source.get("auto_advance_delay_minutes", 30)):
+                active_index = (active_index + 1) % len(tab_names)
+        except Exception:
+            pass
+
+    active_tab = tab_names[active_index]
+    locations, csv_export_url = _fetch_sheet_tab_locations(
+        source.get("sheet_url", ""),
+        active_tab,
+        source.get("column_name", ""),
+    )
+
+    source.update({
+        "tab_names": tab_names,
+        "tab_name": active_tab,
+        "active_tab_index": active_index,
+        "active_tab_name": active_tab,
+        "last_synced_at": __import__("datetime").datetime.now().isoformat(),
+        "csv_export_url": csv_export_url,
+    })
+    current.update({
+        "location_source": _clean_location_source(source),
+        "location_resolved_locations": _clean_string_list(locations),
+    })
+    _write_overrides(current)
+    return get_dashboard_config()

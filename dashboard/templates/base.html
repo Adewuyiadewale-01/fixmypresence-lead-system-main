@@ -69,6 +69,40 @@
                 <span id="sidebar-dot" class="sidebar-status-dot stopped"></span>
                 <span class="nav-text" id="sidebar-status-text">Stopped</span>
             </div>
+            <div id="sidebar-fetch-widget" class="sidebar-fetch-widget">
+                <div class="sidebar-fetch-head">
+                    <span class="nav-text sidebar-fetch-title">Health Fetch</span>
+                    <span id="sidebar-fetch-mode" class="sidebar-fetch-mode nav-text">Awaiting</span>
+                </div>
+                <div class="sidebar-fetch-cadence nav-text">
+                    Healthy 15m · Warning 5m · Prepare 2m · Blocked 1m · Backoff 30m
+                </div>
+                <div class="sidebar-fetch-metrics nav-text">
+                    <div class="sidebar-fetch-line">
+                        <span class="sidebar-fetch-label">Next</span>
+                        <span id="sidebar-fetch-next" class="sidebar-fetch-value">--</span>
+                    </div>
+                    <div class="sidebar-fetch-line">
+                        <span class="sidebar-fetch-label">Last</span>
+                        <span id="sidebar-fetch-last" class="sidebar-fetch-value">--</span>
+                    </div>
+                </div>
+                <div id="sidebar-fetch-note" class="sidebar-fetch-note nav-text">Waiting for health telemetry.</div>
+                <div id="sidebar-fetch-registry-list" class="sidebar-fetch-registry-list nav-text">
+                    <div class="sidebar-fetch-registry">
+                        <span class="sidebar-fetch-registry-name">Pipeline</span>
+                        <span class="sidebar-fetch-registry-value">--</span>
+                    </div>
+                    <div class="sidebar-fetch-registry">
+                        <span class="sidebar-fetch-registry-name">Source</span>
+                        <span class="sidebar-fetch-registry-value">--</span>
+                    </div>
+                    <div class="sidebar-fetch-registry">
+                        <span class="sidebar-fetch-registry-name">Output</span>
+                        <span class="sidebar-fetch-registry-value">--</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </aside>
 

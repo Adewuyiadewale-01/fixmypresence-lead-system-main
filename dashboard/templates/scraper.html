@@ -77,41 +77,6 @@
         </div>
     </section>
 
-    <!-- Progress Panel -->
-    <section class="panel progress-panel">
-        <h2>Scraper Progress</h2>
-        <div id="progress-content">
-            <div class="progress-item">
-                <span class="label">Status</span>
-                <span id="scraper-status" class="value">--</span>
-            </div>
-            <div class="progress-item">
-                <span class="label">Category</span>
-                <span id="scraper-category" class="value">--</span>
-            </div>
-            <div class="progress-item">
-                <span class="label">Location</span>
-                <span id="scraper-location" class="value">--</span>
-            </div>
-            <div class="progress-item">
-                <span class="label">Keyword</span>
-                <span id="scraper-keyword" class="value">--</span>
-            </div>
-            <div class="progress-item">
-                <span class="label">Searches</span>
-                <span id="scraper-searches" class="value">--</span>
-            </div>
-            <div class="progress-item">
-                <span class="label">Leads</span>
-                <span id="scraper-leads" class="value">--</span>
-            </div>
-            <div class="progress-item">
-                <span class="label">Last Saved</span>
-                <span id="scraper-last-saved" class="value">--</span>
-            </div>
-        </div>
-    </section>
-
     <!-- Process Info Panel -->
     <section class="panel process-panel">
         <h2>Process</h2>
@@ -127,6 +92,200 @@
         </div>
     </section>
 </main>
+
+<section class="panel progress-panel progress-panel-wide">
+    <div class="panel-header-inline">
+        <h2>Scraper Progress</h2>
+        <span id="scraper-progress-chip" class="pipeline-attention attn-info">Waiting for live state</span>
+    </div>
+    <div class="scraper-progress-grid">
+        <div class="scraper-progress-section">
+            <h3>Run State</h3>
+            <div class="progress-item">
+                <span class="label">Status</span>
+                <span id="scraper-status" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Category</span>
+                <span id="scraper-category" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Searches</span>
+                <span id="scraper-searches" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Scraped Leads</span>
+                <span id="scraper-leads" class="value">--</span>
+            </div>
+        </div>
+        <div class="scraper-progress-section">
+            <h3>Primary Cursor</h3>
+            <div class="progress-item">
+                <span class="label">Next Location</span>
+                <span id="scraper-location" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Next Keyword</span>
+                <span id="scraper-keyword" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Resume Cursor</span>
+                <span id="scraper-resume-cursor" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Locations</span>
+                <span id="scraper-locations" class="value">--</span>
+            </div>
+        </div>
+        <div class="scraper-progress-section">
+            <h3>Pace & Freshness</h3>
+            <div class="progress-item">
+                <span class="label">Search Pace</span>
+                <span id="scraper-search-pace" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Batch Count</span>
+                <span id="scraper-batches" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Last Saved</span>
+                <span id="scraper-last-saved" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Last Activity</span>
+                <span id="scraper-last-activity" class="value">--</span>
+            </div>
+        </div>
+    </div>
+    <div id="scraper-progress-summary" class="scraper-summary-note">--</div>
+</section>
+
+<section class="main-grid scraper-detail-grid">
+    <section class="panel scraper-health-panel">
+        <div class="panel-header-inline">
+            <h2>Scrape Health</h2>
+            <span id="scraper-health-chip" class="pipeline-attention attn-info">Learning baseline</span>
+        </div>
+        <div class="dual-health-grid">
+            <div class="health-window">
+                <h3>This Run</h3>
+                <div class="scraper-metric-grid">
+                    <div class="metric-card">
+                        <span class="metric-label">Yield</span>
+                        <span id="scraper-run-yield" class="metric-value">--</span>
+                        <span class="metric-sub">leads per 100 searches this run</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Website Found</span>
+                        <span id="scraper-run-website-rate" class="metric-value">--</span>
+                        <span id="scraper-run-website-rate-sub" class="metric-sub">current run website rate</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Avg Batch Yield</span>
+                        <span id="scraper-run-batch-yield" class="metric-value">--</span>
+                        <span class="metric-sub">average leads per completed batch this run</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Captcha / Errors</span>
+                        <span id="scraper-run-risk" class="metric-value">--</span>
+                        <span id="scraper-run-risk-sub" class="metric-sub">current run risk signals</span>
+                    </div>
+                </div>
+            </div>
+            <div class="health-window">
+                <h3>All Time</h3>
+                <div class="scraper-metric-grid">
+                    <div class="metric-card">
+                        <span class="metric-label">Yield</span>
+                        <span id="scraper-all-yield" class="metric-value">--</span>
+                        <span class="metric-sub">leads per 100 searches across history</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Website Found</span>
+                        <span id="scraper-all-website-rate" class="metric-value">--</span>
+                        <span id="scraper-all-website-rate-sub" class="metric-sub">historical website rate</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Avg Batch Yield</span>
+                        <span id="scraper-all-batch-yield" class="metric-value">--</span>
+                        <span class="metric-sub">average leads per completed batch overall</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Captcha / Errors</span>
+                        <span id="scraper-all-risk" class="metric-value">--</span>
+                        <span id="scraper-all-risk-sub" class="metric-sub">historical risk since instrumentation</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="scraper-health-note" class="scraper-summary-note">Health checks will appear here as the scraper runs.</div>
+    </section>
+
+    <div class="scraper-side-stack">
+        <section class="panel scraper-aggression-panel">
+            <div class="panel-header-inline">
+                <h2>Aggression</h2>
+                <span id="scraper-aggression-chip" class="pipeline-attention attn-info">Optimal</span>
+            </div>
+            <div class="scraper-metric-grid">
+                <div class="metric-card">
+                    <span class="metric-label">Workers</span>
+                    <span id="scraper-workers" class="metric-value">--</span>
+                    <span class="metric-sub">parallel search workers</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Batch Size</span>
+                    <span id="scraper-batch-size" class="metric-value">--</span>
+                    <span class="metric-sub">leads exported per batch target</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Website Workers</span>
+                    <span id="scraper-website-workers" class="metric-value">--</span>
+                    <span class="metric-sub">post-check workers</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Recommendation</span>
+                    <span id="scraper-recommendation" class="metric-value">--</span>
+                    <span class="metric-sub">current aggression posture</span>
+                </div>
+            </div>
+            <div id="scraper-aggression-note" class="scraper-summary-note">Recommendation detail will appear here.</div>
+        </section>
+
+        <section class="panel scraper-sheet-panel">
+            <div class="panel-header-inline">
+                <h2>Pipeline Sheet</h2>
+                <span id="scraper-sheet-chip" class="pipeline-attention attn-info">Healthy capacity</span>
+            </div>
+            <div class="sheet-capacity-strip sheet-capacity-strip-standalone">
+                <div class="sheet-capacity-head">
+                    <div>
+                        <div id="scraper-sheet-label" class="sheet-capacity-label">--</div>
+                        <div id="scraper-sheet-sub" class="sheet-capacity-sub">--</div>
+                    </div>
+                    <div id="scraper-sheet-meta" class="sheet-capacity-meta">--</div>
+                </div>
+                <div class="sheet-capacity-bar">
+                    <span id="scraper-sheet-fill" class="sheet-capacity-fill"></span>
+                </div>
+                <div class="sheet-capacity-foot">
+                    <span id="scraper-sheet-rows">--</span>
+                    <span id="scraper-sheet-note">Monitoring pipeline sheet capacity</span>
+                </div>
+            </div>
+        </section>
+    </div>
+    
+    <section class="panel scraper-callouts-panel">
+        <div class="panel-header-inline">
+            <h2>Callouts</h2>
+            <span id="scraper-callouts-chip" class="pipeline-attention attn-info">Watching batch signals</span>
+        </div>
+        <div id="scraper-callouts-list" class="attention-list">
+            <div class="attention-empty">No scraper callouts yet.</div>
+        </div>
+    </section>
+</section>
 
 <!-- Logs Section -->
 <section class="panel logs-panel">
