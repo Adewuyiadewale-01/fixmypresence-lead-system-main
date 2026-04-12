@@ -156,9 +156,9 @@
         "max_browsers": 3
       },
       "watcher": {
-        "min_backlog_to_drain": 200,
-        "max_wait_before_forced_drain_minutes": 60,
-        "watcher_interval_minutes": 10
+        "min_backlog_to_drain": 100,
+        "max_wait_before_forced_drain_minutes": 5,
+        "watcher_interval_minutes": 5
       }
     },
     "keyword_scoring": {

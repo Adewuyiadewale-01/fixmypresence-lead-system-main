@@ -154,7 +154,7 @@
         <div class="robot-subsystem-stack">
             <div class="subsystem-row">
                 <span id="robot-dot-process" class="subsystem-dot"></span>
-                <span class="subsystem-name">Controller Process</span>
+                <span class="subsystem-name">Scraper Controller</span>
                 <span id="robot-mesh-process" class="subsystem-value">--</span>
             </div>
             <div class="subsystem-row">
@@ -188,6 +188,28 @@
 
     <section class="panel robot-actions-panel">
         <h2>Jump To</h2>
+        <div class="robot-state-section">
+            <h3>Category Progression</h3>
+            <div class="progress-item">
+                <span class="label">State</span>
+                <span id="robot-category-state" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Next Category</span>
+                <span id="robot-category-next" class="value">--</span>
+            </div>
+            <div class="progress-item">
+                <span class="label">Auto Progress</span>
+                <span id="robot-category-deadline" class="value">--</span>
+            </div>
+            <div class="button-group">
+                <button id="btn-robot-approve-category" class="btn btn-success btn-disabled" disabled>
+                    <i data-lucide="check-check"></i>
+                    <span id="robot-category-button-label">Approve Next Category</span>
+                </button>
+            </div>
+            <div id="robot-category-cta-note" class="robot-category-cta-note">Approval timing will appear here when a category finishes.</div>
+        </div>
         <div class="robot-actions-grid">
             <a href="/scraper" class="btn btn-secondary">Open Scraper</a>
             <a href="/logs/view" class="btn btn-secondary">Review Logs</a>

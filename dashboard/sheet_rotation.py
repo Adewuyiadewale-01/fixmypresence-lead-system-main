@@ -27,6 +27,7 @@ from .scheduler import get_scheduler
 sys.path.insert(0, str(settings.BOTS_DIR))
 
 from common.config import OUTPUT_WEBHOOK_URL, SOURCE_WEBHOOK_URL, WEBHOOK_SECRET, WEBHOOK_URL
+from common.sheets_guard import authorize_gspread_client, guarded_gspread_call
 from common.system_config import (
     get_active_delivery_sheet,
     get_active_output_target_sheet,
@@ -40,7 +41,7 @@ from common.system_config import (
 ROTATION_STATE_FILE = settings.CONTROLLER_DIR / "sheet_rotation_state.json"
 ROTATION_WARNING_PERCENT = 70.0
 ROTATION_PREPARE_PERCENT = 90.0
-ROTATION_AUTO_CONTINUE_MINUTES = 120
+ROTATION_AUTO_CONTINUE_MINUTES = 5
 ROTATION_LOOP_SECONDS = 30
 ROTATION_STATUS_TTL_SECONDS = 300
 ROTATION_HEALTHY_CHECK_SECONDS = 900
@@ -111,12 +112,10 @@ def _write_state(state: Dict[str, Any]) -> None:
 
 
 def _auth_client():
-    import gspread
-    from google.oauth2.service_account import Credentials
-
-    creds_path = os.path.expanduser(os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "~/sheet-bot-key.json"))
-    creds = Credentials.from_service_account_file(creds_path, scopes=SCOPES)
-    return gspread.authorize(creds)
+    return authorize_gspread_client(
+        creds_path=os.path.expanduser(os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "~/sheet-bot-key.json")),
+        scopes=SCOPES,
+    )
 
 
 def _new_key(base: str) -> str:
@@ -132,11 +131,21 @@ def _new_label(label: str) -> str:
 def _clear_worksheet_data(ws) -> None:
     last_row = ws.row_count
     last_col = ws.col_count
-    used_rows = len(ws.col_values(1))
+    used_rows = len(
+        guarded_gspread_call(
+            lambda: ws.col_values(1),
+            operation="read",
+            description="Read worksheet column A before clearing",
+        )
+    )
     if used_rows <= 1:
         return
     end = rowcol_to_a1(max(used_rows, 2), max(last_col, 1))
-    ws.batch_clear([f"A2:{end}"])
+    guarded_gspread_call(
+        lambda: ws.batch_clear([f"A2:{end}"]),
+        operation="write",
+        description="Clear worksheet data",
+    )
 
 
 def _clear_pipeline_copy(book, entry: Dict[str, Any]) -> None:
@@ -149,7 +158,12 @@ def _clear_pipeline_copy(book, entry: Dict[str, Any]) -> None:
     ]
     for tab in [t for t in tabs if t]:
         try:
-            _clear_worksheet_data(book.worksheet(tab))
+            ws = guarded_gspread_call(
+                lambda tab_name=tab: book.worksheet(tab_name),
+                operation="read",
+                description=f"Open pipeline copy worksheet {tab}",
+            )
+            _clear_worksheet_data(ws)
         except Exception:
             continue
 
@@ -169,16 +183,52 @@ def _clear_source_settlement_copy(book, entry: Dict[str, Any]) -> None:
     ]
     for tab in [t for t in tabs if t]:
         try:
-            _clear_worksheet_data(book.worksheet(tab))
+            ws = guarded_gspread_call(
+                lambda tab_name=tab: book.worksheet(tab_name),
+                operation="read",
+                description=f"Open source settlement copy worksheet {tab}",
+            )
+            _clear_worksheet_data(ws)
         except Exception:
             continue
 
 
 def _clear_output_copy(book, entry: Dict[str, Any]) -> None:
     try:
-        _clear_worksheet_data(book.worksheet(entry.get("tab_name")))
+        ws = guarded_gspread_call(
+            lambda: book.worksheet(entry.get("tab_name")),
+            operation="read",
+            description="Open output copy worksheet",
+        )
+        _clear_worksheet_data(ws)
     except Exception:
         return
+
+
+def _quote_sheet_range(sheet_name: str, range_a1: str = "A:A") -> str:
+    escaped = str(sheet_name or "").replace("'", "''")
+    return f"'{escaped}'!{range_a1}"
+
+
+def _batch_column_counts(book, tab_names: list[str]) -> Dict[str, int]:
+    valid_tabs = [str(tab or "").strip() for tab in tab_names if str(tab or "").strip()]
+    if not valid_tabs:
+        return {}
+    result = guarded_gspread_call(
+        lambda: book.values_batch_get(
+            [_quote_sheet_range(tab, "A:A") for tab in valid_tabs],
+            params={"majorDimension": "COLUMNS"},
+        ),
+        operation="read",
+        description="Batch-read source settlement column counts",
+    )
+    value_ranges = result.get("valueRanges") if isinstance(result, dict) else []
+    counts: Dict[str, int] = {}
+    for tab, payload in zip(valid_tabs, value_ranges if isinstance(value_ranges, list) else []):
+        columns = payload.get("values") if isinstance(payload, dict) else None
+        first_column = columns[0] if isinstance(columns, list) and columns else []
+        counts[tab] = len(first_column) if isinstance(first_column, list) else 0
+    return counts
 
 
 def _copy_clean_sheet(registry: str, entry: Dict[str, Any]) -> Dict[str, Any]:
@@ -426,7 +476,11 @@ def _get_source_capacity_status(config: Dict[str, Any]) -> Dict[str, Any]:
         {"key": "source_settlement", "label": "Source Settlement Sheet", "mode": "active_source_settlement", "enabled": True, "warning_row_threshold": 42000, "stop_row_threshold": 45000},
     )
     client = _auth_client()
-    book = client.open_by_key(source["sheet_id"])
+    book = guarded_gspread_call(
+        lambda: client.open_by_key(source["sheet_id"]),
+        operation="read",
+        description="Open source settlement spreadsheet",
+    )
     tabs = [
         source.get("alpha_tab"),
         source.get("alpha_high_tab"),
@@ -441,15 +495,36 @@ def _get_source_capacity_status(config: Dict[str, Any]) -> Dict[str, Any]:
     ]
     max_rows = 0
     max_tab = tabs[0] if tabs else "--"
-    for tab in [t for t in tabs if t]:
-        try:
-            ws = book.worksheet(tab)
-            rows = len(ws.col_values(1))
+    try:
+        counts = _batch_column_counts(book, tabs)
+    except Exception:
+        counts = {}
+    if counts:
+        for tab in [t for t in tabs if t]:
+            rows = int(counts.get(tab) or 0)
             if rows >= max_rows:
                 max_rows = rows
                 max_tab = tab
-        except Exception:
-            continue
+    else:
+        for tab in [t for t in tabs if t]:
+            try:
+                ws = guarded_gspread_call(
+                    lambda tab_name=tab: book.worksheet(tab_name),
+                    operation="read",
+                    description=f"Open source settlement worksheet {tab}",
+                )
+                rows = len(
+                    guarded_gspread_call(
+                        lambda: ws.col_values(1),
+                        operation="read",
+                        description=f"Read source settlement worksheet {tab} column A",
+                    )
+                )
+                if rows >= max_rows:
+                    max_rows = rows
+                    max_tab = tab
+            except Exception:
+                continue
     warning_threshold = int(managed_entry.get("warning_row_threshold") or 42000)
     stop_threshold = max(warning_threshold, int(managed_entry.get("stop_row_threshold") or 45000))
     enabled = bool(managed_entry.get("enabled", True))
@@ -542,7 +617,9 @@ def get_sheet_rotation_snapshot() -> Dict[str, Any]:
             "registry": registry,
             "active_sheet_key": active_key,
             "active_label": entry_state.get("active_label") or active_entry.get("label"),
+            "tab_name": entry_state.get("tab_name"),
             "current_rows": entry_state.get("current_rows"),
+            "warning_row_threshold": entry_state.get("warning_row_threshold"),
             "stop_row_threshold": entry_state.get("stop_row_threshold"),
             "percent_used": entry_state.get("percent_used"),
             "phase": entry_state.get("phase") or "unknown",
@@ -589,7 +666,9 @@ def _process_registry(registry: str, state: Dict[str, Any]) -> None:
     entry["active_sheet_key"] = info.get("active_sheet_key")
     entry["active_label"] = info.get("active_label")
     entry["percent_used"] = info.get("percent_used")
+    entry["tab_name"] = info.get("tab_name")
     entry["current_rows"] = info.get("current_rows")
+    entry["warning_row_threshold"] = info.get("warning_row_threshold")
     entry["stop_row_threshold"] = info.get("stop_row_threshold")
     entry["phase"] = info.get("phase")
     entry["last_error"] = info.get("error")

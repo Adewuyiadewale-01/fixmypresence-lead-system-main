@@ -124,6 +124,18 @@ def _log(msg: str):
 def _pid_is_alive(pid: int) -> bool:
     try:
         os.kill(pid, 0)
+        try:
+            proc = subprocess.run(
+                ["ps", "-p", str(pid), "-o", "stat="],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            stat = (proc.stdout or "").strip()
+            if stat and "Z" in stat:
+                return False
+        except Exception:
+            pass
         return True
     except OSError:
         return False

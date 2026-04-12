@@ -1003,7 +1003,7 @@
         try {
             const [systemResult, schedulerResult] = await Promise.all([
                 api('/config/system'),
-                api('/config'),
+                api('/config/scheduler'),
             ]);
             systemConfigSnapshot = systemResult.config || {};
             schedulerConfigSnapshot = schedulerResult.config || schedulerResult.state?.config || {};

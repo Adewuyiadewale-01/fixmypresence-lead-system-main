@@ -1,0 +1,24 @@
+{
+  "active": false,
+  "pid": 12962,
+  "mode": "drain",
+  "started_at": "2026-04-12T09:12:39.012963+00:00",
+  "ended_at": "2026-04-12T12:16:00+01:00",
+  "batch_size": 25,
+  "initial_pending": 317,
+  "processed_rows_completed": 402,
+  "remaining_estimate": 1,
+  "current_pending": 1,
+  "batches_completed": 97,
+  "current_batch_total": 0,
+  "current_batch_processed": 0,
+  "current_batch_started_at": null,
+  "last_flush_at": "2026-04-12T10:45:03.495261+00:00",
+  "last_row_num": 268,
+  "next_pointer": 269,
+  "last_error": "Stopped after repeated looping on row 268 / malformed LinkedIn marker URL state.",
+  "target": {
+    "sheet_id": "1KrKoeun-h6eEzSK6-cc4_MUHriuabg8GyAR9b8NR7fc",
+    "tab_name": "Validated_leads"
+  }
+}

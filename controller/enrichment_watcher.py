@@ -25,6 +25,9 @@ from typing import Optional
 # Lazy imports for gspread to allow --status to work without dependencies
 gspread = None
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Bots"))
+from common.sheets_guard import authorize_gspread_client, guarded_gspread_call
+
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
@@ -127,14 +130,10 @@ def _pid_is_alive(pid: int) -> bool:
 
 def _auth_client():
     """Authenticate with Google Sheets (lazy import)."""
-    import gspread
-    from google.oauth2 import service_account
-    
-    creds = service_account.Credentials.from_service_account_file(
-        os.path.expanduser(str(CREDENTIALS_PATH)),
-        scopes=SCOPES
+    return authorize_gspread_client(
+        creds_path=os.path.expanduser(str(CREDENTIALS_PATH)),
+        scopes=SCOPES,
     )
-    return gspread.authorize(creds)
 
 
 def _build_enricher_log_path() -> Path:
@@ -228,10 +227,25 @@ def release_lock():
 def count_ready_rows() -> int:
     """Count rows that still need first-pass LinkedIn enrichment."""
     gc = _auth_client()
-    sh = gc.open_by_key(SHEET_ID)
-    ws = sh.worksheet(TAB_NAME)
-    
-    headers = [h.strip().lower() for h in ws.row_values(1)]
+    sh = guarded_gspread_call(
+        lambda: gc.open_by_key(SHEET_ID),
+        operation="read",
+        description="Open enrichment watcher spreadsheet",
+    )
+    ws = guarded_gspread_call(
+        lambda: sh.worksheet(TAB_NAME),
+        operation="read",
+        description="Open enrichment watcher worksheet",
+    )
+
+    headers = [
+        h.strip().lower()
+        for h in guarded_gspread_call(
+            lambda: ws.row_values(1),
+            operation="read",
+            description="Read enrichment watcher header row",
+        )
+    ]
     
     # Find column indices
     def find_col(*names):
@@ -254,7 +268,11 @@ def count_ready_rows() -> int:
         _log("❌ Missing required columns: website or Website Status")
         return 0
 
-    all_values = ws.get_all_values()
+    all_values = guarded_gspread_call(
+        lambda: ws.get_all_values(),
+        operation="read",
+        description="Read enrichment watcher worksheet values",
+    )
     ready_count = 0
 
     for row in all_values[1:]:
@@ -318,6 +336,14 @@ def run_enricher() -> int:
         )
     finally:
         log_handle.close()
+
+    # Give the detached child a brief chance to fail fast so we do not leave
+    # the watcher showing a live lock for a process that died on import/startup.
+    time.sleep(1.0)
+    return_code = proc.poll()
+    if return_code is not None:
+        _log(f"❌ Enricher exited immediately (code={return_code}). Check log: {log_path}")
+        return 0
     
     _log(f"✅ Enricher started in background (pid={proc.pid}, will drain all pending leads)")
     return proc.pid

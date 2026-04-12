@@ -1,0 +1,16 @@
+{
+  "last_tick_at": "2026-04-12T13:18:40.687206",
+  "ready_count": 0,
+  "backlog_since": null,
+  "waiting_minutes": 0.0,
+  "wait_progress_pct": 0.0,
+  "trigger_state": "idle",
+  "last_trigger": null,
+  "lock_held": false,
+  "watcher_interval_minutes": 5,
+  "min_backlog_to_drain": 100,
+  "max_wait_before_forced_drain_minutes": 5,
+  "last_launch_at": "2026-04-12T10:12:33.108513",
+  "active_pid": null,
+  "last_shutdown_at": "2026-04-12T08:59:46.643055+00:00"
+}

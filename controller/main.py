@@ -26,8 +26,13 @@ from status import get_next_action, print_status_summary, get_status_dict
 from scraper_runner import run_scraper, check_scraper_ready
 from category_handler import prompt_category_advance
 
+try:
+    from Bots.maps_scraper.config import CATEGORY_ADVANCE_TIMEOUT_MINUTES
+except Exception:
+    CATEGORY_ADVANCE_TIMEOUT_MINUTES = 30
 
-def main(headless: bool = False, parallel: bool = True):
+
+def main(headless: bool = False, parallel: bool = True, approve_next_category: bool = False):
     """Main controller - runs ONCE then exits."""
     
     mode_str = "PARALLEL (6 workers)" if parallel else "SINGLE-THREADED"
@@ -87,20 +92,31 @@ def main(headless: bool = False, parallel: bool = True):
         if current_cat >= total_cats:
             print("\n🎉 All categories complete! Pipeline finished.")
         else:
-            # Prompt with 30-min timeout - THE ONLY AUTO-ADVANCE
-            try:
-                if prompt_category_advance(timeout_minutes=30):
-                    print(f"\n➡️ Advancing to category {current_cat + 1}...")
-                    exit_code, msg = run_scraper(next_category=True, headless=headless, parallel=parallel)
-                    
-                    if exit_code == -1:
-                        print("\n🛑 User interrupted scraping.")
-                    else:
-                        print(f"\n📝 {msg}")
+            if approve_next_category:
+                print(f"\n✅ Approval received. Advancing to category {current_cat + 1}...")
+                exit_code, msg = run_scraper(next_category=True, headless=headless, parallel=parallel)
+                if exit_code == -1:
+                    print("\n🛑 User interrupted scraping.")
                 else:
-                    print("\n⏹️ Stopping as requested.")
-            except KeyboardInterrupt:
-                print("\n\n🛑 Controller stopped by user during prompt.")
+                    print(f"\n📝 {msg}")
+            elif sys.stdin.isatty():
+                # Prompt with timeout in interactive terminals only.
+                try:
+                    if prompt_category_advance(timeout_minutes=CATEGORY_ADVANCE_TIMEOUT_MINUTES):
+                        print(f"\n➡️ Advancing to category {current_cat + 1}...")
+                        exit_code, msg = run_scraper(next_category=True, headless=headless, parallel=parallel)
+                        
+                        if exit_code == -1:
+                            print("\n🛑 User interrupted scraping.")
+                        else:
+                            print(f"\n📝 {msg}")
+                    else:
+                        print("\n⏹️ Stopping as requested.")
+                except KeyboardInterrupt:
+                    print("\n\n🛑 Controller stopped by user during prompt.")
+            else:
+                print("\n⏸️ Category progression is waiting for explicit approval.")
+                print("   Re-run the controller with --approve-next-category to continue.")
     
     else:
         print(f"⚠️ Unknown action: {action}")
@@ -156,6 +172,11 @@ def parse_args():
         "--with-watcher",
         action="store_true",
         help="Run enrichment, ultra-validation, and scraper_v3 watchers in background"
+    )
+    parser.add_argument(
+        "--approve-next-category",
+        action="store_true",
+        help="Explicitly approve advancing to the next category in non-interactive mode"
     )
     parser.add_argument(
         "--watcher-interval",
@@ -215,7 +236,11 @@ if __name__ == "__main__":
             except ImportError:
                 print("⚠️ Could not import scraper_v3_watcher")
         
-        main(headless=args.headless, parallel=not args.single)
+        main(
+            headless=args.headless,
+            parallel=not args.single,
+            approve_next_category=args.approve_next_category,
+        )
         
     except KeyboardInterrupt:
         print("\n\n⏸️ Controller interrupted. Run again to resume from saved progress.")

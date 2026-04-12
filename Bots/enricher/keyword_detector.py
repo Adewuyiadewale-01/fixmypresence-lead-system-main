@@ -15,6 +15,7 @@ Usage:
 import os
 import json
 import time
+import sys
 from pathlib import Path
 from typing import List, Tuple, Optional
 
@@ -23,6 +24,12 @@ import requests
 from bs4 import BeautifulSoup
 from google.oauth2.service_account import Credentials
 from gspread.utils import rowcol_to_a1
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from Bots.common.sheets_guard import authorize_gspread_client, guarded_gspread_call
 
 HEADERS = {
     "User-Agent": (
@@ -200,10 +207,18 @@ def meta_set_next_row(meta, row: int):
     try:
         cell = meta.find("keyword_next_row")
         if cell:
-            meta.update_cell(cell.row, 2, row)
+            guarded_gspread_call(
+                lambda: meta.update_cell(cell.row, 2, row),
+                operation="write",
+                description="Update keyword metadata pointer",
+            )
         else:
             # Add the row
-            meta.append_row(["keyword_next_row", row])
+            guarded_gspread_call(
+                lambda: meta.append_row(["keyword_next_row", row]),
+                operation="write",
+                description="Append keyword metadata pointer",
+            )
     except Exception as e:
         print(f"Warning: Could not update _meta: {e}")
 
@@ -214,8 +229,7 @@ def meta_set_next_row(meta, row: int):
 
 def auth_client():
     """Authenticate with Google Sheets."""
-    creds = Credentials.from_service_account_file(CREDS_PATH, scopes=SCOPES)
-    return gspread.authorize(creds)
+    return authorize_gspread_client(creds_path=CREDS_PATH, scopes=SCOPES)
 
 
 def get_runtime_settings() -> dict:
@@ -247,34 +261,38 @@ def get_runtime_settings() -> dict:
 def add_dropdown_validation(ws, col_idx):
     """Apply Cat 1/Cat 2/Cat 3 dropdown validation to the status column."""
     try:
-        ws.spreadsheet.batch_update(
-            {
-                "requests": [
-                    {
-                        "setDataValidation": {
-                            "range": {
-                                "sheetId": ws.id,
-                                "startRowIndex": 1,
-                                "startColumnIndex": col_idx - 1,
-                                "endRowIndex": ws.row_count,
-                                "endColumnIndex": col_idx,
-                            },
-                            "rule": {
-                                "condition": {
-                                    "type": "ONE_OF_LIST",
-                                    "values": [
-                                        {"userEnteredValue": "Cat 1"},
-                                        {"userEnteredValue": "Cat 2"},
-                                        {"userEnteredValue": "Cat 3"},
-                                    ],
+        guarded_gspread_call(
+            lambda: ws.spreadsheet.batch_update(
+                {
+                    "requests": [
+                        {
+                            "setDataValidation": {
+                                "range": {
+                                    "sheetId": ws.id,
+                                    "startRowIndex": 1,
+                                    "startColumnIndex": col_idx - 1,
+                                    "endRowIndex": ws.row_count,
+                                    "endColumnIndex": col_idx,
                                 },
-                                "showCustomUi": True,
-                                "strict": True,
-                            },
+                                "rule": {
+                                    "condition": {
+                                        "type": "ONE_OF_LIST",
+                                        "values": [
+                                            {"userEnteredValue": "Cat 1"},
+                                            {"userEnteredValue": "Cat 2"},
+                                            {"userEnteredValue": "Cat 3"},
+                                        ],
+                                    },
+                                    "showCustomUi": True,
+                                    "strict": True,
+                                },
+                            }
                         }
-                    }
-                ]
-            }
+                    ]
+                }
+            ),
+            operation="write",
+            description="Apply keyword dropdown validation",
         )
     except Exception:
         pass
@@ -337,12 +355,27 @@ def main() -> bool:
     """Process one batch of rows. Returns True if work was done."""
     settings = get_runtime_settings()
     gc = auth_client()
-    sh = gc.open_by_key(settings["sheet_id"])
-    ws = sh.worksheet(settings["tab_name"])
+    sh = guarded_gspread_call(
+        lambda: gc.open_by_key(settings["sheet_id"]),
+        operation="read",
+        description="Open keyword detector spreadsheet",
+    )
+    ws = guarded_gspread_call(
+        lambda: sh.worksheet(settings["tab_name"]),
+        operation="read",
+        description="Open keyword detector worksheet",
+    )
     meta = get_or_create_meta(sh)
     
     # Get headers and column indices
-    headers = [h.strip() for h in ws.row_values(1)]
+    headers = [
+        h.strip()
+        for h in guarded_gspread_call(
+            lambda: ws.row_values(1),
+            operation="read",
+            description="Read keyword detector header row",
+        )
+    ]
     header_map = {h.lower(): idx + 1 for idx, h in enumerate(headers)}
     
     website_col = header_map.get(WEBSITE_COLUMN.lower())
@@ -352,13 +385,25 @@ def main() -> bool:
     
     status_col = header_map.get(STATUS_COLUMN.lower())
     if not status_col:
-        ws.add_cols(1)
+        guarded_gspread_call(
+            lambda: ws.add_cols(1),
+            operation="write",
+            description="Add keyword status column",
+        )
         status_col = ws.col_count
-        ws.update_cell(1, status_col, STATUS_COLUMN)
+        guarded_gspread_call(
+            lambda: ws.update_cell(1, status_col, STATUS_COLUMN),
+            operation="write",
+            description="Write keyword status header",
+        )
         add_dropdown_validation(ws, status_col)
     
     # Get all values and pointer
-    values = ws.get_all_values()
+    values = guarded_gspread_call(
+        lambda: ws.get_all_values(),
+        operation="read",
+        description="Read keyword detector worksheet values",
+    )
     next_row = meta_get_next_row(meta)
     
     if next_row > len(values):
@@ -422,8 +467,12 @@ def main() -> bool:
     
     # Batch update
     if updates:
-        ws.spreadsheet.values_batch_update(
-            {"valueInputOption": "USER_ENTERED", "data": updates}
+        guarded_gspread_call(
+            lambda: ws.spreadsheet.values_batch_update(
+                {"valueInputOption": "USER_ENTERED", "data": updates}
+            ),
+            operation="write",
+            description="Flush keyword detector batch updates",
         )
         print(f"✅ Updated {len(updates)} rows.")
     
@@ -450,7 +499,11 @@ if __name__ == "__main__":
     if args.reset_pointer:
         settings = get_runtime_settings()
         gc = auth_client()
-        sh = gc.open_by_key(settings["sheet_id"])
+        sh = guarded_gspread_call(
+            lambda: gc.open_by_key(settings["sheet_id"]),
+            operation="read",
+            description="Open keyword detector spreadsheet for reset",
+        )
         meta = get_or_create_meta(sh)
         meta_set_next_row(meta, 2)
         print("🔁 Pointer reset to row 2.")

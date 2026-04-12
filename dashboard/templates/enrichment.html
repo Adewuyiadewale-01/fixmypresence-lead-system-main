@@ -63,6 +63,14 @@
                         <span class="pipeline-label">Wait Window</span>
                         <span id="enrich-wait-window" class="pipeline-val">--</span>
                     </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Drain Progress</span>
+                        <span id="enrich-drain-progress" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Remaining Estimate</span>
+                        <span id="enrich-drain-remaining" class="pipeline-val">--</span>
+                    </div>
                     <div class="pipeline-progress-block">
                         <div class="pipeline-progress-head">
                             <span class="pipeline-progress-label">Drain Threshold</span>
@@ -72,6 +80,16 @@
                             <span id="enrich-threshold-fill" class="pipeline-progress-fill"></span>
                         </div>
                         <div id="enrich-threshold-note" class="pipeline-progress-note">Waiting for enrichment telemetry</div>
+                    </div>
+                    <div class="pipeline-progress-block">
+                        <div class="pipeline-progress-head">
+                            <span class="pipeline-progress-label">Current Batch</span>
+                            <span id="enrich-batch-progress-meta" class="pipeline-progress-meta">--</span>
+                        </div>
+                        <div class="pipeline-progress-bar">
+                            <span id="enrich-batch-progress-fill" class="pipeline-progress-fill"></span>
+                        </div>
+                        <div id="enrich-batch-progress-note" class="pipeline-progress-note">Batch progress will appear during active drain runs.</div>
                     </div>
                 </section>
 
@@ -378,6 +396,29 @@
                 </div>
             </section>
 
+            <section class="enrichment-section-card enrichment-controls-card">
+                <div class="panel-header-inline">
+                    <h3>Controls</h3>
+                    <span class="pipeline-attention attn-warning">Scraper V3 Operations</span>
+                </div>
+                <div class="enrichment-controls-copy">Refresh the watcher immediately, force a source run from the current backlog, or clear the latest resume checkpoint without leaving the page.</div>
+                <div class="enrichment-controls-grid">
+                    <button id="btn-scraperv3-watcher-check" class="btn btn-primary btn-block" type="button">
+                        <i data-lucide="activity"></i>
+                        Run Watcher Check
+                    </button>
+                    <button id="btn-scraperv3-force-run" class="btn btn-warning btn-block" type="button">
+                        <i data-lucide="play"></i>
+                        Force Run Now
+                    </button>
+                    <button id="btn-scraperv3-reset-checkpoint" class="btn btn-success btn-block" type="button">
+                        <i data-lucide="database-zap"></i>
+                        Clear Resume Memory
+                    </button>
+                </div>
+                <div id="enrichment-scraperv3-control-note" class="scraper-summary-note">Operate the Scraper V3 backlog watcher directly here without editing files by hand.</div>
+            </section>
+
             <div class="enrichment-live-grid">
                 <section class="enrichment-section-card">
                     <div class="panel-header-inline">
@@ -398,7 +439,7 @@
                     </div>
                     <div class="pipeline-progress-block">
                         <div class="pipeline-progress-head">
-                            <span class="pipeline-progress-label">Launch Threshold</span>
+                            <span class="pipeline-progress-label">A+B Launch Threshold</span>
                             <span id="scraperv3-threshold-meta" class="pipeline-progress-meta">--</span>
                         </div>
                         <div class="pipeline-progress-bar">

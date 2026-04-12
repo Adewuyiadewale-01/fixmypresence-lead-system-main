@@ -24,6 +24,9 @@ from typing import Optional
 # Lazy imports for gspread to allow --status to work without dependencies
 gspread = None
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Bots"))
+from common.sheets_guard import authorize_gspread_client, guarded_gspread_call
+
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
@@ -104,13 +107,10 @@ def _auth_client():
     """Authenticate with Google Sheets (lazy import)."""
     global gspread
     import gspread
-    from google.oauth2 import service_account
-    
-    creds = service_account.Credentials.from_service_account_file(
-        os.path.expanduser(str(CREDENTIALS_PATH)),
-        scopes=SCOPES
+    return authorize_gspread_client(
+        creds_path=os.path.expanduser(str(CREDENTIALS_PATH)),
+        scopes=SCOPES,
     )
-    return gspread.authorize(creds)
 
 
 # ============================================================================
@@ -173,14 +173,29 @@ def count_ready_rows() -> int:
         count of ready rows
     """
     gc = _auth_client()
-    sh = gc.open_by_key(SHEET_ID)
+    sh = guarded_gspread_call(
+        lambda: gc.open_by_key(SHEET_ID),
+        operation="read",
+        description="Open ultra watcher spreadsheet",
+    )
     try:
-        ws = sh.worksheet(TAB_NAME)
+        ws = guarded_gspread_call(
+            lambda: sh.worksheet(TAB_NAME),
+            operation="read",
+            description="Open ultra watcher worksheet",
+        )
     except gspread.WorksheetNotFound:
         _log(f"❌ Tab '{TAB_NAME}' not found.")
         return 0
-    
-    headers = [h.strip().lower() for h in ws.row_values(1)]
+
+    headers = [
+        h.strip().lower()
+        for h in guarded_gspread_call(
+            lambda: ws.row_values(1),
+            operation="read",
+            description="Read ultra watcher header row",
+        )
+    ]
     
     # Find column indices
     def find_col(*names):
@@ -203,7 +218,11 @@ def count_ready_rows() -> int:
     kw_status_exists = (col_kw_status is not None)
     
     # Count ready rows
-    all_values = ws.get_all_values()
+    all_values = guarded_gspread_call(
+        lambda: ws.get_all_values(),
+        operation="read",
+        description="Read ultra watcher worksheet values",
+    )
     ready_count = 0
     
     # Skip header

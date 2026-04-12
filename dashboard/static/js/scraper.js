@@ -438,6 +438,7 @@ async function handleStartCycle() {
     }
 }
 
+
 async function handleStop() {
     try {
         const result = await api('/control/stop', 'POST');
@@ -448,7 +449,7 @@ async function handleStop() {
 }
 
 async function handleKill() {
-    if (!confirmAction('FORCE KILL\n\nThis will immediately terminate the controller without saving state.\n\nAre you sure?')) return;
+    if (!confirmAction('FORCE KILL\n\nThis will immediately terminate the supervised system workers, including the scraper controller and active watchers, without saving state.\n\nAre you sure?')) return;
     try {
         const result = await api('/control/kill', 'POST');
         showToast(result.message, 'warning');

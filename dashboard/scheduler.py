@@ -178,7 +178,7 @@ class Scheduler:
                 
                 # Auto-restart: If we're in RUN phase but controller has exited, restart it
                 # This enables automatic category advancement
-                elif self._phase == CyclePhase.RUNNING and not pm.is_running():
+                elif self._phase == CyclePhase.RUNNING and not pm.is_controller_running():
                     print(f"[Scheduler] Controller exited during RUN phase. Restarting to continue...")
                     time.sleep(5)  # Brief delay before restart
                     pm.start()

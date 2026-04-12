@@ -2,31 +2,35 @@
   "registries": {
     "pipeline_sheets": {
       "registry": "pipeline_sheets",
-      "last_checked_at": "2026-04-07T23:04:40.205242+00:00",
+      "last_checked_at": "2026-04-12T12:19:39.766395+00:00",
       "active_sheet_key": "primary",
       "active_label": "Primary Pipeline",
-      "percent_used": 0.5,
-      "current_rows": 241,
+      "percent_used": 0.9,
+      "current_rows": 409,
       "stop_row_threshold": 45000,
       "phase": "healthy",
       "last_error": null,
-      "next_check_at": "2026-04-07T23:19:40.205242+00:00"
+      "next_check_at": "2026-04-12T12:34:39.766395+00:00",
+      "tab_name": "Leads",
+      "warning_row_threshold": 42000
     },
     "source_settlement": {
       "registry": "source_settlement",
-      "last_checked_at": "2026-04-07T23:06:12.158773+00:00",
+      "last_checked_at": "2026-04-12T12:19:41.655232+00:00",
       "active_sheet_key": "primary_source",
       "active_label": "Primary Source Settlement",
-      "percent_used": 0.2,
-      "current_rows": 101,
+      "percent_used": 0.4,
+      "current_rows": 194,
       "stop_row_threshold": 45000,
       "phase": "healthy",
       "last_error": null,
-      "next_check_at": "2026-04-07T23:21:12.158773+00:00"
+      "next_check_at": "2026-04-12T12:34:41.655232+00:00",
+      "tab_name": "Hydro_formula",
+      "warning_row_threshold": 42000
     },
     "output_target": {
       "registry": "output_target",
-      "last_checked_at": "2026-04-07T23:15:50.152385+00:00",
+      "last_checked_at": "2026-04-12T12:20:49.186840+00:00",
       "active_sheet_key": "primary_output",
       "active_label": "Primary Output",
       "percent_used": null,
@@ -34,8 +38,10 @@
       "stop_row_threshold": null,
       "phase": "healthy",
       "last_error": "",
-      "next_check_at": "2026-04-07T23:30:50.152385+00:00"
+      "next_check_at": "2026-04-12T12:35:49.186840+00:00",
+      "tab_name": "Employee_db",
+      "warning_row_threshold": null
     }
   },
-  "updated_at": "2026-04-07T23:17:21.345175+00:00"
+  "updated_at": "2026-04-12T12:21:50.800416+00:00"
 }

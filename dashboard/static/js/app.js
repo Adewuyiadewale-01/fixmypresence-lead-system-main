@@ -9,7 +9,7 @@
 
 let autoRefresh = true;
 let logsRefreshInterval = 15000; // 15 seconds is enough for overview log freshness
-let isRunning = false; // Track if controller is running
+let isRunning = false; // Track if any supervised system worker is running
 
 // =============================================================================
 // API HELPERS
@@ -26,10 +26,23 @@ async function api(endpoint, method = 'GET', body = null) {
 
     try {
         const response = await fetch(endpoint, options);
-        const data = await response.json();
+        const rawText = await response.text();
+        const contentType = response.headers.get('content-type') || '';
+        let data = null;
+
+        if (rawText) {
+            if (contentType.includes('application/json')) {
+                data = JSON.parse(rawText);
+            } else {
+                const snippet = rawText.replace(/\s+/g, ' ').trim().slice(0, 160);
+                throw new Error(`Expected JSON but got ${contentType || 'non-JSON'}: ${snippet}`);
+            }
+        } else {
+            data = {};
+        }
 
         if (!response.ok) {
-            throw new Error(data.detail || 'Request failed');
+            throw new Error(data.detail || data.message || `Request failed (${response.status})`);
         }
 
         return data;
@@ -322,7 +335,7 @@ async function handleStop() {
 }
 
 async function handleKill() {
-    if (!confirmAction('FORCE KILL\n\nThis will immediately terminate the controller without saving state.\n\nAre you sure?')) {
+    if (!confirmAction('FORCE KILL\n\nThis will immediately terminate the supervised system workers, including the scraper controller and active watchers, without saving state.\n\nAre you sure?')) {
         return;
     }
 
@@ -343,7 +356,7 @@ async function handleClean() {
         'progress': 'WARNING: Reset scraper progress?\n\nThis will make the scraper start from the beginning.',
         'outputs': 'Clear batch output files?',
         'full': 'FULL CLEAN (Safe)\n\nThis will:\n- Clear all logs\n- Reset enricher/watcher progress\n- Delete batch outputs\n\nLeads data in Google Sheets will NOT be deleted.\nAre you sure?',
-        'nuclear': 'NUCLEAR CLEAN - DANGER!\n\nThis will PERMANENTLY DELETE:\n- ALL leads from Google Sheets\n- ALL destination tabs (Hydro_formula, etc)\n- ALL local progress and output files\n- ALL logs\n\nTHIS CANNOT BE UNDONE!\nAre you absolutely sure?'
+        'nuclear': 'NUCLEAR CLEAN - DANGER!\n\nThis will PERMANENTLY DELETE:\n- ALL leads from Google Sheets\n- ALL destination tabs (Hydro_formula, etc)\n- FINAL output sheet data (Employee_db)\n- ALL local progress and output files\n- ALL logs\n\nTHIS CANNOT BE UNDONE!\nAre you absolutely sure?'
     };
 
     if (!confirmAction(confirmText[mode] || 'Proceed with cleaning?')) {
@@ -359,7 +372,7 @@ async function handleClean() {
 
     // Triple confirm for nuclear clean
     if (mode === 'nuclear') {
-        if (!confirmAction('SECOND WARNING!\n\nYou are about to delete ALL DATA from:\n- Leads tab\n- Validated_leads\n- Ultra_validated\n- Hydro_formula / destination tabs\n\nClick OK only if you want a completely fresh start.')) {
+        if (!confirmAction('SECOND WARNING!\n\nYou are about to delete ALL DATA from:\n- Leads tab\n- Validated_leads\n- Ultra_validated\n- Hydro_formula / destination tabs\n- Final output sheet\n\nClick OK only if you want a completely fresh start.')) {
             return;
         }
         if (!confirmAction('FINAL WARNING!\n\nType of clean: NUCLEAR\n\nThis is your last chance to cancel.\nClick OK to permanently delete everything.')) {

@@ -402,6 +402,13 @@ body {
     line-height: 1.4;
 }
 
+.sidebar-sheets-guard {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+}
+
 .sidebar-fetch-registry-list {
     display: flex;
     flex-direction: column;
@@ -891,6 +898,13 @@ body {
     border: 1px solid var(--border);
     color: var(--text-2);
     font-size: 0.78rem;
+}
+
+.robot-category-cta-note {
+    margin-top: 10px;
+    color: var(--text-2);
+    font-size: 0.78rem;
+    line-height: 1.5;
 }
 
 .scraper-detail-grid {
@@ -2429,6 +2443,10 @@ body {
     min-height: 52px;
     font-size: 0.88rem;
     font-weight: 600;
+}
+
+.overview-action-row + .overview-action-row {
+    margin-top: 14px;
 }
 
 /* Overview stat (legacy compat) */

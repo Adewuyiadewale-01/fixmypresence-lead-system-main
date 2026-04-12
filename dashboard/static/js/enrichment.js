@@ -127,6 +127,12 @@
         const none = enrichment.none ?? null;
         const employees = enrichment.employees ?? null;
         const stateText = watcherStateText(enrichment);
+        const runInitialPending = enrichment.run_initial_pending ?? null;
+        const runProcessedRows = enrichment.run_processed_rows ?? null;
+        const runRemainingEstimate = enrichment.run_remaining_estimate ?? null;
+        const runBatchesCompleted = enrichment.run_batches_completed ?? null;
+        const runCurrentBatchTotal = enrichment.run_current_batch_total ?? null;
+        const runCurrentBatchProcessed = enrichment.run_current_batch_processed ?? null;
 
         setText('enrich-summary-state', stateText);
         setText('enrich-summary-backlog', pending != null && threshold != null ? `${fmtNum(pending)} / ${fmtNum(threshold)}` : fmtNum(pending));
@@ -154,6 +160,13 @@
                 ? `${fmtAgeMinutes(enrichment.waiting_minutes)} / ${fmtAgeMinutes(enrichment.max_wait_minutes)}`
                 : (enrichment.max_wait_minutes != null ? fmtAgeMinutes(enrichment.max_wait_minutes) : '--')
         );
+        setText(
+            'enrich-drain-progress',
+            runInitialPending != null && runProcessedRows != null
+                ? `${fmtNum(runProcessedRows)} / ${fmtNum(runInitialPending)}`
+                : '--'
+        );
+        setText('enrich-drain-remaining', fmtNum(runRemainingEstimate));
 
         setText('enrich-checked', fmtNum(checked));
         setText('enrich-coverage-rate', enrichment.coverage_rate != null ? fmtPct(enrichment.coverage_rate) : '--');
@@ -215,6 +228,22 @@
             else if (enrichment.trigger_state === 'threshold_ready' || thresholdPct >= 75) thresholdFillEl.classList.add('is-warning');
         }
 
+        const batchPct = runCurrentBatchTotal != null && Number(runCurrentBatchTotal) > 0
+            ? Math.max(0, Math.min((Number(runCurrentBatchProcessed || 0) / Number(runCurrentBatchTotal)) * 100, 100))
+            : 0;
+        setText(
+            'enrich-batch-progress-meta',
+            runCurrentBatchTotal != null && Number(runCurrentBatchTotal) > 0
+                ? `${fmtNum(runCurrentBatchProcessed)} / ${fmtNum(runCurrentBatchTotal)}`
+                : '--'
+        );
+        const batchFillEl = document.getElementById('enrich-batch-progress-fill');
+        if (batchFillEl) {
+            batchFillEl.style.width = `${batchPct}%`;
+            batchFillEl.classList.remove('is-warning', 'is-danger');
+            if (enrichment.run_active) batchFillEl.classList.add('is-warning');
+        }
+
         let thresholdNote = 'Waiting for enrichment telemetry';
         if (enrichment.is_stale) {
             thresholdNote = `Stale lock for ${fmtAgeMinutes(enrichment.lock_age)}. Review the enricher before trusting backlog movement.`;
@@ -234,6 +263,22 @@
             thresholdNote = 'No live rows currently need first-pass LinkedIn lookup.';
         }
         setText('enrich-threshold-note', thresholdNote);
+
+        let batchNote = 'Batch progress will appear during active drain runs.';
+        if (enrichment.run_active && runCurrentBatchTotal != null && Number(runCurrentBatchTotal) > 0) {
+            batchNote = `${fmtNum(runCurrentBatchProcessed)} of ${fmtNum(runCurrentBatchTotal)} rows committed in the current batch.`;
+            if (runBatchesCompleted != null) {
+                batchNote += ` ${fmtNum(runBatchesCompleted)} batches completed so far.`;
+            }
+        } else if (enrichment.run_active) {
+            batchNote = 'Drain run is active. Waiting for the first batch-progress flush.';
+        } else if (runProcessedRows != null && runInitialPending != null && runInitialPending > 0) {
+            batchNote = `Last drain processed ${fmtNum(runProcessedRows)} of ${fmtNum(runInitialPending)} starting rows.`;
+            if (runRemainingEstimate != null) {
+                batchNote += ` Remaining estimate: ${fmtNum(runRemainingEstimate)}.`;
+            }
+        }
+        setText('enrich-batch-progress-note', batchNote);
 
         const sheetChipEl = document.getElementById('enrich-sheet-chip');
         const sheetState = validatedSheet.state || 'normal';
@@ -473,7 +518,12 @@
             `<span class="pipeline-main">${fmtNum(gammaFamily)}</span><span class="pipeline-sub">${fmtNum(gamma)} base · ${fmtNum(gammaHigh)} high</span>`
         );
 
-        setText('scraperv3-threshold-meta', threshold > 0 ? `${fmtNum(alphaBeta)} / ${fmtNum(threshold)}` : fmtNum(alphaBeta));
+        setText(
+            'scraperv3-threshold-meta',
+            threshold > 0
+                ? `${fmtNum(alphaBeta)} / ${fmtNum(threshold)} A+B${total > 0 ? ` · ${fmtNum(total)} total` : ''}`
+                : `${fmtNum(alphaBeta)}${total > 0 ? ` A+B · ${fmtNum(total)} total` : ''}`
+        );
         const thresholdPct = threshold > 0 ? Math.max(0, Math.min((alphaBeta / threshold) * 100, 100)) : 0;
         const thresholdFill = document.getElementById('scraperv3-threshold-fill');
         if (thresholdFill) {
@@ -483,14 +533,16 @@
             else if (scraperV3.locked || alphaBeta >= threshold || thresholdPct >= 75) thresholdFill.classList.add('is-warning');
         }
         let thresholdNote = 'No source backlog is waiting for Scraper V3.';
-        if (scraperV3.is_stale) {
+        if (scraperV3.source_webhook_ok === false) {
+            thresholdNote = `Source webhook unreachable — counts unavailable. Error: ${scraperV3.source_webhook_error || 'unknown'}`;
+        } else if (scraperV3.is_stale) {
             thresholdNote = `Scraper V3 lock is stale${scraperV3.lock_age != null ? ` (${fmtAgeMinutes(scraperV3.lock_age)})` : ''}.`;
         } else if (scraperV3.locked) {
             thresholdNote = 'Scraper V3 is currently running against the source sheet backlog.';
         } else if (threshold > 0 && alphaBeta >= threshold) {
             thresholdNote = 'Alpha+Beta family backlog reached the launch threshold. The next watcher tick should trigger Scraper V3.';
         } else if (total > 0) {
-            thresholdNote = `Gamma family rows do not count toward the ${fmtNum(threshold)}-row threshold, but they join the batch once a run starts.`;
+            thresholdNote = `Threshold uses Alpha+Beta only: ${fmtNum(alphaBeta)} / ${fmtNum(threshold)}. Gamma rows (${fmtNum(gammaFamily)}) join the batch after a run starts, but do not trigger it by themselves.`;
         }
         setText('scraperv3-threshold-note', thresholdNote);
 
@@ -562,6 +614,9 @@
         const attentionEl = document.getElementById('scraperv3-attention-list');
         const attentionChip = document.getElementById('scraperv3-attention-chip');
         const synthetic = [];
+        if (scraperV3.source_webhook_ok === false) {
+            synthetic.push({ level: 'danger', source: 'Scraper V3', message: `Source webhook unreachable — backlog counts are stale. Error: ${scraperV3.source_webhook_error || 'unknown'}` });
+        }
         if (scraperV3.is_stale) {
             synthetic.push({ level: 'danger', source: 'Scraper V3', message: 'Watcher lock is stale and needs operator review.' });
         } else if (threshold > 0 && alphaBeta >= threshold && !scraperV3.locked) {
@@ -670,6 +725,23 @@
         'enrichment-linkedin-control-note',
         'LinkedIn hard reset completed.',
         'HARD RESET LINKEDIN ENRICHMENT\n\nThis will reset the pointer and clear LinkedIn status, Last checked, and employee-related enrichment fields.\n\nProceed?'
+    ));
+    document.getElementById('btn-scraperv3-watcher-check')?.addEventListener('click', () => runEnrichmentControl(
+        '/control/enrichment/scraper-v3/watcher-check',
+        'enrichment-scraperv3-control-note',
+        'Scraper V3 watcher check completed.'
+    ));
+    document.getElementById('btn-scraperv3-force-run')?.addEventListener('click', () => runEnrichmentControl(
+        '/control/enrichment/scraper-v3/force-run',
+        'enrichment-scraperv3-control-note',
+        'Scraper V3 force-run check completed.',
+        'Force Scraper V3 to launch from any current source backlog?\n\nThis temporarily bypasses the normal Alpha+Beta threshold for this one check.'
+    ));
+    document.getElementById('btn-scraperv3-reset-checkpoint')?.addEventListener('click', () => runEnrichmentControl(
+        '/control/enrichment/scraper-v3/reset-checkpoint',
+        'enrichment-scraperv3-control-note',
+        'Scraper V3 resume memory cleared.',
+        'Clear the latest Scraper V3 resume checkpoint?\n\nThis prevents the next run from inheriting stale completed-row memory.'
     ));
 
     window.addEventListener('status-update', (e) => {

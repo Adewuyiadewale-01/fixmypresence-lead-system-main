@@ -8,6 +8,12 @@ import requests
 from bs4 import BeautifulSoup
 import gspread
 from google.oauth2 import service_account
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from Bots.common.sheets_guard import authorize_gspread_client, guarded_gspread_call
 try:
     from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 except Exception:
@@ -16,6 +22,7 @@ except Exception:
 
 # ------------------ config ------------------
 _SYSTEM_CONFIG_PATH = Path(__file__).resolve().parents[1] / "common" / "system_config.json"
+_ENRICHMENT_RUN_STATE_FILE = _PROJECT_ROOT / "controller" / "enrichment_run_state.json"
 
 
 def _read_system_config():
@@ -24,6 +31,133 @@ def _read_system_config():
         return data if isinstance(data, dict) else {}
     except Exception:
         return {}
+
+
+def _write_run_state(payload: dict):
+    try:
+        _ENRICHMENT_RUN_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = _ENRICHMENT_RUN_STATE_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
+        tmp.replace(_ENRICHMENT_RUN_STATE_FILE)
+    except Exception:
+        pass
+
+
+class EnrichmentRunTracker:
+    def __init__(self, mode: str, initial_pending: int, batch_size: int):
+        self._lock = threading.Lock()
+        self.mode = mode
+        self.initial_pending = max(0, int(initial_pending or 0))
+        self.batch_size = max(1, int(batch_size or 1))
+        self.processed_rows_completed = 0
+        self.batches_completed = 0
+        self.current_batch_total = 0
+        self.current_batch_processed = 0
+        self.last_known_pending = self.initial_pending
+        self.started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        self.last_flush_at = None
+        self.state = {
+            "active": True,
+            "pid": os.getpid(),
+            "mode": self.mode,
+            "started_at": self.started_at,
+            "ended_at": None,
+            "batch_size": self.batch_size,
+            "initial_pending": self.initial_pending,
+            "processed_rows_completed": 0,
+            "remaining_estimate": self.initial_pending,
+            "current_pending": self.initial_pending,
+            "batches_completed": 0,
+            "current_batch_total": 0,
+            "current_batch_processed": 0,
+            "current_batch_started_at": None,
+            "last_flush_at": None,
+            "last_row_num": None,
+            "next_pointer": None,
+            "last_error": None,
+            "target": {
+                "sheet_id": SHEET_ID if "SHEET_ID" in globals() else "",
+                "tab_name": TAB_NAME if "TAB_NAME" in globals() else "",
+            },
+        }
+        self._commit()
+
+    def _commit(self):
+        _write_run_state(dict(self.state))
+
+    def start_batch(self, batch_total: int, start_row: int, pending_before_batch: int):
+        with self._lock:
+            self.current_batch_total = max(0, int(batch_total or 0))
+            self.current_batch_processed = 0
+            self.last_known_pending = max(0, int(pending_before_batch or 0))
+            self.state.update({
+                "active": True,
+                "pid": os.getpid(),
+                "current_pending": self.last_known_pending,
+                "remaining_estimate": self.last_known_pending,
+                "current_batch_total": self.current_batch_total,
+                "current_batch_processed": 0,
+                "current_batch_started_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "last_row_num": start_row,
+                "last_error": None,
+            })
+            self._commit()
+
+    def update_batch_progress(self, batch_processed: int, next_pointer: int | None = None, last_row_num: int | None = None):
+        with self._lock:
+            self.current_batch_processed = max(0, min(int(batch_processed or 0), self.current_batch_total))
+            overall_processed = self.processed_rows_completed + self.current_batch_processed
+            remaining_estimate = max(self.initial_pending - overall_processed, 0)
+            self.last_flush_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            self.state.update({
+                "active": True,
+                "pid": os.getpid(),
+                "current_batch_processed": self.current_batch_processed,
+                "processed_rows_completed": overall_processed,
+                "remaining_estimate": remaining_estimate,
+                "last_flush_at": self.last_flush_at,
+                "next_pointer": next_pointer,
+                "last_row_num": last_row_num,
+            })
+            self._commit()
+
+    def finish_batch(self, pending_after_batch: int | None = None, next_pointer: int | None = None):
+        with self._lock:
+            self.processed_rows_completed += self.current_batch_processed
+            self.batches_completed += 1
+            current_pending = max(0, int(pending_after_batch if pending_after_batch is not None else max(self.initial_pending - self.processed_rows_completed, 0)))
+            self.last_known_pending = current_pending
+            self.state.update({
+                "active": True,
+                "pid": os.getpid(),
+                "processed_rows_completed": self.processed_rows_completed,
+                "batches_completed": self.batches_completed,
+                "current_pending": current_pending,
+                "remaining_estimate": current_pending,
+                "current_batch_total": 0,
+                "current_batch_processed": 0,
+                "current_batch_started_at": None,
+                "next_pointer": next_pointer,
+            })
+            self.current_batch_total = 0
+            self.current_batch_processed = 0
+            self._commit()
+
+    def finish_run(self, final_pending: int | None = None, error: str | None = None):
+        with self._lock:
+            final_remaining = max(0, int(final_pending if final_pending is not None else self.last_known_pending))
+            self.state.update({
+                "active": False,
+                "pid": None,
+                "ended_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "current_pending": final_remaining,
+                "remaining_estimate": final_remaining,
+                "current_batch_total": 0,
+                "current_batch_processed": 0,
+                "current_batch_started_at": None,
+                "last_error": error,
+            })
+            self._commit()
 
 
 def _get_linkedin_runtime_config():
@@ -79,6 +213,18 @@ _RUNTIME_CONFIG = _get_linkedin_runtime_config()
 BATCH_SIZE = max(1, _env_int("ENRICHMENT_BATCH_SIZE", _RUNTIME_CONFIG.get("batch_size"), 25))
 WRITE_FLUSH_EVERY = 5
 TIMEOUT = max(1, _env_int("ENRICHMENT_TIMEOUT_SECONDS", _RUNTIME_CONFIG.get("request_timeout_seconds"), 12))
+WEBSITE_LOOKUP_BUDGET_SECONDS = max(
+    5.0,
+    _env_float("ENRICHMENT_WEBSITE_LOOKUP_BUDGET_SECONDS", _RUNTIME_CONFIG.get("website_lookup_budget_seconds"), 30.0),
+)
+LINKEDIN_FETCH_BUDGET_SECONDS = max(
+    5.0,
+    _env_float("ENRICHMENT_LINKEDIN_FETCH_BUDGET_SECONDS", _RUNTIME_CONFIG.get("linkedin_fetch_budget_seconds"), 20.0),
+)
+MAX_INTERNAL_PAGES = max(
+    1,
+    _env_int("ENRICHMENT_MAX_INTERNAL_PAGES", _RUNTIME_CONFIG.get("max_internal_pages"), 4),
+)
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36")
 
@@ -165,46 +311,129 @@ if not os.path.exists(CREDS_PATH):
     err_exit(f"Service-account key not found at: {CREDS_PATH}")
 
 def auth_client():
-    creds = service_account.Credentials.from_service_account_file(
-        CREDS_PATH, scopes=SCOPES
+    return authorize_gspread_client(
+        creds_path=CREDS_PATH,
+        scopes=SCOPES,
     )
-    return gspread.authorize(creds)
 
 # ===== meta helpers (progress pointer) =====
 META_SHEET = "_meta"
 META_KEY_NEXTROW = "next_row"
 
 def get_or_create_meta(sh: gspread.Spreadsheet):
-    meta = sh.worksheet(META_SHEET) if META_SHEET in [w.title for w in sh.worksheets()] else sh.add_worksheet(META_SHEET, 10, 2)
+    worksheets = guarded_gspread_call(
+        lambda: sh.worksheets(),
+        operation="read",
+        description="List enrichment worksheets",
+    )
+    meta = (
+        guarded_gspread_call(
+            lambda: sh.worksheet(META_SHEET),
+            operation="read",
+            description="Open enrichment metadata worksheet",
+        )
+        if META_SHEET in [w.title for w in worksheets]
+        else guarded_gspread_call(
+            lambda: sh.add_worksheet(META_SHEET, 10, 2),
+            operation="write",
+            description="Create enrichment metadata worksheet",
+        )
+    )
     try:
-        sh.batch_update([{"updateSheetProperties": {
-            "properties": {"sheetId": meta.id, "hidden": True},
-            "fields": "hidden"
-        }}])
+        guarded_gspread_call(
+            lambda: sh.batch_update([{"updateSheetProperties": {
+                "properties": {"sheetId": meta.id, "hidden": True},
+                "fields": "hidden"
+            }}]),
+            operation="write",
+            description="Hide enrichment metadata worksheet",
+        )
     except Exception:
         pass
-    if meta.acell("A1").value != "key":
-        meta.update("A1:B1", [["key", "value"]])
+    if guarded_gspread_call(
+        lambda: meta.acell("A1").value,
+        operation="read",
+        description="Read enrichment metadata header",
+    ) != "key":
+        guarded_gspread_call(
+            lambda: meta.update("A1:B1", [["key", "value"]]),
+            operation="write",
+            description="Initialize enrichment metadata header",
+        )
     return meta
 
 def meta_get_next_row(meta) -> int:
-    cells = meta.findall(META_KEY_NEXTROW)
+    cells = guarded_gspread_call(
+        lambda: meta.findall(META_KEY_NEXTROW),
+        operation="read",
+        description="Find enrichment next-row pointer",
+    )
     if cells:
         row = cells[0].row
-        val = meta.cell(row, 2).value
+        val = guarded_gspread_call(
+            lambda: meta.cell(row, 2).value,
+            operation="read",
+            description="Read enrichment next-row pointer",
+        )
         try:
             return max(2, int(val))
         except Exception:
             return 2
-    meta.append_row([META_KEY_NEXTROW, "2"])
+    guarded_gspread_call(
+        lambda: meta.append_row([META_KEY_NEXTROW, "2"]),
+        operation="write",
+        description="Append enrichment next-row pointer",
+    )
     return 2
 
 def meta_set_next_row(meta, next_row: int):
-    cells = meta.findall(META_KEY_NEXTROW)
+    cells = guarded_gspread_call(
+        lambda: meta.findall(META_KEY_NEXTROW),
+        operation="read",
+        description="Find enrichment next-row pointer for update",
+    )
     if cells:
-        meta.update_cell(cells[0].row, 2, str(max(2, next_row)))
+        guarded_gspread_call(
+            lambda: meta.update_cell(cells[0].row, 2, str(max(2, next_row))),
+            operation="write",
+            description="Update enrichment next-row pointer",
+        )
     else:
-        meta.append_row([META_KEY_NEXTROW, str(max(2, next_row))])
+        guarded_gspread_call(
+            lambda: meta.append_row([META_KEY_NEXTROW, str(max(2, next_row))]),
+            operation="write",
+            description="Append enrichment next-row pointer value",
+        )
+
+
+def _row_cell(row: list[str], col_idx: int | None) -> str:
+    if col_idx is None or col_idx <= 0 or col_idx - 1 >= len(row):
+        return ""
+    return str(row[col_idx - 1]).strip()
+
+
+def _row_needs_link_lookup(row: list[str], col_website: int, col_linkedin: int, col_status: int) -> bool:
+    website = _row_cell(row, col_website)
+    if not website:
+        return False
+    linkedin_val = _row_cell(row, col_linkedin)
+    status_val = _row_cell(row, col_status)
+    has_formula = linkedin_val.startswith("=")
+    linkedin_kind = _linkedin_url_kind(linkedin_val) if not has_formula else ""
+    has_real_li = linkedin_kind in {"company", "showcase"}
+    is_none = status_val == STATUS_NONE
+    is_person_profile = status_val == STATUS_PERSON_PROFILE
+    return (not has_real_li) and not is_none and not is_person_profile
+
+
+def _count_pending_rows(values: list[list[str]], col_website: int, col_linkedin: int, col_status: int) -> int:
+    if not values or len(values) <= 1:
+        return 0
+    return sum(
+        1
+        for row in values[1:]
+        if _row_needs_link_lookup(row, col_website, col_linkedin, col_status)
+    )
 
 
 _browser_semaphore = threading.Semaphore(MAX_BROWSERS)
@@ -273,6 +502,44 @@ class LinkedInCompanyInspector:
                 LinkedInCompanyInspector._warned = True
             self.close()
             return False
+
+    def _reset_page(self) -> bool:
+        if not self._browser:
+            return False
+        if self._page:
+            with contextlib.suppress(Exception):
+                self._page.close()
+        self._page = self._browser.new_page()
+        self._page.set_default_timeout(15000)
+        return True
+
+    def _safe_page_html(self) -> str:
+        if not self._page:
+            return ""
+        with contextlib.suppress(Exception):
+            root = self._page.locator("html")
+            root.wait_for(state="attached", timeout=3000)
+            return f"<html>{root.inner_html(timeout=3000)}</html>"
+        return ""
+
+    def _safe_link_snapshot(self):
+        if not self._page:
+            return []
+        with contextlib.suppress(Exception):
+            anchors = self._page.locator("a")
+            return anchors.evaluate_all(
+                """
+                (els) => els.map(a => ({
+                  href: a.href || "",
+                  text: (a.innerText || a.textContent || "").trim()
+                }))
+                """
+            )
+        return []
+
+    @staticmethod
+    def _remaining_seconds(deadline: float) -> float:
+        return max(1.0, deadline - time.monotonic())
 
     def close(self):
         if self._page:
@@ -427,30 +694,39 @@ class LinkedInCompanyInspector:
         """Robust search for LinkedIn URL: Static -> Playwright -> Subpages."""
         base = _normalize_site_url(site_url)
         if not base: return ""
+        deadline = time.monotonic() + WEBSITE_LOOKUP_BUDGET_SECONDS
 
         # 1. Static Check (Fast)
-        r = _fetch(base)
+        r = _fetch_with_timeout(base, min(TIMEOUT, self._remaining_seconds(deadline)))
         if r:
             cands = _extract_candidates_from_html(r.text, r.url)
             if cands: return cands[0]
 
         # 2. Playwright Check (Dynamic - handles JS footers)
-        if self._ensure(fresh=False):
+        if time.monotonic() < deadline and self._ensure(fresh=False):
             try:
-                self._page.goto(base, wait_until="domcontentloaded", timeout=12000)
-                try: self._page.wait_for_timeout(1500) # Wait for JS hydration
-                except: pass
+                self._reset_page()
+                self._page.goto(
+                    base,
+                    wait_until="domcontentloaded",
+                    timeout=int(min(12000, self._remaining_seconds(deadline) * 1000)),
+                )
+                try:
+                    self._page.wait_for_timeout(1200)  # Wait for JS hydration
+                except Exception:
+                    pass
                 
                 # Check rendered content (regex + scrape)
-                content = self._page.content()
+                content = self._safe_page_html()
                 cands = _extract_candidates_from_html(content, base)
                 if cands: return cands[0]
                 
                 # Check JS-generated anchors specifically
-                hrefs = self._page.evaluate("Array.from(document.links).map(a => a.href)")
-                for h in hrefs:
-                     norm = _clean_and_normalize_linkedin(h)
-                     if norm: return norm
+                links = self._safe_link_snapshot()
+                for link in links or []:
+                    norm = _clean_and_normalize_linkedin(str(link.get("href") or ""))
+                    if norm:
+                        return norm
             except Exception:
                 pass
 
@@ -462,9 +738,10 @@ class LinkedInCompanyInspector:
             root = base
             
         queue = [root + p for p in COMMON_INTERNAL if p != "/"]
-        # Limit to top 12 to balance speed/coverage
-        for p in queue[:12]:
-             r = _fetch(p)
+        for p in queue[:MAX_INTERNAL_PAGES]:
+             if time.monotonic() >= deadline:
+                 break
+             r = _fetch_with_timeout(p, min(TIMEOUT, self._remaining_seconds(deadline)))
              if r:
                  cands = _extract_candidates_from_html(r.text, r.url)
                  if cands: return cands[0]
@@ -473,32 +750,31 @@ class LinkedInCompanyInspector:
     def fetch(self, company_url: str):
         if not company_url: return None
         if "linkedin.com" not in company_url.lower(): return None
+        deadline = time.monotonic() + LINKEDIN_FETCH_BUDGET_SECONDS
         
         # Retry logic: Try reusing browser first (False), then force fresh (True) if it fails
         for force_fresh in [False, True]:
+            if time.monotonic() >= deadline:
+                break
             if not self._ensure(fresh=force_fresh): continue
             
             try:
-                self._page.goto(company_url, wait_until="domcontentloaded", timeout=15000)
+                self._reset_page()
+                self._page.goto(
+                    company_url,
+                    wait_until="domcontentloaded",
+                    timeout=int(min(15000, self._remaining_seconds(deadline) * 1000)),
+                )
                 try:
                     self._page.wait_for_timeout(1200)
                 except Exception:
                     pass
-                page_html = ""
+                page_html = self._safe_page_html()
                 body_text = ""
-                with contextlib.suppress(Exception):
-                    page_html = self._page.content()
                 with contextlib.suppress(Exception):
                     body_text = self._page.locator("body").inner_text(timeout=2000)
 
-                links = self._page.evaluate(
-                    """
-                    Array.from(document.links).map(a => ({
-                      href: a.href || "",
-                      text: (a.innerText || a.textContent || "").trim()
-                    }))
-                    """
-                )
+                links = self._safe_link_snapshot()
 
                 # Look for employee count link
                 locator = self._page.locator("a").filter(has_text=re.compile("employees?", re.I)).first
@@ -540,7 +816,7 @@ class LinkedInCompanyInspector:
                 # Fallback: scan page HTML for urn:li:organization:{id} (present on guest pages)
                 if not company_id:
                     with contextlib.suppress(Exception):
-                        page_html = self._page.content()
+                        page_html = page_html or self._safe_page_html()
                         urn_match = re.search(r"urn:li:organization:(\d+)", page_html)
                         if urn_match:
                             company_id = urn_match.group(1)
@@ -590,7 +866,7 @@ REQ_HEADERS = {
 ALLOW_PERSON_FALLBACK = True
 
 RE_LINKEDIN_URL = re.compile(
-    r'(https?:\/\/(?:www\.)?linkedin\.com\/[^\s"\'<>\]\}\),]+)',
+    r'((?:https?:)?\/\/(?:[a-z0-9-]+\.)?linkedin\.com\/[^\s"\'<>\]\}\),]+)',
     re.I
 )
 
@@ -624,25 +900,30 @@ def _clean_and_normalize_linkedin(raw: str) -> str:
     path = (u.path or "/")
     if ("share" in path) or ("shareArticle" in path) or ("embed" in path):
         return ""
-    p = path.lower()
-    is_company = ("/company/" in p) or ("/showcase/" in p)
-    is_person  = ("/in/" in p)
+    clean_path = re.sub(r"/+$", "", path)
+    parts = [segment for segment in clean_path.split("/") if segment]
+    lower_parts = [segment.lower() for segment in parts]
+
+    pivot = None
+    for marker in ("company", "showcase", "in"):
+        if marker in lower_parts:
+            pivot = marker
+            break
+
+    if pivot is None:
+        return ""
+
+    pivot_idx = lower_parts.index(pivot)
+    slug = parts[pivot_idx + 1] if pivot_idx + 1 < len(parts) else ""
+    if not slug or slug.isdigit():
+        return ""
+
+    p = clean_path.lower()
+    is_company = pivot in {"company", "showcase"}
+    is_person = pivot == "in"
     if not is_company and not (ALLOW_PERSON_FALLBACK and is_person):
         return ""
-    clean_path = re.sub(r"/+$", "", path)
-    if is_company:
-        parts = [p for p in clean_path.split("/") if p]
-        pivot = None
-        for marker in ("company", "showcase"):
-            if marker in parts:
-                pivot = marker
-                break
-        if pivot:
-            idx = parts.index(pivot)
-            if idx + 1 < len(parts):
-                clean_path = "/" + "/".join(parts[:idx + 2])
-            else:
-                clean_path = "/" + "/".join(parts[:idx + 1])
+    clean_path = "/" + "/".join(parts[:pivot_idx + 2])
     return urllib.parse.urlunsplit(("https", "www.linkedin.com", clean_path, "", ""))
 
 
@@ -807,8 +1088,17 @@ def _extract_candidates_from_html(html_text: str, base_url: str) -> list[str]:
     return sorted(unique, key=sort_key)
 
 def _fetch(url: str) -> requests.Response | None:
+    return _fetch_with_timeout(url, TIMEOUT)
+
+
+def _fetch_with_timeout(url: str, timeout_seconds: float) -> requests.Response | None:
     try:
-        r = requests.get(url, headers=REQ_HEADERS, timeout=TIMEOUT, allow_redirects=True)
+        r = requests.get(
+            url,
+            headers=REQ_HEADERS,
+            timeout=max(1.0, float(timeout_seconds)),
+            allow_redirects=True,
+        )
         if 200 <= r.status_code < 400 and r.text:
             return r
     except Exception:
@@ -998,7 +1288,7 @@ def _linkedin_worker(linkedin_queue, write_queue, columns, now, shutdown_event):
         inspector.close()
 
 
-def _writer_thread(write_queue, worksheet, meta_ws, total_tasks, seq_next_rows, shutdown_event):
+def _writer_thread(write_queue, worksheet, meta_ws, total_tasks, seq_next_rows, shutdown_event, run_tracker=None):
     """Ordered batch writer — only advances _meta.next_row through contiguous completed rows."""
     completed = {}           # seq_num -> bool (whether this result may advance the pointer)
     next_to_commit = 0       # lowest seq_num not yet committed
@@ -1012,15 +1302,25 @@ def _writer_thread(write_queue, worksheet, meta_ws, total_tasks, seq_next_rows, 
     def flush():
         nonlocal pending_updates, rows_since_flush, last_flush_time, pointer_dirty
         if pending_updates:
-            worksheet.spreadsheet.values_batch_update({
-                "valueInputOption": "USER_ENTERED",
-                "data": pending_updates,
-            })
+            guarded_gspread_call(
+                lambda: worksheet.spreadsheet.values_batch_update({
+                    "valueInputOption": "USER_ENTERED",
+                    "data": pending_updates,
+                }),
+                operation="write",
+                description="Flush enrichment batch updates",
+            )
         if pointer_dirty and next_pointer is not None:
             meta_set_next_row(meta_ws, next_pointer)
             print(
                 f"✅ wrote {rows_since_flush} rows "
                 f"(next row {next_pointer}; {processed}/{total_tasks} total)"
+            )
+        if run_tracker is not None:
+            run_tracker.update_batch_progress(
+                batch_processed=processed,
+                next_pointer=next_pointer,
+                last_row_num=result.row_num if 'result' in locals() else None,
             )
         pending_updates = []
         rows_since_flush = 0
@@ -1071,10 +1371,18 @@ def _writer_thread(write_queue, worksheet, meta_ws, total_tasks, seq_next_rows, 
 
 
 # =========== MAIN ===========
-def main() -> bool:
+def main(run_tracker=None) -> bool:
     gc = auth_client()
-    sh = gc.open_by_key(SHEET_ID)
-    ws = sh.worksheet(TAB_NAME)
+    sh = guarded_gspread_call(
+        lambda: gc.open_by_key(SHEET_ID),
+        operation="read",
+        description="Open enrichment spreadsheet",
+    )
+    ws = guarded_gspread_call(
+        lambda: sh.worksheet(TAB_NAME),
+        operation="read",
+        description="Open enrichment worksheet",
+    )
 
     meta = get_or_create_meta(sh)
     start_row = meta_get_next_row(meta)
@@ -1108,7 +1416,11 @@ def main() -> bool:
         nonlocal need_updates
         if current_idx:
             return current_idx
-        ws.add_cols(1)
+        guarded_gspread_call(
+            lambda: ws.add_cols(1),
+            operation="write",
+            description=f"Add enrichment column {header_label}",
+        )
         idx = ws.col_count
         need_updates.append((1, idx, header_label))
         return idx
@@ -1122,15 +1434,32 @@ def main() -> bool:
 
     if need_updates:
         for r, c, v in need_updates:
-            ws.update_cell(r, c, v)
-        headers = [h.strip() for h in ws.row_values(1)]
+            guarded_gspread_call(
+                lambda row=r, col=c, value=v: ws.update_cell(row, col, value),
+                operation="write",
+                description=f"Write enrichment header {v}",
+            )
+        headers = [
+            h.strip()
+            for h in guarded_gspread_call(
+                lambda: ws.row_values(1),
+                operation="read",
+                description="Read enrichment header row",
+            )
+        ]
         header_lc = {h.lower(): i+1 for i, h in enumerate(headers)}
 
     # Read all values once
-    values = ws.get_all_values()
+    values = guarded_gspread_call(
+        lambda: ws.get_all_values(),
+        operation="read",
+        description="Read enrichment worksheet values",
+    )
     if not values:
         print("No data.")
         return False
+
+    pending_before_batch = _count_pending_rows(values, col_website, col_linkedin, col_status)
 
     # Build candidate rows list (wrap from pointer)
     all_rows = list(range(start_row, ws.row_count + 1)) + list(range(2, start_row))
@@ -1167,9 +1496,17 @@ def main() -> bool:
     if not work_rows:
         print("Nothing to update.")
         meta_set_next_row(meta, start_row if start_row <= 3 else 2)
+        if run_tracker is not None:
+            run_tracker.finish_run(final_pending=pending_before_batch)
         return False
 
     print(f"🔎 Processing {len(work_rows)} rows starting at sheet row {work_rows[0]}.")
+    if run_tracker is not None:
+        run_tracker.start_batch(
+            batch_total=len(work_rows),
+            start_row=work_rows[0],
+            pending_before_batch=pending_before_batch,
+        )
 
     # --- Build RowTask list ---
     columns = {
@@ -1245,7 +1582,7 @@ def main() -> bool:
     ]
     writer = threading.Thread(
         target=_writer_thread,
-        args=(write_queue, ws, meta, len(tasks), seq_next_rows, shutdown_event),
+        args=(write_queue, ws, meta, len(tasks), seq_next_rows, shutdown_event, run_tracker),
         daemon=True,
     )
     try:
@@ -1269,6 +1606,18 @@ def main() -> bool:
         writer.join(timeout=60)
         if writer.is_alive():
             raise RuntimeError("Writer thread did not finish in time.")
+        refreshed_values = guarded_gspread_call(
+            lambda: ws.get_all_values(),
+            operation="read",
+            description="Refresh enrichment worksheet values after batch",
+        )
+        pending_after_batch = _count_pending_rows(refreshed_values, col_website, col_linkedin, col_status)
+        if run_tracker is not None:
+            next_pointer_value = meta_get_next_row(meta)
+            run_tracker.finish_batch(
+                pending_after_batch=pending_after_batch,
+                next_pointer=next_pointer_value,
+            )
         return True
     except KeyboardInterrupt:
         shutdown_event.set()
@@ -1364,28 +1713,95 @@ if __name__ == "__main__":
 
     # Normal execution
     if args.loop:
+        tracker = None
         while True:
             try:
-                main()
+                if tracker is None:
+                    gc = auth_client()
+                    sh = guarded_gspread_call(lambda: gc.open_by_key(SHEET_ID), operation="read", description="Open enrichment spreadsheet for loop run")
+                    ws = guarded_gspread_call(lambda: sh.worksheet(TAB_NAME), operation="read", description="Open enrichment worksheet for loop run")
+                    values = guarded_gspread_call(lambda: ws.get_all_values(), operation="read", description="Read enrichment worksheet for loop run")
+                    headers = [h.strip() for h in (values[0] if values else [])]
+                    header_lc = {h.lower(): i + 1 for i, h in enumerate(headers)}
+                    tracker = EnrichmentRunTracker(
+                        mode="loop",
+                        initial_pending=_count_pending_rows(
+                            values,
+                            header_lc.get("website"),
+                            header_lc.get(COL_LINKEDIN.lower()),
+                            header_lc.get(COL_STATUS.lower()),
+                        ),
+                        batch_size=BATCH_SIZE,
+                    )
+                main(run_tracker=tracker)
             except Exception as e:
                 print("Run error:", e)
+                if tracker is not None:
+                    tracker.finish_run(error=str(e))
+                    tracker = None
             time.sleep(max(5, args.interval))
     elif args.drain:
+        drain_tracker = None
         while True:
             interrupted = False
             try:
-                progress = main()
+                if drain_tracker is None:
+                    gc = auth_client()
+                    sh = guarded_gspread_call(lambda: gc.open_by_key(SHEET_ID), operation="read", description="Open enrichment spreadsheet for drain run")
+                    ws = guarded_gspread_call(lambda: sh.worksheet(TAB_NAME), operation="read", description="Open enrichment worksheet for drain run")
+                    values = guarded_gspread_call(lambda: ws.get_all_values(), operation="read", description="Read enrichment worksheet for drain run")
+                    headers = [h.strip() for h in (values[0] if values else [])]
+                    header_lc = {h.lower(): i + 1 for i, h in enumerate(headers)}
+                    drain_tracker = EnrichmentRunTracker(
+                        mode="drain",
+                        initial_pending=_count_pending_rows(
+                            values,
+                            header_lc.get("website"),
+                            header_lc.get(COL_LINKEDIN.lower()),
+                            header_lc.get(COL_STATUS.lower()),
+                        ),
+                        batch_size=BATCH_SIZE,
+                    )
+                progress = main(run_tracker=drain_tracker)
             except Exception as e:
                 print("Run error:", e)
                 progress = False
                 interrupted = True
+                if drain_tracker is not None:
+                    drain_tracker.finish_run(error=str(e))
+                    drain_tracker = None
             if interrupted:
                 print("⏸️ Drain interrupted by an error. Resume will continue from the saved next_row pointer.")
                 break
             if not progress:
+                if drain_tracker is not None:
+                    drain_tracker.finish_run(final_pending=drain_tracker.last_known_pending)
                 print("✅ Drain complete – no remaining leads to process.")
                 break
             print(f"🔁 Processed a batch of up to {BATCH_SIZE} rows; continuing…")
             time.sleep(1)
     else:
-        main()
+        single_tracker = None
+        try:
+            gc = auth_client()
+            sh = guarded_gspread_call(lambda: gc.open_by_key(SHEET_ID), operation="read", description="Open enrichment spreadsheet for single run")
+            ws = guarded_gspread_call(lambda: sh.worksheet(TAB_NAME), operation="read", description="Open enrichment worksheet for single run")
+            values = guarded_gspread_call(lambda: ws.get_all_values(), operation="read", description="Read enrichment worksheet for single run")
+            headers = [h.strip() for h in (values[0] if values else [])]
+            header_lc = {h.lower(): i + 1 for i, h in enumerate(headers)}
+            single_tracker = EnrichmentRunTracker(
+                mode="single",
+                initial_pending=_count_pending_rows(
+                    values,
+                    header_lc.get("website"),
+                    header_lc.get(COL_LINKEDIN.lower()),
+                    header_lc.get(COL_STATUS.lower()),
+                ),
+                batch_size=BATCH_SIZE,
+            )
+            progressed = main(run_tracker=single_tracker)
+            single_tracker.finish_run(final_pending=0 if not progressed else single_tracker.last_known_pending)
+        except Exception as e:
+            if single_tracker is not None:
+                single_tracker.finish_run(error=str(e))
+            raise

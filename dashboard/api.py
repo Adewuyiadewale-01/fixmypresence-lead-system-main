@@ -20,6 +20,7 @@ from . import settings
 from .process import get_process_manager
 from .scheduler import get_scheduler
 from .pipeline_status import get_pipeline_status, prewarm_status_caches
+from .server_control import dashboard_status as get_dashboard_server_status
 from .sheet_rotation import (
     approve_pending_rotation,
     get_sheet_rotation_manager,
@@ -40,6 +41,7 @@ try:
     from config import sync_location_source_now as sync_scraper_location_source_now
     from common.system_config import get_system_config, save_system_config
     from common.config import OUTPUT_WEBHOOK_URL, SOURCE_WEBHOOK_URL, WEBHOOK_URL, WEBHOOK_SECRET
+    from common.sheets_guard import get_sheets_guard_status
 except ImportError as e:
     print(f"Warning: Could not import progress_status: {e}")
     def get_progress_status():
@@ -58,6 +60,8 @@ except ImportError as e:
         return {"error": "system config module not found"}
     def save_system_config(*_args, **_kwargs):
         raise RuntimeError("system config module not found")
+    def get_sheets_guard_status():
+        return {}
     WEBHOOK_URL = ""
     SOURCE_WEBHOOK_URL = ""
     OUTPUT_WEBHOOK_URL = ""
@@ -182,6 +186,56 @@ def _service_account_email() -> str:
         return str(json.loads(data).get("client_email") or "").strip()
     except Exception:
         return ""
+
+
+def _rotation_live_status(registry_snapshot: dict | None) -> dict:
+    live = registry_snapshot.get("live_status") if isinstance(registry_snapshot, dict) else {}
+    return live if isinstance(live, dict) else {}
+
+
+def _merge_cached_system_live_status(config: dict, rotation_snapshot: dict | None) -> dict:
+    if not isinstance(config, dict):
+        return config
+
+    merged = json.loads(json.dumps(config))
+    registries = (
+        rotation_snapshot.get("registries")
+        if isinstance(rotation_snapshot, dict) and isinstance(rotation_snapshot.get("registries"), dict)
+        else {}
+    )
+
+    pipeline_snapshot = registries.get("pipeline_sheets") if isinstance(registries.get("pipeline_sheets"), dict) else {}
+    pipeline_live = _rotation_live_status(pipeline_snapshot)
+    pipeline_cfg = merged.get("pipeline_sheets") if isinstance(merged.get("pipeline_sheets"), dict) else {}
+    pipeline_sheets = pipeline_cfg.get("sheets") if isinstance(pipeline_cfg.get("sheets"), list) else []
+    active_pipeline_key = str(pipeline_cfg.get("active_sheet_key") or "").strip()
+    if pipeline_live:
+        pipeline_cfg["active_status"] = pipeline_live
+        pipeline_cfg["sheets"] = [
+            {
+                **sheet,
+                "status": pipeline_live if str(sheet.get("key") or "").strip() == active_pipeline_key else sheet.get("status") or {},
+            }
+            for sheet in pipeline_sheets
+        ]
+        merged["pipeline_sheets"] = pipeline_cfg
+        merged["delivery_sheets"] = pipeline_cfg
+
+    source_snapshot = registries.get("source_settlement") if isinstance(registries.get("source_settlement"), dict) else {}
+    source_live = _rotation_live_status(source_snapshot)
+    source_cfg = merged.get("source_settlement") if isinstance(merged.get("source_settlement"), dict) else {}
+    if source_live:
+        source_cfg["active_status"] = source_live
+        merged["source_settlement"] = source_cfg
+
+    output_snapshot = registries.get("output_target") if isinstance(registries.get("output_target"), dict) else {}
+    output_live = _rotation_live_status(output_snapshot)
+    output_cfg = merged.get("output_target") if isinstance(merged.get("output_target"), dict) else {}
+    if output_live:
+        output_cfg["active_status"] = output_live
+        merged["output_target"] = output_cfg
+
+    return merged
 
 
 def _parse_apps_script_sync_response(response_text: str) -> tuple[bool, str]:
@@ -390,6 +444,7 @@ async def get_status():
     scheduler_state = await run_in_threadpool(scheduler.get_state)
     scraper_progress = await run_in_threadpool(get_progress_status)
     pipeline = await run_in_threadpool(get_pipeline_status, process_info, scheduler_state, scraper_progress)
+    sheets_guard = await run_in_threadpool(get_sheets_guard_status)
 
     return {
         "timestamp": datetime.now().isoformat(),
@@ -397,6 +452,10 @@ async def get_status():
         "scheduler": scheduler_state,
         "scraper": scraper_progress,
         "pipeline": pipeline,
+        "meta": {
+            "sheet_rotation": (pipeline or {}).get("sheet_rotation") if isinstance(pipeline, dict) else {},
+            "sheets_guard": sheets_guard,
+        },
     }
 
 
@@ -416,6 +475,16 @@ async def control_start(request: StartRequest):
         # Manual start - keep scheduler disabled
         pm = get_process_manager()
         return pm.start()
+
+
+@app.post("/control/scraper/approve-next-category")
+async def control_approve_next_category():
+    """
+    Explicitly approve advancing the Maps Scraper to the next category.
+    Starts the controller in one-shot mode with category approval enabled.
+    """
+    pm = get_process_manager()
+    return pm.start(extra_flags=["--approve-next-category"])
 
 
 @app.post("/control/stop")
@@ -441,6 +510,42 @@ async def control_kill():
     return pm.kill()
 
 
+@app.post("/control/dashboard/shutdown")
+async def control_dashboard_shutdown():
+    """Shutdown the dashboard backend through the dedicated control script."""
+    control_script = settings.PROJECT_ROOT / "scripts" / "dashboard_server.py"
+    subprocess.Popen(
+        [_project_python(), str(control_script), "stop", "--force", "--delay", "1.0"],
+        cwd=settings.PROJECT_ROOT,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    return {
+        "success": True,
+        "message": "Dashboard shutdown requested. This page will disconnect in a moment.",
+    }
+
+
+@app.post("/control/dashboard/restart")
+async def control_dashboard_restart():
+    """Restart the dashboard backend through the dedicated control script."""
+    control_script = settings.PROJECT_ROOT / "scripts" / "dashboard_server.py"
+    subprocess.Popen(
+        [_project_python(), str(control_script), "restart", "--delay", "1.0"],
+        cwd=settings.PROJECT_ROOT,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    return {
+        "success": True,
+        "message": "Dashboard restart requested. This page should reconnect shortly.",
+    }
+
+
 @app.post("/control/clean")
 async def control_clean(request: CleanRequest):
     """
@@ -450,8 +555,8 @@ async def control_clean(request: CleanRequest):
     - "logs": Clear log files only.
     - "progress": Reset scraper progress (start fresh).
     - "outputs": Clear batch outputs and temporary files.
-    - "full": Safe clean (logs + progress + outputs, keeps leads data).
-    - "nuclear": EVERYTHING - leads, destination sheets, all progress.
+    - "full": Safe clean (logs + progress + outputs, keeps sheet data).
+    - "nuclear": EVERYTHING - leads, destination sheets, final output, all progress.
     
     Safety: Only runs if controller is stopped.
     """
@@ -472,37 +577,28 @@ async def control_clean(request: CleanRequest):
     
     # Nuclear mode - uses clean_pipeline.py --all
     if mode == "nuclear":
-        # Clear logs
-        if settings.SYSTEM_LOG.exists():
-            settings.SYSTEM_LOG.unlink()
-            cleaned.append("logs/system.log")
-        
-        # Clear ALL scraper progress files
-        output_dir = settings.BOTS_DIR / "maps_scraper" / "output"
-        if output_dir.exists():
-            for f in output_dir.glob("*.csv"):
-                f.unlink()
-                cleaned.append(f"output/{f.name}")
-            for f in output_dir.glob("*.json"):
-                f.unlink()
-                cleaned.append(f"output/{f.name}")
-            for f in output_dir.glob("*.jsonl"):
-                f.unlink()
-                cleaned.append(f"output/{f.name}")
-        
-        # Run clean_pipeline.py --all (clears sheets too)
+        # Run clean_pipeline.py --all (clears pipeline, destination, output sheets,
+        # local scraper history/state, summaries, and logs)
         clean_script = settings.CONTROLLER_DIR / "clean_pipeline.py"
         if clean_script.exists():
             result = subprocess.run(
-                ["python3", str(clean_script), "--all"],
+                [_project_python(), str(clean_script), "--all"],
                 capture_output=True,
                 text=True,
                 cwd=str(settings.PROJECT_ROOT),
                 timeout=120  # 2 min timeout for sheet operations
             )
-            cleaned.append("all sheets and destination tabs")
             if result.returncode != 0:
-                cleaned.append(f"(with warnings: {result.stderr[:200]})")
+                raise HTTPException(
+                    status_code=500,
+                    detail=result.stderr.strip() or result.stdout.strip() or "Nuclear clean failed.",
+                )
+            cleaned.append("pipeline sheets")
+            cleaned.append("destination sheets")
+            cleaned.append("final output sheet")
+            cleaned.append("local scraper history/state")
+            cleaned.append("scraper v3 summaries")
+            cleaned.append("logs")
         
         return {
             "success": True,
@@ -616,7 +712,7 @@ async def update_config(request: ConfigRequest):
     }
 
 
-@app.get("/config")
+@app.get("/config/scheduler")
 async def get_scheduler_config():
     """Return scheduler configuration without the heavy unified status payload."""
     scheduler = get_scheduler()
@@ -711,11 +807,13 @@ async def advance_scraper_locations(request: ScraperLocationSyncRequest):
 @app.get("/config/system")
 async def get_system_config_endpoint():
     """Return shared system config for watcher and delivery-sheet management."""
-    config = await run_in_threadpool(get_system_config, include_live=True)
+    config = await run_in_threadpool(get_system_config, include_live=False)
+    rotation_snapshot = await run_in_threadpool(get_sheet_rotation_snapshot)
+    config = _merge_cached_system_live_status(config, rotation_snapshot)
     if isinstance(config, dict):
         meta = config.get("meta") if isinstance(config.get("meta"), dict) else {}
         meta["service_account_email"] = _service_account_email()
-        meta["sheet_rotation"] = await run_in_threadpool(get_sheet_rotation_snapshot)
+        meta["sheet_rotation"] = rotation_snapshot
         config["meta"] = meta
     return {
         "success": True,
@@ -834,10 +932,64 @@ async def enrichment_linkedin_reset_hard():
     }
 
 
+@app.post("/control/enrichment/scraper-v3/watcher-check")
+async def enrichment_scraper_v3_watcher_check():
+    """Run a single scraper_v3 watcher tick."""
+    cmd = [_project_python(), str(settings.CONTROLLER_DIR / "scraper_v3_watcher.py"), "--once"]
+    result = _run_subprocess_capture(cmd)
+    if not result["ok"]:
+        raise HTTPException(status_code=500, detail=result["output"] or "Scraper V3 watcher check failed.")
+    return {
+        "success": True,
+        "message": "Scraper V3 watcher check completed.",
+        "output": result["output"],
+    }
+
+
+@app.post("/control/enrichment/scraper-v3/force-run")
+async def enrichment_scraper_v3_force_run():
+    """Force a scraper_v3 watcher tick to launch immediately if any backlog exists."""
+    cmd = [_project_python(), str(settings.CONTROLLER_DIR / "scraper_v3_watcher.py"), "--once"]
+    result = _run_subprocess_capture(
+        cmd,
+        env_overrides={
+            "MIN_ALPHA_BETA_BACKLOG_TO_RUN": "1",
+            "SCRAPER_V3_MAX_WAIT_MINUTES": "0",
+        },
+    )
+    if not result["ok"]:
+        raise HTTPException(status_code=500, detail=result["output"] or "Scraper V3 force run failed.")
+    return {
+        "success": True,
+        "message": "Scraper V3 force-run check completed.",
+        "output": result["output"],
+    }
+
+
+@app.post("/control/enrichment/scraper-v3/reset-checkpoint")
+async def enrichment_scraper_v3_reset_checkpoint():
+    """Clear the latest scraper_v3 resume checkpoint so the next run starts fresh."""
+    checkpoint_path = settings.BOTS_DIR / "enricher" / "outputs" / "checkpoints" / "checkpoint_latest.json"
+    try:
+        checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+        checkpoint_path.write_text("{}\n", encoding="utf-8")
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Could not clear scraper_v3 checkpoint: {exc}")
+    return {
+        "success": True,
+        "message": "Scraper V3 latest checkpoint cleared.",
+        "output": str(checkpoint_path),
+    }
+
+
 @app.get("/health")
 async def health():
     """Health check endpoint."""
-    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+    return {
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "dashboard_server": get_dashboard_server_status(),
+    }
 
 
 # =============================================================================

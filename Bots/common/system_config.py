@@ -21,6 +21,7 @@ from common.config import (
     WEBHOOK_SPREADSHEET_ID,
     WEBHOOK_TAB_NAME,
 )
+from common.sheets_guard import authorize_gspread_client, guarded_gspread_call
 
 DEFAULT_VALIDATED_TAB = "Validated_leads"
 DEFAULT_ULTRA_TAB = "Ultra_validated"
@@ -842,16 +843,13 @@ def _clean_enrichment(value: Dict[str, Any] | None) -> Dict[str, Any]:
 
 
 def _auth_client():
-    import gspread
-    from google.oauth2.service_account import Credentials
-
-    creds_path = os.path.expanduser(os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "~/sheet-bot-key.json"))
-    scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive",
-    ]
-    creds = Credentials.from_service_account_file(creds_path, scopes=scopes)
-    return gspread.authorize(creds)
+    return authorize_gspread_client(
+        creds_path=os.path.expanduser(os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "~/sheet-bot-key.json")),
+        scopes=[
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
+        ],
+    )
 
 
 def get_active_delivery_sheet(config: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
@@ -981,9 +979,23 @@ def get_managed_sheet_capacity_status(
 
     try:
         client = _auth_client()
-        book = client.open_by_key(target["sheet_id"])
-        ws = book.worksheet(target["tab_name"])
-        used_rows = len(ws.col_values(1))
+        book = guarded_gspread_call(
+            lambda: client.open_by_key(target["sheet_id"]),
+            operation="read",
+            description="Open managed sheet spreadsheet",
+        )
+        ws = guarded_gspread_call(
+            lambda: book.worksheet(target["tab_name"]),
+            operation="read",
+            description="Open managed sheet worksheet",
+        )
+        used_rows = len(
+            guarded_gspread_call(
+                lambda: ws.col_values(1),
+                operation="read",
+                description="Read managed sheet column A",
+            )
+        )
     except Exception as exc:
         return {
             "ok": False,
@@ -1045,9 +1057,23 @@ def get_delivery_sheet_capacity_status(
 
     try:
         client = _auth_client()
-        book = client.open_by_key(target["sheet_id"])
-        ws = book.worksheet(target["inbox_tab"])
-        used_rows = len(ws.col_values(1))
+        book = guarded_gspread_call(
+            lambda: client.open_by_key(target["sheet_id"]),
+            operation="read",
+            description="Open delivery sheet spreadsheet",
+        )
+        ws = guarded_gspread_call(
+            lambda: book.worksheet(target["inbox_tab"]),
+            operation="read",
+            description="Open delivery sheet worksheet",
+        )
+        used_rows = len(
+            guarded_gspread_call(
+                lambda: ws.col_values(1),
+                operation="read",
+                description="Read delivery sheet column A",
+            )
+        )
     except Exception as exc:
         return {
             "ok": False,

@@ -12,10 +12,17 @@ Usage:
 import os
 import json
 import time
+import sys
 from pathlib import Path
 import gspread
 from google.oauth2.service_account import Credentials
 from gspread.utils import rowcol_to_a1
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from Bots.common.sheets_guard import authorize_gspread_client, guarded_gspread_call
 
 # === CONFIG ===
 _SYSTEM_CONFIG_PATH = Path(__file__).resolve().parents[1] / "common" / "system_config.json"
@@ -108,8 +115,7 @@ SOURCE_HEADER_ALIASES = {
 
 def auth_client():
     """Authenticate with Google Sheets."""
-    creds = Credentials.from_service_account_file(CREDS_PATH, scopes=SCOPES)
-    return gspread.authorize(creds)
+    return authorize_gspread_client(creds_path=CREDS_PATH, scopes=SCOPES)
 
 
 def resolve_sheet_targets():
@@ -185,7 +191,11 @@ def _find_header_index(headers: list[str], *names: str) -> int | None:
 
 
 def _ensure_source_columns(source_ws) -> dict[str, int]:
-    headers = source_ws.row_values(1)
+    headers = guarded_gspread_call(
+        lambda: source_ws.row_values(1),
+        operation="read",
+        description="Read score/classify source header row",
+    )
     if not headers:
         raise RuntimeError("Ultra_validated is missing a header row.")
 
@@ -193,9 +203,17 @@ def _ensure_source_columns(source_ws) -> dict[str, int]:
     for field, aliases in SOURCE_HEADER_ALIASES.items():
         idx = _find_header_index(headers, *aliases)
         if idx is None and field == "moved":
-            source_ws.add_cols(1)
+            guarded_gspread_call(
+                lambda: source_ws.add_cols(1),
+                operation="write",
+                description="Add source moved column",
+            )
             idx = len(headers)
-            source_ws.update_cell(1, idx + 1, "Moved")
+            guarded_gspread_call(
+                lambda: source_ws.update_cell(1, idx + 1, "Moved"),
+                operation="write",
+                description="Write source moved header",
+            )
             headers.append("Moved")
         if idx is None:
             raise RuntimeError(
@@ -208,18 +226,38 @@ def _ensure_source_columns(source_ws) -> dict[str, int]:
 def get_or_create_config_sheet(dest_book, config_tab_name, dest_tabs):
     """Get or create the config worksheet."""
     try:
-        ws = dest_book.worksheet(config_tab_name)
+        ws = guarded_gspread_call(
+            lambda: dest_book.worksheet(config_tab_name),
+            operation="read",
+            description="Open settlement config worksheet",
+        )
     except gspread.exceptions.WorksheetNotFound:
-        ws = dest_book.add_worksheet(title=config_tab_name, rows=20, cols=5)
-        ws.update("A1:B1", [["key", "value"]])
+        ws = guarded_gspread_call(
+            lambda: dest_book.add_worksheet(title=config_tab_name, rows=20, cols=5),
+            operation="write",
+            description="Create settlement config worksheet",
+        )
+        guarded_gspread_call(
+            lambda: ws.update("A1:B1", [["key", "value"]]),
+            operation="write",
+            description="Initialize settlement config header",
+        )
         init_rows = [[f"next_row_{tab}", 2] for tab in dest_tabs.keys()]
-        ws.update(f"A2:B{1 + len(init_rows)}", init_rows)
+        guarded_gspread_call(
+            lambda: ws.update(f"A2:B{1 + len(init_rows)}", init_rows),
+            operation="write",
+            description="Initialize settlement config rows",
+        )
     return ws
 
 
 def read_config(config_ws):
     """Read config key-value pairs from config worksheet."""
-    data = config_ws.get_all_values()
+    data = guarded_gspread_call(
+        lambda: config_ws.get_all_values(),
+        operation="read",
+        description="Read settlement config worksheet values",
+    )
     config = {}
     if len(data) > 1:
         for row in data[1:]:
@@ -233,11 +271,23 @@ def read_config(config_ws):
 
 def update_config_value(config_ws, key, value):
     """Update a config value in the config worksheet."""
-    cell = config_ws.find(key)
+    cell = guarded_gspread_call(
+        lambda: config_ws.find(key),
+        operation="read",
+        description=f"Find settlement config key {key}",
+    )
     if cell:
-        config_ws.update_cell(cell.row, 2, value)
+        guarded_gspread_call(
+            lambda: config_ws.update_cell(cell.row, 2, value),
+            operation="write",
+            description=f"Update settlement config key {key}",
+        )
     else:
-        config_ws.append_row([key, value])
+        guarded_gspread_call(
+            lambda: config_ws.append_row([key, value]),
+            operation="write",
+            description=f"Append settlement config key {key}",
+        )
 
 
 def main() -> bool:
@@ -246,14 +296,31 @@ def main() -> bool:
     source_sheet_id, source_tab_name, dest_sheet_id, config_tab_name, dest_tabs = resolve_sheet_targets()
     batch_size = _get_batch_size()
 
-    source_ws = client.open_by_key(source_sheet_id).worksheet(source_tab_name)
-    dest_book = client.open_by_key(dest_sheet_id)
+    source_book = guarded_gspread_call(
+        lambda: client.open_by_key(source_sheet_id),
+        operation="read",
+        description="Open score/classify source spreadsheet",
+    )
+    source_ws = guarded_gspread_call(
+        lambda: source_book.worksheet(source_tab_name),
+        operation="read",
+        description="Open score/classify source worksheet",
+    )
+    dest_book = guarded_gspread_call(
+        lambda: client.open_by_key(dest_sheet_id),
+        operation="read",
+        description="Open settlement destination spreadsheet",
+    )
     config_ws = get_or_create_config_sheet(dest_book, config_tab_name, dest_tabs)
     config = read_config(config_ws)
     source_columns = _ensure_source_columns(source_ws)
 
     # Read all data
-    all_rows = source_ws.get_all_values()
+    all_rows = guarded_gspread_call(
+        lambda: source_ws.get_all_values(),
+        operation="read",
+        description="Read score/classify source worksheet values",
+    )
     if len(all_rows) < 2:
         print("No data in source.")
         return False
@@ -322,13 +389,31 @@ def main() -> bool:
         next_row = config.get(config_key, 2)
         
         try:
-            ws = dest_book.worksheet(tab_name)
+            ws = guarded_gspread_call(
+                lambda tab=tab_name: dest_book.worksheet(tab),
+                operation="read",
+                description=f"Open destination worksheet {tab_name}",
+            )
         except:
-            ws = dest_book.add_worksheet(title=tab_name, rows=3000, cols=10)
-            ws.update("A1:E1", [["name", "website", "LinkedIn", "LinkedIn employees", "LinkedIn people link"]])
+            ws = guarded_gspread_call(
+                lambda tab=tab_name: dest_book.add_worksheet(title=tab, rows=3000, cols=10),
+                operation="write",
+                description=f"Create destination worksheet {tab_name}",
+            )
+            guarded_gspread_call(
+                lambda: ws.update("A1:E1", [["name", "website", "LinkedIn", "LinkedIn employees", "LinkedIn people link"]]),
+                operation="write",
+                description=f"Initialize destination worksheet {tab_name}",
+            )
             next_row = 2
 
-        current_rows = len(ws.col_values(1))
+        current_rows = len(
+            guarded_gspread_call(
+                lambda: ws.col_values(1),
+                operation="read",
+                description=f"Read destination worksheet {tab_name} column A",
+            )
+        )
         if current_rows >= source_stop_threshold:
             raise RuntimeError(
                 f"Source settlement tab {tab_name} reached stop threshold "
@@ -340,10 +425,18 @@ def main() -> bool:
         # Auto-expand worksheet if needed
         if end_row > ws.row_count:
             new_rows = max(end_row + 500, ws.row_count + 1000)  # Add buffer
-            ws.add_rows(new_rows - ws.row_count)
+            guarded_gspread_call(
+                lambda delta=(new_rows - ws.row_count): ws.add_rows(delta),
+                operation="write",
+                description=f"Expand destination worksheet {tab_name}",
+            )
             print(f"  📐 Expanded {tab_name} to {new_rows} rows")
         
-        ws.update(f"A{next_row}:E{end_row}", rows, value_input_option="USER_ENTERED")
+        guarded_gspread_call(
+            lambda: ws.update(f"A{next_row}:E{end_row}", rows, value_input_option="USER_ENTERED"),
+            operation="write",
+            description=f"Write destination worksheet {tab_name} rows",
+        )
         update_config_value(config_ws, config_key, end_row + 1)
         print(f"  ✅ {label}: Moved {len(rows)} leads.")
 
@@ -355,7 +448,11 @@ def main() -> bool:
                 'range': rowcol_to_a1(r_num, source_columns["moved"] + 1),
                 'values': [[val]]
             })
-        source_ws.batch_update(batch_updates)
+        guarded_gspread_call(
+            lambda: source_ws.batch_update(batch_updates),
+            operation="write",
+            description="Mark source rows as moved",
+        )
         print(f"🔒 Marked {len(rows_to_mark_done)} rows as MOVED.")
 
     return processed_count > 0

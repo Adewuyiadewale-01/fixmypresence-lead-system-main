@@ -17,10 +17,27 @@ async function api(endpoint, method = 'GET', body = null) {
     }
 
     const response = await fetch(endpoint, options);
-    const data = await response.json();
+    const rawText = await response.text();
+    const contentType = response.headers.get('content-type') || '';
+    let data = null;
+
+    if (rawText) {
+        if (contentType.includes('application/json')) {
+            try {
+                data = JSON.parse(rawText);
+            } catch (_error) {
+                throw new Error(`Invalid JSON response (${endpoint})`);
+            }
+        } else {
+            const snippet = rawText.replace(/\s+/g, ' ').trim().slice(0, 160);
+            throw new Error(`Expected JSON but got ${contentType || 'non-JSON'}: ${snippet}`);
+        }
+    } else {
+        data = {};
+    }
 
     if (!response.ok) {
-        throw new Error(data.detail || 'Request failed');
+        throw new Error(data.detail || data.message || `Request failed (${response.status})`);
     }
 
     return data;
@@ -54,6 +71,7 @@ let _globalIsRunning = false;
 let _globalSchedulerPhase = null;
 let _statusPollInFlight = false;
 let _lastRotationSnapshot = null;
+let _lastSheetsGuardSnapshot = null;
 
 const ROTATION_REGISTRY_LABELS = {
     pipeline_sheets: 'Pipeline',
@@ -184,9 +202,43 @@ function renderSidebarFetchStatus(rotation) {
     }).join('');
 }
 
+function renderSidebarSheetsGuardStatus(guard) {
+    _lastSheetsGuardSnapshot = guard || null;
+    const stateEl = document.getElementById('sidebar-sheets-guard-state');
+    const retriesEl = document.getElementById('sidebar-sheets-guard-retries');
+    const waitEl = document.getElementById('sidebar-sheets-guard-wait');
+    if (!stateEl || !retriesEl || !waitEl) return;
+
+    const data = guard || {};
+    const backoffActive = Boolean(data.backoff_active);
+    const waiting = Boolean(data.rate_gate_waiting);
+    const retryTotal = Number(data.retry_events_total || 0);
+    const lastBackoff = data.last_backoff_seconds != null ? `${Number(data.last_backoff_seconds).toFixed(1)}s` : '--';
+    const lastWait = data.last_wait_seconds != null ? `${Number(data.last_wait_seconds).toFixed(1)}s` : '--';
+
+    if (backoffActive) {
+        stateEl.textContent = `Backoff · ${data.backoff_until ? formatRelativeFuture(data.backoff_until) : lastBackoff}`;
+    } else if (waiting) {
+        stateEl.textContent = `Waiting · ${data.rate_gate_wait_until ? formatRelativeFuture(data.rate_gate_wait_until) : lastWait}`;
+    } else {
+        stateEl.textContent = 'Idle';
+    }
+
+    retriesEl.textContent = retryTotal > 0
+        ? `${retryTotal} · ${data.last_retry_at ? formatRelativePast(data.last_retry_at) : lastBackoff}`
+        : '0';
+    waitEl.textContent = waiting
+        ? `${lastWait} active`
+        : (Number(data.rate_gate_wait_events_total || 0) > 0 ? `${data.rate_gate_wait_events_total} · ${data.last_wait_at ? formatRelativePast(data.last_wait_at) : lastWait}` : 'Idle');
+}
+
 function refreshSidebarFetchCountdown() {
-    if (!_lastRotationSnapshot) return;
-    renderSidebarFetchStatus(_lastRotationSnapshot);
+    if (_lastRotationSnapshot) {
+        renderSidebarFetchStatus(_lastRotationSnapshot);
+    }
+    if (_lastSheetsGuardSnapshot) {
+        renderSidebarSheetsGuardStatus(_lastSheetsGuardSnapshot);
+    }
 }
 
 function updateGlobalStatus(processRunning, schedulerPhase) {
@@ -234,7 +286,8 @@ async function pollGlobalStatus() {
     try {
         const data = await api('/status');
         updateGlobalStatus(data.process.running, data.scheduler.phase);
-        renderSidebarFetchStatus((data.meta || {}).sheet_rotation || null);
+        renderSidebarFetchStatus(((data.meta || {}).sheet_rotation) || (data.pipeline || {}).sheet_rotation || null);
+        renderSidebarSheetsGuardStatus((data.meta || {}).sheets_guard || null);
         // Dispatch custom event so page-specific JS can react
         window.dispatchEvent(new CustomEvent('status-update', { detail: data }));
     } catch (e) {

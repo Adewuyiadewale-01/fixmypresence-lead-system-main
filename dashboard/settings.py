@@ -15,17 +15,52 @@ LOGS_DIR.mkdir(exist_ok=True)
 # === FILES ===
 PID_FILE = PROJECT_ROOT / "dashboard_controller.pid"
 SYSTEM_LOG = LOGS_DIR / "system.log"
+DASHBOARD_SERVER_PID_FILE = PROJECT_ROOT / "dashboard_server.pid"
+DASHBOARD_SERVER_LOG = LOGS_DIR / "dashboard_server.log"
+DASHBOARD_HOST = os.environ.get("DASHBOARD_HOST", "127.0.0.1")
+DASHBOARD_PORT = int(os.environ.get("DASHBOARD_PORT", "8000"))
+DASHBOARD_RELOAD = os.environ.get("DASHBOARD_RELOAD", "").strip().lower() in {"1", "true", "yes", "on"}
 
 # === CONTROLLER COMMAND ===
 # The exact command to run the master controller.
-# Modify this if you need different flags or a different Python path.
-CONTROLLER_PYTHON = os.environ.get("DASHBOARD_PYTHON", "python3")
+# Prefer the project virtualenv so the dashboard launches with the same
+# interpreter/dependencies as the rest of the app.
+_DEFAULT_VENV_PYTHON = PROJECT_ROOT / ".venv" / "bin" / "python"
+CONTROLLER_PYTHON = os.environ.get(
+    "DASHBOARD_PYTHON",
+    str(_DEFAULT_VENV_PYTHON) if _DEFAULT_VENV_PYTHON.exists() else "python3",
+)
 CONTROLLER_SCRIPT = str(CONTROLLER_DIR / "main.py")
-CONTROLLER_FLAGS = ["--with-watcher"]  # Add/remove flags as needed
+CONTROLLER_FLAGS = []  # Dashboard manages persistent watcher subprocesses separately.
 
-def get_controller_cmd() -> list:
+def get_controller_cmd(extra_flags: list[str] | None = None) -> list:
     """Build the controller command from config."""
-    return [CONTROLLER_PYTHON, CONTROLLER_SCRIPT] + CONTROLLER_FLAGS
+    return [CONTROLLER_PYTHON, CONTROLLER_SCRIPT] + CONTROLLER_FLAGS + list(extra_flags or [])
+
+
+WATCHER_SPECS = [
+    {
+        "key": "enrichment",
+        "label": "Enrichment Watcher",
+        "script": str(CONTROLLER_DIR / "enrichment_watcher.py"),
+        "pid_file": PROJECT_ROOT / "dashboard_enrichment_watcher.pid",
+        "log_file": LOGS_DIR / "enrichment_watcher.log",
+    },
+    {
+        "key": "ultra",
+        "label": "Ultra Validated Watcher",
+        "script": str(CONTROLLER_DIR / "ultra_validated_watcher.py"),
+        "pid_file": PROJECT_ROOT / "dashboard_ultra_watcher.pid",
+        "log_file": LOGS_DIR / "ultra_validated_watcher.log",
+    },
+    {
+        "key": "scraper_v3",
+        "label": "Scraper V3 Watcher",
+        "script": str(CONTROLLER_DIR / "scraper_v3_watcher.py"),
+        "pid_file": PROJECT_ROOT / "dashboard_scraper_v3_watcher.pid",
+        "log_file": LOGS_DIR / "scraper_v3_watcher.log",
+    },
+]
 
 # === SCHEDULER DEFAULTS ===
 DEFAULT_RUN_HOURS = int(os.environ.get("CYCLE_RUN_HOURS", "4"))

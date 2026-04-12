@@ -58,6 +58,26 @@ function createOutputRotationCopy(options) {
   };
 }
 
+function clearOutputSheetData() {
+  const cfg = getOutputConfig();
+  const ss = SpreadsheetApp.openById(cfg.sheetId);
+  let sheet = ss.getSheetByName(cfg.tabName);
+  if (!sheet) {
+    sheet = ss.insertSheet(cfg.tabName);
+    sheet.appendRow([
+      'ID', 'Company Name', 'Company Website', 'Company LinkedIn',
+      'Person Name', 'Person Role', 'Person Email', 'Person LinkedIn', 'Class'
+    ]);
+  }
+  const clearedRows = Math.max(sheet.getLastRow() - 1, 0);
+  clearWorksheetData(sheet);
+  return {
+    sheet_id: cfg.sheetId,
+    tab_name: cfg.tabName,
+    cleared_rows: clearedRows,
+  };
+}
+
 function authorizeRotationAccess() {
   DriveApp.getRootFolder();
   SpreadsheetApp.getActive();
@@ -115,6 +135,15 @@ function doPost(e) {
         status: 'ok',
         message: 'output rotation copy created',
         copy: created
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (payload.action === 'clear_output_sheet') {
+      var cleared = clearOutputSheetData();
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 'ok',
+        message: 'output sheet cleared',
+        output: cleared
       })).setMimeType(ContentService.MimeType.JSON);
     }
 

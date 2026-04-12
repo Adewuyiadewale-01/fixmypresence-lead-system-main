@@ -1,203 +1,2006 @@
 [
   {
-    "input_website": "http://www.dycotrade.com/",
-    "name": "DycoTrade",
+    "input_website": "https://myecurrencyng.com/",
+    "name": "Phemrous Trading Capital",
     "linkedin_urls": [
-      "https://www.linkedin.com/company/dycotrade-ctrm"
+      "https://www.linkedin.com/company/my-ecurrency-nigeria"
     ],
-    "company_linkedin": "https://www.linkedin.com/company/dycotrade-ctrm",
+    "company_linkedin": "https://www.linkedin.com/company/my-ecurrency-nigeria",
     "emails": [
-      "info@dycotrade.com"
+      "info@myecurrencyng.com",
+      "pr@myecurrencyng.com",
+      "support@myecurrency.ng"
     ],
     "persons": [],
     "blocked": false,
-    "tab": "Gamma",
+    "tab": "Alpha",
+    "row": 4
+  },
+  {
+    "input_website": "http://businesstrumpet.com/",
+    "name": "BusinessTrumpet News",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/businesstrumpetnews"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/businesstrumpetnews",
+    "emails": [],
+    "persons": [],
+    "blocked": false,
+    "tab": "Alpha",
     "row": 3
   },
   {
-    "input_website": "http://www.webbtraders.nl/",
-    "name": "WEBB Traders",
+    "input_website": "http://www.multitails.com/",
+    "name": "MultiTails",
     "linkedin_urls": [
-      "https://www.linkedin.com/company/webb-traders"
+      "https://www.linkedin.com/company/multitails"
     ],
-    "company_linkedin": "https://www.linkedin.com/company/webb-traders",
+    "company_linkedin": "https://www.linkedin.com/company/multitails",
     "emails": [
-      "compliance@webbtraders.com",
-      "contact@webbtraders.com",
-      "job.28fg2@webbtraders.recruitee.com",
-      "job.5w5vl@webbtraders.recruitee.com",
-      "job.6yt3l@webbtraders.recruitee.com",
-      "job.aoana@webbtraders.recruitee.com",
-      "job.f519d@webbtraders.recruitee.com",
-      "job.kas5u@webbtraders.recruitee.com",
-      "job.lybvs@webbtraders.recruitee.com",
-      "job.rant6@webbtraders.recruitee.com"
+      "contactus@multitails.com",
+      "support@multitails.com"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 2
+  },
+  {
+    "input_website": "https://www.dmarketforces.com/",
+    "name": "MarketForces Africa",
+    "linkedin_urls": [
+      "http://www.linkedin.com/in/juliusalagbe",
+      "https://www.linkedin.com/company/marketforcesafrica"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/marketforcesafrica",
+    "emails": [
+      "editor@dmarketforces.com"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 5
+  },
+  {
+    "input_website": "https://jideogundimucosolicitors.co.uk/",
+    "name": "Jide Ogundimu & Co Solicitors.",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/jide-ogundimu-",
+      "https://www.linkedin.com/company/jide-ogundimu-&-co-solicitors"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/jide-ogundimu-",
+    "emails": [
+      "legal@jideogundimucosolicitors.co.uk"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 6
+  },
+  {
+    "input_website": "http://chinook-capital.com/",
+    "name": "Chinook Capital",
+    "linkedin_urls": [
+      "https://ng.linkedin.com/in/bade-aluko-90543b7",
+      "https://ng.linkedin.com/in/suru-avoseh-b9898314",
+      "https://www.linkedin.com/company/chinook-capital-limited",
+      "https://www.linkedin.com/in/gbengao"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/chinook-capital-limited",
+    "emails": [
+      "info@chinook-capital.com"
     ],
     "persons": [
       {
-        "name": "Job Aoana",
+        "name": "Bade Aluko",
         "role": "",
-        "linkedin": "",
-        "email": "job.aoana@webbtraders.recruitee.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
+        "linkedin": "https://ng.linkedin.com/in/bade-aluko-90543b7",
+        "email": "",
+        "bio": "",
+        "confidence": "primary",
+        "strategy": "signal_template",
+        "evidence": "signal_template_strong",
+        "source_url": "https://chinook-capital.com/about"
       },
       {
-        "name": "Job Lybvs",
+        "name": "Suru Avoseh",
+        "role": "",
+        "linkedin": "https://ng.linkedin.com/in/suru-avoseh-b9898314",
+        "email": "",
+        "bio": "",
+        "confidence": "primary",
+        "strategy": "signal_template",
+        "evidence": "signal_template_strong",
+        "source_url": "https://chinook-capital.com/about"
+      },
+      {
+        "name": "Gbenga Odegbami",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/gbengao",
+        "email": "",
+        "bio": "",
+        "confidence": "primary",
+        "strategy": "signal_template",
+        "evidence": "signal_template_strong",
+        "source_url": "https://chinook-capital.com/about"
+      },
+      {
+        "name": "Ekene Agu",
         "role": "",
         "linkedin": "",
-        "email": "job.lybvs@webbtraders.recruitee.com",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://chinook-capital.com/about"
+      },
+      {
+        "name": "Toluwa Obademi",
+        "role": "",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://chinook-capital.com/about"
+      },
+      {
+        "name": "Naomi Jibunor",
+        "role": "Naomi Jibunor is a Program Coordinator for Chinook Lab, pre-seed stage and startups incubation initiative...",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://chinook-capital.com/about"
+      }
+    ],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 8
+  },
+  {
+    "input_website": "https://recapss.com/",
+    "name": "Reformed Capital (Backers)",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/byspacevc/about",
+      "https://www.linkedin.com/company/recapss",
+      "https://www.linkedin.com/in/yourname"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/byspacevc/about",
+    "emails": [
+      "contact@recapss.com",
+      "john@doe.com"
+    ],
+    "persons": [
+      {
+        "name": "Kenneth Holmes, Jr",
+        "role": "Fincastle, Virginia, United States | Professional Profile",
+        "linkedin": "https://www.linkedin.com/in/yourname",
+        "email": "",
+        "confidence": "medium",
+        "strategy": "linkedin_page"
+      }
+    ],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 9
+  },
+  {
+    "input_website": "https://www.morgancapitalgroup.com/",
+    "name": "Morgan Capital Securities Nigeria Limited",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/morgancapital-group-member-of-the-nigerian-stock-exchange"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/morgancapital-group-member-of-the-nigerian-stock-exchange",
+    "emails": [
+      "customercare@morgancapitalgroup.com",
+      "fedor@indutny.com",
+      "git@github.com",
+      "info@morgancapitalgroup.com",
+      "investment@morgancapitalgroup.com"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 10
+  },
+  {
+    "input_website": "http://www.coinboxlimited.com.ng/",
+    "name": "COINBOX LIMITED",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/coinbox-trades-limited"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/coinbox-trades-limited",
+    "emails": [
+      "info@coinboxlimited.com.ng"
+    ],
+    "persons": [
+      {
+        "name": "Coinbox Limited",
+        "role": "Coinbox Limited Vacancy for HR Lead, Coinbox April 4, 2026 ayo emakhiomhe",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://coinboxlimited.com.ng"
+      },
+      {
+        "name": "Business Management",
+        "role": "",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://coinboxlimited.com.ng"
+      }
+    ],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 11
+  },
+  {
+    "input_website": "http://natineee.org/",
+    "name": "NESII.",
+    "linkedin_urls": [
+      "http://linkedin.com/in/enitan-oluwa",
+      "https://www.linkedin.com/company/natineee-empowerment-for-sustainable-impact-initiative-nesii"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/natineee-empowerment-for-sustainable-impact-initiative-nesii",
+    "emails": [
+      "enquirie@natineee.org",
+      "enquiries@natineee.org"
+    ],
+    "persons": [
+      {
+        "name": "International Adolescent Health Week",
+        "role": "",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://natineee.org/media-appearances"
+      },
+      {
+        "name": "Media Appearances",
+        "role": "06 February NESII Founder Features on Healthy Living With BOFA TV Media Appearances natineee",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://natineee.org/media-appearances"
+      },
+      {
+        "name": "NESII Joins NNNGOs",
+        "role": "",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://natineee.org/media-appearances"
+      },
+      {
+        "name": "Enitan Oluwa",
+        "role": "",
+        "linkedin": "http://linkedin.com/in/enitan-oluwa",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      }
+    ],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 7
+  },
+  {
+    "input_website": "https://fundall.io/",
+    "name": "Fundall",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/fundall"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/fundall",
+    "emails": [
+      "fedor@indutny.com",
+      "git@github.com",
+      "hello@fundall.io",
+      "support@fundall.io"
+    ],
+    "persons": [
+      {
+        "name": "Kolapo Joseph",
+        "role": "Founder & Board Chair, Fundall",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://fundall.io/about-us"
+      },
+      {
+        "name": "Abimbola Shopeju",
+        "role": "CEO, Fundall",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://fundall.io/about-us"
+      },
+      {
+        "name": "Taiwo Obasan",
+        "role": "COO, Fundall",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://fundall.io/about-us"
+      }
+    ],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 12
+  },
+  {
+    "input_website": "http://taniquest.com/",
+    "name": "Taniquest Consulting Services",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/taniquest-consulting-services"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/taniquest-consulting-services",
+    "emails": [
+      "info@taniquest.com",
+      "support@gmail.com"
+    ],
+    "persons": [
+      {
+        "name": "Joseph Aina",
+        "role": "Business Development Consultant",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth1",
+        "source_url": "https://taniquest.com"
+      },
+      {
+        "name": "Legal Consultant",
+        "role": "Partner",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth1",
+        "source_url": "https://taniquest.com"
+      },
+      {
+        "name": "Komolafe Jeremiah",
+        "role": "Personnel Assurance Manager",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth1",
+        "source_url": "https://taniquest.com"
+      },
+      {
+        "name": "Taiwo Theophilus",
+        "role": "Managing Consultant Taiwo Theophilus",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://taniquest.com"
+      }
+    ],
+    "blocked": true,
+    "tab": "Alpha",
+    "row": 15
+  },
+  {
+    "input_website": "http://www.greenageattorneys.com/",
+    "name": "GREENAGE ATTORNEYS LP",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/greenage-attorneys-llp"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/greenage-attorneys-llp",
+    "emails": [
+      "greenageattorney@gmail.com",
+      "greenagelawfirm@gmail.com",
+      "info@greenageattorneys.com"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 13
+  },
+  {
+    "input_website": "https://montwellproperties.ng/",
+    "name": "Montwell Properties & Investments Limited",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/montwell-properties"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/montwell-properties",
+    "emails": [
+      "email@houzez.co",
+      "hello@montwellproperties.ng",
+      "info@montwellproperties.ng",
+      "montwellproperties@gmail.com",
+      "someone@example.com"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 14
+  },
+  {
+    "input_website": "http://utilour.ng/",
+    "name": "Utilour",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/myutilour"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/myutilour",
+    "emails": [
+      "enquiry@utilour.com",
+      "utilour@gmail.com"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 16
+  },
+  {
+    "input_website": "https://www.voc-advisors.com/",
+    "name": "Victor Osolake & Co. (Chartered Accountants)",
+    "linkedin_urls": [
+      "https://linkedin.com/company/VOC-advisors",
+      "https://www.linkedin.com/company/osolakevictorco",
+      "https://www.linkedin.com/company/voc-advisors"
+    ],
+    "company_linkedin": "https://linkedin.com/company/VOC-advisors",
+    "emails": [
+      "info@victorosolake.com",
+      "info@voc-advisors.com"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 18
+  },
+  {
+    "input_website": "https://www.afirstlaw.com/",
+    "name": "A-FIRST LAW PRACTICE",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/a-first-law-practice"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/a-first-law-practice",
+    "emails": [
+      "careers@afirstlaw.com",
+      "info@afirstlaw.com",
+      "lawyers@afirstlaw.com",
+      "o.ajetunmobi@afirslaw.com",
+      "o.ajetunmobi@afirstlaw.com",
+      "y.anikulapo@afirstlaw.com"
+    ],
+    "persons": [
+      {
+        "name": "Olawale Ajetunmobi",
+        "role": "attestation or authentication of powers of attorney for use abroad.",
+        "linkedin": "",
+        "email": "o.ajetunmobi@afirslaw.com",
+        "bio": "Our notary services are rendered on arrangements most convenient for our clients\u2019 schedules. We are always available at our offices and we also visit our clients\u2019 place of business for notarisations where required. We are also able to keep appointments both on weekdays and weekends to serve our clients.",
+        "confidence": "secondary",
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_medium",
+        "source_url": "https://www.afirstlaw.com/notary-public-services"
+      }
+    ],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 17
+  },
+  {
+    "input_website": "http://lawfuturepartners.com/",
+    "name": "LAW FUTURE PARTNERS",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/law-future-partners"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/law-future-partners",
+    "emails": [
+      "elvis.easia@futurelawjournals.com"
+    ],
+    "persons": [
+      {
+        "name": "Elvis Easia",
+        "role": "",
+        "linkedin": "",
+        "email": "elvis.easia@futurelawjournals.com",
         "confidence": "medium",
         "strategy": "email_parsing"
       }
     ],
     "blocked": false,
+    "tab": "Alpha",
+    "row": 20
+  },
+  {
+    "input_website": "https://bridgedwallconsulting.com/",
+    "name": "BridgedWall Professional",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/bridgedwall-consulting"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/bridgedwall-consulting",
+    "emails": [
+      "info@bridgedwallconsulting.com"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 19
+  },
+  {
+    "input_website": "https://strictlylawbiz.com/",
+    "name": "Strictly Law Business",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/strictly-law-business"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/strictly-law-business",
+    "emails": [
+      "info@strictlylawbiz.com"
+    ],
+    "persons": [
+      {
+        "name": "Jeremy Scoot",
+        "role": "Jeremy Scoot Head of Woopy Co.",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://strictlylawbiz.com/community"
+      },
+      {
+        "name": "Marie Lawson",
+        "role": "",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://strictlylawbiz.com/community"
+      },
+      {
+        "name": "Ryan Prime",
+        "role": "Ryan Prime Head of Seventeen Co.",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://strictlylawbiz.com/community"
+      },
+      {
+        "name": "Guy Hawkins",
+        "role": "Guy Hawkins Software Manager",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://strictlylawbiz.com/community"
+      },
+      {
+        "name": "John Paiomo",
+        "role": "",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://strictlylawbiz.com/community"
+      }
+    ],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 21
+  },
+  {
+    "input_website": "https://www.htlegal.com.ng/",
+    "name": "HT Legal Advisory Services",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/h-t-legal"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/h-t-legal",
+    "emails": [
+      "enquiries@htlegaladvisory.in",
+      "hilda@htlegaladvisory.in",
+      "retainerships@htlegaladvisory.in"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 22
+  },
+  {
+    "input_website": "http://www.lbandcolaw.com/",
+    "name": "Lekan Bamidele and Co",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/lekan-bamidele-co-the-bohemian-firm"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/lekan-bamidele-co-the-bohemian-firm",
+    "emails": [
+      "hello@lbandcolaw.com",
+      "lekan@lbandcolaw.com"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 25
+  },
+  {
+    "input_website": "https://www.aekleysolicitors.com/",
+    "name": "Aekley Solicitors (Ibadan Office)",
+    "linkedin_urls": [
+      "http://linkedin.com/company/aekleysolicitors",
+      "https://www.linkedin.com/company/aekleysolicitors",
+      "https://www.linkedin.com/in/adejorin-abiona",
+      "https://www.linkedin.com/in/aduragbemi-akintepede-800258102",
+      "https://www.linkedin.com/in/raymond-abiona"
+    ],
+    "company_linkedin": "http://linkedin.com/company/aekleysolicitors",
+    "emails": [
+      "adejorinabiona@aekleysolicitors.com",
+      "aduraakintepede@aekleysolicitors.com",
+      "info@aekleysolicitors.com"
+    ],
+    "persons": [
+      {
+        "name": "RAYMOND ABIONA",
+        "role": "Partner",
+        "linkedin": "https://www.linkedin.com/in/raymond-abiona",
+        "email": "info@aekleysolicitors.com",
+        "bio": "",
+        "confidence": "primary",
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_strong",
+        "source_url": "https://aekleysolicitors.com/our-team"
+      },
+      {
+        "name": "ADEJORIN DAVID ABIONA",
+        "role": "Partner",
+        "linkedin": "https://www.linkedin.com/in/adejorin-abiona",
+        "email": "adejorinabiona@aekleysolicitors.com",
+        "bio": "",
+        "confidence": "primary",
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_strong",
+        "source_url": "https://aekleysolicitors.com/our-team"
+      },
+      {
+        "name": "ADURAGBEMI AKINTEPEDE",
+        "role": "Associate",
+        "linkedin": "https://www.linkedin.com/in/aduragbemi-akintepede-800258102",
+        "email": "",
+        "bio": "",
+        "confidence": "primary",
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_strong",
+        "source_url": "https://aekleysolicitors.com/our-team"
+      },
+      {
+        "name": "ITUNUOLUWA ADERONMU",
+        "role": "",
+        "linkedin": "",
+        "email": "info@aekleysolicitors.com",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://aekleysolicitors.com/our-team"
+      },
+      {
+        "name": "OLUBUNMI OMOLEWA-AGBOMEJI",
+        "role": "",
+        "linkedin": "",
+        "email": "info@aekleysolicitors.com",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://aekleysolicitors.com/our-team"
+      },
+      {
+        "name": "ADEOLA FADIRAN-FALAYE",
+        "role": "",
+        "linkedin": "",
+        "email": "info@aekleysolicitors.com",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://aekleysolicitors.com/our-team"
+      },
+      {
+        "name": "OLUWANIFEMI SOPEKAN",
+        "role": "OLUWANIFEMI SOPEKAN Associate",
+        "linkedin": "",
+        "email": "info@aekleysolicitors.com",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://aekleysolicitors.com/our-team"
+      },
+      {
+        "name": "HOPE ADENIJI-AFOLABI",
+        "role": "",
+        "linkedin": "",
+        "email": "info@aekleysolicitors.com",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://aekleysolicitors.com/our-team"
+      },
+      {
+        "name": "GET RELIABLE LEGAL HELP",
+        "role": "We are proud to partner with you to ensure progress.",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://aekleysolicitors.com"
+      },
+      {
+        "name": "GROW YOUR BUSINESS",
+        "role": "",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://aekleysolicitors.com"
+      },
+      {
+        "name": "PROTECT YOUR BUSINESS",
+        "role": "",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://aekleysolicitors.com"
+      }
+    ],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 24
+  },
+  {
+    "input_website": "https://kabbizlegal.com/",
+    "name": "Kabbiz Legal & Advisory",
+    "linkedin_urls": [
+      "https://ng.linkedin.com/company/kabizng",
+      "https://www.linkedin.com/company/kabbiz-global-nominees-limited",
+      "https://www.linkedin.com/company/kabizng",
+      "https://www.linkedin.com/in/kingsleyugochukwuani"
+    ],
+    "company_linkedin": "https://ng.linkedin.com/company/kabizng",
+    "emails": [
+      "+claudebot@anthropic.com",
+      "bot@linkup.so",
+      "contact@kabbizlegal.com",
+      "corporateservices@kabbizlegal.com",
+      "dennis.chukwuekezie@kabbizlegal.com",
+      "kingsley.ani@kabbizlegal.com"
+    ],
+    "persons": [
+      {
+        "name": "Kingsley Ani",
+        "role": "Kingsley Ani Lead counsel",
+        "linkedin": "https://www.linkedin.com/in/kingsleyugochukwuani",
+        "email": "kingsley.ani@kabbizlegal.com",
+        "bio": "If you need expert legal assistance with intellectual property matters in Nigeria, we invite you to contact us at Kabbiz Legal & Advisory. With our in-depth expertise, comprehensive services, and client-centric approach, we are well-equipped to handle all your IP needs. Protect and manage your valuable IP assets with confidence by partnering with us. Please contact",
+        "confidence": "primary",
+        "strategy": "signal_template",
+        "evidence": "signal_template_strong",
+        "source_url": "https://kabbizlegal.com/practice-areas/intellectual-property"
+      },
+      {
+        "name": "Dennis Chukwuekezie",
+        "role": "",
+        "linkedin": "",
+        "email": "dennis.chukwuekezie@kabbizlegal.com",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      }
+    ],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 23
+  },
+  {
+    "input_website": "http://lelawlegal.com/",
+    "name": "LeLaw Legal | Law Firm In Lagos Nigeria.",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/lelaw",
+      "https://www.linkedin.com/in/afolabi-elebiju-8a156179/https",
+      "https://www.linkedin.com/in/afolabi-elebiju-8a156179/https://www.linkedin.com/in/afolabi-elebiju-8a156179"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/lelaw",
+    "emails": [
+      "a.elebiju@lelawlegal.com",
+      "d.elebiju@lelawlegal.com",
+      "info@lelawlegal.com",
+      "u.ovesuor@lelawlegal.com"
+    ],
+    "persons": [
+      {
+        "name": "Afolabi Elebiju",
+        "role": "Ufuoma Ovesuor Associate u.ovesuor@lelawlegal.com +234 903 390 4824",
+        "linkedin": "https://www.linkedin.com/in/afolabi-elebiju-8a156179/https://www.linkedin.com/in/afolabi-elebiju-8a156179/ ",
+        "email": "",
+        "bio": "",
+        "confidence": "primary",
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_strong",
+        "source_url": "https://lelawlegal.com/index.php/page/team"
+      },
+      {
+        "name": "Ufuoma Ovesuor",
+        "role": "Associate",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth1",
+        "source_url": "https://lelawlegal.com/index.php/page/team"
+      },
+      {
+        "name": "Deborah Elebiju",
+        "role": "Associate",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth1",
+        "source_url": "https://lelawlegal.com/index.php/page/team"
+      }
+    ],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 26
+  },
+  {
+    "input_website": "http://imperiallawoffice.com/",
+    "name": "Imperial Law Office Attorneys",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/imperial-law-office"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/imperial-law-office",
+    "emails": [
+      "info@imperiallawoffice.com",
+      "o.adegbesan@imperiallawoffice.com",
+      "t.oni@imperiallawoffice.com"
+    ],
+    "persons": [
+      {
+        "name": "Imperial Law Office",
+        "role": "THE ROLE OF THE COMPANY SECRETARY IN ENSURING EFFECTIVE BOARD GOVERNANCE IN NIGERIA",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://imperiallawoffice.com/home"
+      }
+    ],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 27
+  },
+  {
+    "input_website": "http://folegal.net/",
+    "name": "FOLEGAL",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/festus-ogun-legal"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/festus-ogun-legal",
+    "emails": [
+      "info@folegal.net",
+      "info@yoursite.com"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 28
+  },
+  {
+    "input_website": "http://cannytrackai.com/",
+    "name": "CannyMinds Technology Solutions Private Limited",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/cannyminds-technology-solutions"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/cannyminds-technology-solutions",
+    "emails": [
+      "admin@yourdomain.com",
+      "info@cannymindstech.com",
+      "info@uspsoftsolutions.com",
+      "info@yourdomain.com",
+      "kamal@admin.com",
+      "munia@admin.com",
+      "natasha@admin.com",
+      "sv@cannymindstech.com",
+      "vp@cannymindstech.com"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Beta",
+    "row": 2
+  },
+  {
+    "input_website": "https://prestcomconsulting.carrd.co/",
+    "name": "Prestcom Consulting",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/prestcom-consulting"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/prestcom-consulting",
+    "emails": [
+      "prestcomconsulting@gmail.com"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Alpha",
+    "row": 29
+  },
+  {
+    "input_website": "http://trium.ng/",
+    "name": "Trium Limited",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/coronationmb-group",
+      "https://www.linkedin.com/company/trium-limited1/mycompany"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/coronationmb-group",
+    "emails": [
+      "digital@coronation.ng",
+      "info@ndpb.gov.ng",
+      "info@trium.ng",
+      "kpmgethicsline@ng.kpmg.com",
+      "technology@trium.ng",
+      "w1pc8xyz3er-mgtaumhq_a@2x.jpeg"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Beta",
+    "row": 5
+  },
+  {
+    "input_website": "http://theplatformcapital.com/",
+    "name": "Platform Capital",
+    "linkedin_urls": [
+      "https://ng.linkedin.com/company/iandoclothing",
+      "https://www.linkedin.com/company/theplatformcapital",
+      "https://www.linkedin.com/company/theplatformcapital/",
+      "https://www.linkedin.com/in/abbas-ojo-488314357",
+      "https://www.linkedin.com/in/adegoke-oshunniyi-b4a2b439",
+      "https://www.linkedin.com/in/dr-akintoye-akindele-cfa-dba-fica-3903283",
+      "https://www.linkedin.com/in/dr-akintoye-akindele-cfa-dba-fica-3903283/",
+      "https://www.linkedin.com/in/kofi-amoah-sarpong-59096626",
+      "https://www.linkedin.com/in/nomsodiala",
+      "https://www.linkedin.com/in/solabomiadedeji",
+      "https://www.linkedin.com/in/thembisile-dzonzi-47ba1456"
+    ],
+    "company_linkedin": "https://ng.linkedin.com/company/iandoclothing",
+    "emails": [
+      "adediranstephen2000@gmail.com",
+      "info@platformcapital.com",
+      "info@platforminvestment.com",
+      "info@theplatformcapital.com"
+    ],
+    "persons": [
+      {
+        "name": "Solabomi Adedeji",
+        "role": "Partner/COO",
+        "linkedin": "https://www.linkedin.com/in/solabomiadedeji",
+        "email": "",
+        "bio": "Mr. Solabomi Adedeji has over 28 years\u2019 experience in Business process excellence, Operations Management, Investment and Portfolio Management, Strategic Human Resource Management, Systems and Project Management, which cuts across different markets in Africa and industries which includes Manufacturing, Telecommunications, Oil & Gas, Logistics, Investment Banking and Venture Capital.",
+        "confidence": "primary",
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_strong",
+        "source_url": "https://www.theplatformcapital.com/team.html"
+      },
+      {
+        "name": "Thembisile Dzonzi",
+        "role": "Director of Branding",
+        "linkedin": "https://www.linkedin.com/in/thembisile-dzonzi-47ba1456",
+        "email": "",
+        "bio": "With a background in journalism, she combines creativity and analytical thinking to drive impactful campaigns. Thembisile holds a BA Honours in Journalism and Media Studies and is passionate about elevating brands that shape Africa's future.",
+        "confidence": "primary",
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_strong",
+        "source_url": "https://www.theplatformcapital.com/team.html"
+      },
+      {
+        "name": "Kofi Amoah Sarpong",
+        "role": "Investment Director",
+        "linkedin": "https://www.linkedin.com/in/kofi-amoah-sarpong-59096626",
+        "email": "",
+        "bio": "With deep expertise in private equity, venture capital, and corporate finance, Kofi has successfully originated, structured, and managed complex deals across multiple sectors, including real manufacturing, healthcare, education, energy, and financial services.",
+        "confidence": "primary",
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_strong",
+        "source_url": "https://www.theplatformcapital.com/team.html"
+      },
+      {
+        "name": "Abbas Ojo",
+        "role": "Investment Analyst",
+        "linkedin": "https://www.linkedin.com/in/abbas-ojo-488314357",
+        "email": "",
+        "bio": "Passionate about developing expertise in equity research, asset management, or investment banking. Committed to continuous learning and contributing fresh perspectives to drive informed investment\u00a0strategies",
+        "confidence": "primary",
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_strong",
+        "source_url": "https://www.theplatformcapital.com/team.html"
+      },
+      {
+        "name": "Adegoke Oshunniyi",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/adegoke-oshunniyi-b4a2b439",
+        "email": "",
+        "bio": "With over three decades of diverse experience in the Banking, Tech and Energy industries, he leads the legal team that supports the firm's portfolio companies and transactions across various sectors and geographies.",
+        "confidence": "primary",
+        "strategy": "signal_template",
+        "evidence": "signal_template_strong",
+        "source_url": "https://www.theplatformcapital.com/team.html"
+      },
+      {
+        "name": "AbdulAkeem Balogun",
+        "role": "Assistant Vice President, Investment",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://www.theplatformcapital.com/team.html"
+      },
+      {
+        "name": "Morayo Oluwaseye Akintola",
+        "role": "Senior Investment Associate",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://www.theplatformcapital.com/team.html"
+      },
+      {
+        "name": "Ejura Ayeni",
+        "role": "Brand & Social Media Manager",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://www.theplatformcapital.com/team.html"
+      },
+      {
+        "name": "Samuel Bamidele",
+        "role": "Investment Analyst",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://www.theplatformcapital.com/team.html"
+      },
+      {
+        "name": "Tosin Shonuyi",
+        "role": "Investment Analyst",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://www.theplatformcapital.com/team.html"
+      },
+      {
+        "name": "Dr Akintoye Akindele Cfa Dba Fica",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/dr-akintoye-akindele-cfa-dba-fica-3903283",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      }
+    ],
+    "blocked": false,
+    "tab": "Beta",
+    "row": 6
+  },
+  {
+    "input_website": "https://lagosangelnetwork.net/",
+    "name": "Lagos Angel Network (LAN)",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/lagos-angel-network",
+      "https://www.linkedin.com/in/solomon-king"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/lagos-angel-network",
+    "emails": [
+      "founders@lagosangelnetwork.net",
+      "investors@lagosangelnetwork.net",
+      "someone@example.com"
+    ],
+    "persons": [
+      {
+        "name": "Solomon King",
+        "role": "Solomon King executive director",
+        "linkedin": "https://www.linkedin.com/in/solomon-king",
+        "email": "",
+        "bio": "",
+        "confidence": "primary",
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_strong",
+        "source_url": "https://www.lagosangelnetwork.net"
+      },
+      {
+        "name": "Iyinoluwa Aboyeji",
+        "role": "board member",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth2",
+        "source_url": "https://www.lagosangelnetwork.net"
+      },
+      {
+        "name": "Olumide Soyombo",
+        "role": "board member",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth2",
+        "source_url": "https://www.lagosangelnetwork.net"
+      },
+      {
+        "name": "Yemi Keri",
+        "role": "",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://www.lagosangelnetwork.net"
+      },
+      {
+        "name": "Biola Alabi",
+        "role": "",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://www.lagosangelnetwork.net"
+      },
+      {
+        "name": "Kola Aina",
+        "role": "Kola Aina BOARD Member Linkedin",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://www.lagosangelnetwork.net"
+      }
+    ],
+    "blocked": false,
+    "tab": "Beta",
+    "row": 3
+  },
+  {
+    "input_website": "http://www.fcslng.com/",
+    "name": "FCSL ASSET MANAGEMENT COMPANY LIMITED",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/fcslng"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/fcslng",
+    "emails": [
+      "customerservice@fcslng.com",
+      "enquires@fcslng.com",
+      "enquiries@fcslng.com",
+      "whistleblowingfcslamc@banwo-ighodalo.com"
+    ],
+    "persons": [
+      {
+        "name": "Market News",
+        "role": "Valuations, yields help stocks sustain lead over Main Street",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth2",
+        "source_url": "https://fcslng.com/market-news"
+      }
+    ],
+    "blocked": false,
+    "tab": "Beta",
+    "row": 4
+  },
+  {
+    "input_website": "https://4stonecapital.com/",
+    "name": "4STONE CAPITAL",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/blackstone-capital-ng"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/blackstone-capital-ng",
+    "emails": [
+      "clientexp@4stonecapital.com"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Beta",
+    "row": 8
+  },
+  {
+    "input_website": "http://volitioncap.com/",
+    "name": "Kingzoic Investment",
+    "linkedin_urls": [
+      "https://linkedin.com/company/volitioncap",
+      "https://www.linkedin.com/in/kolaoyeneyin",
+      "https://www.linkedin.com/in/lilian-olubi-11b3b460",
+      "https://www.linkedin.com/in/subomiplumptre"
+    ],
+    "company_linkedin": "https://linkedin.com/company/volitioncap",
+    "emails": [
+      "ask@volitioncap.com"
+    ],
+    "persons": [
+      {
+        "name": "Subomi Plumptre",
+        "role": "Subomi Plumptre Co-founder",
+        "linkedin": "https://www.linkedin.com/in/subomiplumptre",
+        "email": "",
+        "bio": "",
+        "confidence": "primary",
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_strong",
+        "source_url": "https://volitioncap.com/team"
+      },
+      {
+        "name": "Kola Oyeneyin",
+        "role": "Kola Oyeneyin Co-founder",
+        "linkedin": "https://www.linkedin.com/in/kolaoyeneyin",
+        "email": "",
+        "bio": "",
+        "confidence": "primary",
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_strong",
+        "source_url": "https://volitioncap.com/team"
+      },
+      {
+        "name": "Lilian Olubi",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/lilian-olubi-11b3b460",
+        "email": "",
+        "bio": "",
+        "confidence": "primary",
+        "strategy": "signal_template",
+        "evidence": "signal_template_strong",
+        "source_url": "https://volitioncap.com/team"
+      }
+    ],
+    "blocked": false,
+    "tab": "Beta",
+    "row": 7
+  },
+  {
+    "input_website": "https://www.comerciopartners.com/",
+    "name": "Comercio Partners",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/comercio-partners"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/comercio-partners",
+    "emails": [
+      "careers@comerciopartners.com",
+      "info@comerciopartners.com"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Beta",
+    "row": 9
+  },
+  {
+    "input_website": "https://regiismaestro.com/",
+    "name": "Regiis Maestro Consulting",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/regiis-maestro-consulting"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/regiis-maestro-consulting",
+    "emails": [
+      "admin@regiismaestro.com",
+      "info@gmail.com"
+    ],
+    "persons": [
+      {
+        "name": "Afolayan Olanrewaju- MBA",
+        "role": "Afolayan Olanrewaju- MBA Partner, Corporate Services",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://regiismaestro.com"
+      },
+      {
+        "name": "Idris Adelabu",
+        "role": "CPA, ACCA, FCA, CISA",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://regiismaestro.com"
+      },
+      {
+        "name": "Adeniyi Adeleke",
+        "role": "FCA, FCTI, ACFE",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://regiismaestro.com"
+      },
+      {
+        "name": "Akinwumi Akinyemi",
+        "role": "CCNA, CISA, ITP-Canada",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://regiismaestro.com"
+      }
+    ],
+    "blocked": false,
+    "tab": "Beta",
+    "row": 11
+  },
+  {
+    "input_website": "https://www.adeolaoyinlade.com/",
+    "name": "Adeola Oyinlade & Co",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/adeolaoyinlade"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/adeolaoyinlade",
+    "emails": [
+      "adeola@adeolaoyinlade.com",
+      "admin@adeolaoyinlade.com",
+      "ayoola.hassan@adeolaoyinlade.com",
+      "deborah.ogedengbe@adeolaoyinlade.com",
+      "info@adeolaoyinlade.com",
+      "ip@adeolaoyinlade.com",
+      "lawyers@adeolaoyinlade.com"
+    ],
+    "persons": [
+      {
+        "name": "Morshak Solomon",
+        "role": "Associate Partner",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth2",
+        "source_url": "https://www.adeolaoyinlade.com/en/about-us/senior-associates"
+      },
+      {
+        "name": "Samuel Anwe",
+        "role": "Senior Associate",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth2",
+        "source_url": "https://www.adeolaoyinlade.com/en/about-us/senior-associates"
+      },
+      {
+        "name": "Deborah Ogedengbe",
+        "role": "Senior Associate",
+        "linkedin": "",
+        "email": "deborah.ogedengbe@adeolaoyinlade.com",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth2",
+        "source_url": "https://www.adeolaoyinlade.com/en/about-us/senior-associates"
+      },
+      {
+        "name": "Adeola Austin Oyinlade",
+        "role": "Senior Partner",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth2",
+        "source_url": "https://www.adeolaoyinlade.com/en/about-us/partners"
+      },
+      {
+        "name": "Precious Toju Ukusanjuya",
+        "role": "Partner",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth2",
+        "source_url": "https://www.adeolaoyinlade.com/en/about-us/partners"
+      },
+      {
+        "name": "Azeez Oduneye",
+        "role": "Partner",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth2",
+        "source_url": "https://www.adeolaoyinlade.com/en/about-us/partners"
+      },
+      {
+        "name": "Faith Oyinlade",
+        "role": "Associate",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth2",
+        "source_url": "https://www.adeolaoyinlade.com/en/about-us/associates"
+      },
+      {
+        "name": "Olamilekan Clinton Fayemi",
+        "role": "Associate",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth2",
+        "source_url": "https://www.adeolaoyinlade.com/en/about-us/associates"
+      },
+      {
+        "name": "Felicia Ayeomoni",
+        "role": "Associate",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth2",
+        "source_url": "https://www.adeolaoyinlade.com/en/about-us/associates"
+      },
+      {
+        "name": "Aminat Hassan",
+        "role": "IP Paralegal & Administrative Assistant",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth2",
+        "source_url": "https://www.adeolaoyinlade.com/en/about-us/admin"
+      },
+      {
+        "name": "Afolabi Ibikunle",
+        "role": "Brand & Communication Manager",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth2",
+        "source_url": "https://www.adeolaoyinlade.com/en/about-us/admin"
+      },
+      {
+        "name": "Rofiat Alamutu",
+        "role": "",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://www.adeolaoyinlade.com/en/about-us/admin"
+      },
+      {
+        "name": "Ayoola Hassan",
+        "role": "",
+        "linkedin": "",
+        "email": "ayoola.hassan@adeolaoyinlade.com",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      }
+    ],
+    "blocked": false,
+    "tab": "Beta",
+    "row": 10
+  },
+  {
+    "input_website": "https://otllaw.com/",
+    "name": "Osuntuyi & Tokan-Lawal Law",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/otl-law",
+      "https://www.linkedin.com/in/tife-ekundayo"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/otl-law",
+    "emails": [
+      "info@nexaadvisory.co",
+      "info@otllaw.com",
+      "tife.ekundayo@otllaw.com"
+    ],
+    "persons": [
+      {
+        "name": "OTL Law",
+        "role": "March 28, 2026 OTL Law No Comments Categories: Article , Attorney",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://otllaw.com/firm-news"
+      },
+      {
+        "name": "Tife Ekundayo",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/tife-ekundayo",
+        "email": "tife.ekundayo@otllaw.com",
+        "confidence": "medium",
+        "strategy": "email_parsing"
+      }
+    ],
+    "blocked": false,
+    "tab": "Beta",
+    "row": 12
+  },
+  {
+    "input_website": "https://credpal.com/",
+    "name": "CREDPAL",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/18484745/admin",
+      "https://www.linkedin.com/company/credpal"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/18484745/admin",
+    "emails": [
+      "hello@credpal.com"
+    ],
+    "persons": [],
+    "blocked": false,
     "tab": "Gamma",
     "row": 2
   },
   {
-    "input_website": "https://www.amdax.com/",
-    "name": "Amdax",
+    "input_website": "http://ouicapital.vc/",
+    "name": "Oui Capital",
     "linkedin_urls": [
-      "https://www.linkedin.com/company/amdaxgroup",
-      "https://www.linkedin.com/in/christophe-augrandjean",
-      "https://www.linkedin.com/in/christophe-augrandjean/",
-      "https://www.linkedin.com/in/durvesh-kolhe-012b54211",
-      "https://www.linkedin.com/in/kiran-kumar-reddy-poli",
-      "https://www.linkedin.com/in/mrburger",
-      "https://www.linkedin.com/in/muhammad-awais-530ba2360",
-      "https://www.linkedin.com/in/ries-schoot-uiterkamp-997276193",
-      "https://www.linkedin.com/in/sachin-kalkumbe-462824201",
-      "https://www.linkedin.com/in/svergouwe",
-      "https://www.linkedin.com/in/tim-stolte"
+      "http://linkedin.com/in/piusbankong",
+      "https://www.linkedin.com/company/agstribe",
+      "https://www.linkedin.com/company/aifluence",
+      "https://www.linkedin.com/company/akibadigital",
+      "https://www.linkedin.com/company/akibadigital/",
+      "https://www.linkedin.com/company/alliancechemicalsglobal",
+      "https://www.linkedin.com/company/amopportunities",
+      "https://www.linkedin.com/company/awa-bike",
+      "https://www.linkedin.com/company/awa-bike/",
+      "https://www.linkedin.com/company/cauridor",
+      "https://www.linkedin.com/company/clane-company-nigeria-limited",
+      "https://www.linkedin.com/company/dr-cadx",
+      "https://www.linkedin.com/company/dr-cadx/",
+      "https://www.linkedin.com/company/intelligra",
+      "https://www.linkedin.com/company/maad-io",
+      "https://www.linkedin.com/company/matta-trade",
+      "https://www.linkedin.com/company/moniepoint-inc",
+      "https://www.linkedin.com/company/mvx-hq",
+      "https://www.linkedin.com/company/ndovutech",
+      "https://www.linkedin.com/company/okhi",
+      "https://www.linkedin.com/company/oui-capital",
+      "https://www.linkedin.com/company/pharmacy-marts",
+      "https://www.linkedin.com/company/quabbly",
+      "https://www.linkedin.com/company/spurtgroup",
+      "https://www.linkedin.com/company/triplytravel",
+      "https://www.linkedin.com/company/tryduplo",
+      "https://www.linkedin.com/company/twendemobility",
+      "https://www.linkedin.com/in/0sc",
+      "https://www.linkedin.com/in/francescoandreoli",
+      "https://www.linkedin.com/in/judith-igberase-48a70ba2",
+      "https://www.linkedin.com/in/oluoyinsan",
+      "https://www.linkedin.com/in/oreoluwa-sowemimo",
+      "https://www.linkedin.com/in/saeed-seghosime-86757a89"
     ],
-    "company_linkedin": "https://www.linkedin.com/company/amdaxgroup",
+    "company_linkedin": "https://www.linkedin.com/company/agstribe",
     "emails": [
-      "email@provider.com",
-      "hello@amdax.com",
-      "kyc@amdax.com",
-      "rd@amdax.com",
-      "shivamvats418@gmail.com",
-      "support@amdax.com"
+      "hello@ouicapital.vc"
     ],
     "persons": [
       {
-        "name": "Amdax Guide",
-        "role": "Sabine Kuilenburg Brand Manager",
-        "linkedin": "",
-        "email": "",
+        "name": "Olu Oyinsan",
+        "role": "Olu Oyinsan Co-founder & Managing Partner",
+        "linkedin": "https://www.linkedin.com/in/oluoyinsan",
+        "email": "hello@Ouicapital.Vc",
+        "bio": "Nigerian VC firms are still willing to invest\u2014but they\u2019re asking harder questions",
+        "confidence": "primary",
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_strong",
+        "source_url": "https://ouicapital.vc/en/team"
+      },
+      {
+        "name": "Francesco Andreoli",
+        "role": "Francesco Andreoli Co-founder & Venture Partner",
+        "linkedin": "https://www.linkedin.com/in/francescoandreoli",
+        "email": "hello@Ouicapital.Vc",
         "bio": "",
+        "confidence": "primary",
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_strong",
+        "source_url": "https://ouicapital.vc/en/team"
+      },
+      {
+        "name": "Pius Bankong",
+        "role": "Pius Bankong Investment Associate",
+        "linkedin": "http://linkedin.com/in/piusbankong",
+        "email": "hello@ouicapital.vc",
+        "bio": "At Oui Capital, Pius participates in the full investment cycle; sourcing and screening promising startups, performing due diligence, and providing support to portfolio companies across strategy, operations, go-to-market, fundraising and hiring.",
+        "confidence": "primary",
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_strong",
+        "source_url": "https://ouicapital.vc/en/team"
+      },
+      {
+        "name": "Ore Sowemimo",
+        "role": "Ore Sowemimo Platform & Community Manager",
+        "linkedin": "https://www.linkedin.com/in/oreoluwa-sowemimo",
+        "email": "hello@Ouicapital.Vc",
+        "bio": "She works closely with our portfolio companies across Africa to understand their needs, connect them with resources, and create opportunities for collaboration. From onboarding new investments to running check-ins, events, and community touchpoints, Ore ensures that founders get timely, practical support that helps them scale.",
         "confidence": "secondary",
-        "strategy": "contactless_grid",
-        "evidence": "uniform_repeated_people_grid",
-        "source_url": "https://www.amdax.com/nl/research/guide"
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_medium",
+        "source_url": "https://ouicapital.vc/en/team"
       },
       {
-        "name": "Tim Stolte",
-        "role": "Tim Stolte Quantitative Portfolio Manager",
-        "linkedin": "https://www.linkedin.com/in/tim-stolte",
-        "email": "",
-        "bio": "Tim Stolte heeft een achtergrond in econometrie en specialiseerde zich in Quantitative Finance. Aan het einde van zijn studententijd kwam hij in 2020 in aanraking met Amdax. Sindsdien groeide zijn fascinatie voor de opkomende cryptosector snel.",
+        "name": "Judith Igberase",
+        "role": "Judith Igberase Admin & People Manager",
+        "linkedin": "https://www.linkedin.com/in/judith-igberase-48a70ba2",
+        "email": "hello@ouicapital.vc",
+        "bio": "",
         "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "uniform_repeated_people_grid",
-        "source_url": "https://www.amdax.com/nl/research/guide"
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_strong",
+        "source_url": "https://ouicapital.vc/en/team"
       },
       {
-        "name": "Ries Schoot Uiterkamp",
-        "role": "Ries Schoot Uiterkamp Quantitative Portfolio Manager",
-        "linkedin": "https://www.linkedin.com/in/ries-schoot-uiterkamp-997276193",
-        "email": "",
-        "bio": "Sinds 2021 werkt hij bij Amdax, waar hij verantwoordelijk is voor de Amdax Trend- en Amdax 30-strategie\u00ebn. Zijn werk beweegt zich tussen fundamentele analyse en kwantitatief onderzoek, met als doel het continu verbeteren van strategie\u00ebn en besluitvorming \u2014 van het analyseren van nieuwe DeFi-protocollen tot het ontwikkelen van systematische beleggingsstrategie\u00ebn.",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "uniform_repeated_people_grid",
-        "source_url": "https://www.amdax.com/nl/research/guide"
-      },
-      {
-        "name": "Marcel Burger",
-        "role": "Marcel Burger Chief Investment Officer",
-        "linkedin": "https://www.linkedin.com/in/mrburger",
-        "email": "",
-        "bio": "Marcel Burger is sinds 2017 actief in de cryptomarkt en werkt sinds november 2020 bij Amdax. Daar is hij verantwoordelijk voor het opzetten en aansturen van de vermogensbeheerstrategie\u00ebn.",
-        "confidence": "secondary",
-        "strategy": "contactless_grid",
-        "evidence": "uniform_repeated_people_grid",
-        "source_url": "https://www.amdax.com/nl/research/guide"
-      },
-      {
-        "name": "Christophe Augrandjean",
-        "role": "Christophe Augrandjean Portfolio Manager & Lead Fundamental",
-        "linkedin": "https://www.linkedin.com/in/christophe-augrandjean",
-        "email": "",
-        "bio": "Bij Amdax is hij hoofdverantwoordelijk voor fundamenteel onderzoek en daarnaast betrokken bij productontwikkeling en investeerderscommunicatie. Christophe beschikt over sterke analytische vaardigheden en een brede kennis van zowel financi\u00eble markten als blockchaintechnologie.",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "uniform_repeated_people_grid",
-        "source_url": "https://www.amdax.com/nl/research/guide"
-      },
-      {
-        "name": "Muhammad Awais",
+        "name": "Saeed Seghosime",
         "role": "",
-        "linkedin": "https://www.linkedin.com/in/muhammad-awais-530ba2360",
-        "email": "shivamvats418@gmail.com",
-        "bio": "Op de Amdax Wall of Fame plaatst Amdax personen die een kwetsbaarheid of een probleem in de beveiliging van onze systemen hebben gemeld. Hierbij hebben zij het Responsible Disclosure-beleid gevolgd. Daarmee hebben zij op een verantwoorde manier gehandeld. Amdax is deze personen dankbaar, omdat hun meldingen ons helpen onze beveiliging te verbeteren.",
+        "linkedin": "https://www.linkedin.com/in/saeed-seghosime-86757a89",
+        "email": "hello@Ouicapital.Vc",
+        "bio": "",
         "confidence": "primary",
         "strategy": "signal_template",
         "evidence": "signal_template_strong",
-        "source_url": "https://www.amdax.com/nl/over-amdax/legal-en-compliance/responsible-disclosure"
+        "source_url": "https://ouicapital.vc/en/team"
       },
       {
-        "name": "Kiran Kumar Reddy Poli",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/kiran-kumar-reddy-poli",
-        "email": "",
+        "name": "Stanley Osi",
+        "role": "Senior Platform & Community Analyst",
+        "linkedin": "https://www.linkedin.com/in/0sc",
+        "email": "hello@Ouicapital.Vc",
         "bio": "",
         "confidence": "secondary",
         "strategy": "sibling_sweep",
         "evidence": "sibling_sweep",
-        "source_url": "https://www.amdax.com/nl/over-amdax/legal-en-compliance/responsible-disclosure"
+        "source_url": "https://ouicapital.vc/en/team"
       },
       {
-        "name": "Pushpraj Patil",
-        "role": "",
+        "name": "Nelson Aseka",
+        "role": "Digital media platform for brands and advertisers to connect with influencers to drive awareness, engagement and sales \u200d",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Tebogo Mokwena",
+        "role": "Founder(s) Tebogo Mokwena Kamogelo Kekana Tags Fund I Fintech",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Gbenga Akanmu",
+        "role": "Founder(s) Gbenga Akanmu Taiwo Ilesanmi Tags Digital Commerce Fund II",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Kyle Swinsky",
+        "role": "Founder(s) Kyle Swinsky Ben Bradley Tags Fund I Human Capital",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Ifeoluwa Ogundipe",
+        "role": "Founder(s) Ifeoluwa Ogundipe Ibukun Tunde-Oni Damilola Olugbemi Tags Fund I Digital Commerce",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Dipo Alabede",
+        "role": "Founder(s) Dipo Alabede Tags Fund I Fintech Location Lagos, Nigeria Partnered since Pre-Seed Visit Website",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Oumar Barry",
+        "role": "Founder(s) Oumar Barry Abdoulaye Bah \u200d Tags Fintech Fund II Location Senegal Partnered since Seed Visit Website",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Gift Gana",
+        "role": "Founder(s) Gift Gana Tatenda Madzorera \u200d Tags Fund I Human Capital",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Yele Oyekola",
+        "role": "Founder(s) Yele Oyekola Tunde Akinnuwa Emeka Okwuagwu Tags Fund I Fintech",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Ife Durosinmi-Etti",
+        "role": "Founder(s) Ife Durosinmi-Etti Tags Fund I Fintech Fund II Location Lagos, Nigeria Partnered since Pre-Seed Visit Website",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Tayo Ogundipe",
+        "role": "Founder(s) Tayo Ogundipe Tags Fund I Fintech Location Lagos, Nigeria Partnered since Pre-Seed Visit Website",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Jessica Long",
+        "role": "Founder(s) Jessica Long Sidy Niang Karimou Ba Tags Fund I Digital Commerce",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Mudiaga Mowoe",
+        "role": "Founder(s) Mudiaga Mowoe \u200d Tags Fund I Digital Commerce Location Lagos, Nigeria Partnered since Pre-Seed Visit Website",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Tosin Eniolorunda",
+        "role": "Founder(s) Tosin Eniolorunda Felix Ike Tags Fund I Fintech Location Lagos, Nigeria Partnered since Seed Visit Website",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Tonye Membere-Otaji",
+        "role": "Founder(s) Tonye Membere-Otaji Tags Fund I Digital Commerce",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Radhika Bhachu",
+        "role": "Founder(s) Radhika Bhachu Rogito Nyangeri Gianapolo De Biase Tags Fund I Fintech",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Timbo Drayson",
+        "role": "Founder(s) Timbo Drayson Tags Fund I Fintech Location Nairobi, Kenya Partnered since Pre-Seed Visit Website",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Ahmed Kadous",
+        "role": "Founder(s) Ahmed Kadous Tags Fund I Digital Commerce Location Cairo, Egypt Partnered since Pre-Seed Visit Website",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Jamiu Ozigi",
+        "role": "Founder(s) Jamiu Ozigi Tags Fund I Enterprise Software Location Lagos, Nigeria Partnered since Pre-Seed Visit Website",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Kristin Wilson",
+        "role": "Founder(s) Kristin Wilson Princess Edokpayi Tags Fund I Enterprise Software",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Peter Wachira",
+        "role": "Founder(s) Peter Wachira Collins Muthinja Tags Fund II Enterprise Software",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Kiptoo Magutt",
+        "role": "Founder(s) Kiptoo Magutt Tags Fund I Digital Commerce Location Nairobi, Kenya Partnered since Series A Visit Website",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://ouicapital.vc/en/portfolio"
+      },
+      {
+        "name": "Ukeme Jonah",
+        "role": "Founder(s)",
         "linkedin": "",
         "email": "",
         "bio": "",
         "confidence": "secondary",
         "strategy": "sibling_sweep",
         "evidence": "sibling_sweep",
-        "source_url": "https://www.amdax.com/nl/over-amdax/legal-en-compliance/responsible-disclosure"
-      },
-      {
-        "name": "Durvesh Kolhe",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/durvesh-kolhe-012b54211",
-        "email": "",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "sibling_sweep",
-        "evidence": "sibling_sweep",
-        "source_url": "https://www.amdax.com/nl/over-amdax/legal-en-compliance/responsible-disclosure"
-      },
-      {
-        "name": "Serge Vergouwe",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/svergouwe",
-        "email": "",
-        "bio": "Serge Vergouwe heeft een achtergrond in de traditionele financi\u00eble markten. Voor zijn komst naar Amdax werkte hij bij Achmea Investment Management, waar hij diverse rollen vervulde. Zijn focus lag onder meer op het voeren van actief beleid op staatsobligaties en het afdekken van balansrisico\u2019s voor pensioenfondsen en een verzekeraar.",
-        "confidence": "secondary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_medium",
-        "source_url": "https://www.amdax.com/nl/vermogensbeheer-team"
-      },
-      {
-        "name": "Sachin Kalkumbe",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/sachin-kalkumbe-462824201",
-        "email": "",
-        "confidence": "low",
-        "strategy": "url_slug"
+        "source_url": "https://ouicapital.vc/en/portfolio"
       }
     ],
     "blocked": false,
@@ -205,20 +2008,63 @@
     "row": 4
   },
   {
-    "input_website": "http://www.commoditycentre.com/",
-    "name": "Commodity Centre Netherlands B.V. / Commodity Centre Netherlands Falcon B.V.",
+    "input_website": "http://www.classicuslp.com/",
+    "name": "Classicus LP",
     "linkedin_urls": [
-      "https://www.linkedin.com/company/commodity-centre-global-forwarding"
+      "https://www.linkedin.com/company/classicus-lp"
     ],
-    "company_linkedin": "https://www.linkedin.com/company/commodity-centre-global-forwarding",
+    "company_linkedin": "https://www.linkedin.com/company/classicus-lp",
     "emails": [
-      "amsterdam@commoditycentre.com",
-      "hr@commoditycentre.com",
-      "hrbelgium@commoditycentre.com",
-      "mjansen@commoditycentre.com",
-      "operations@erusmetals.com",
-      "sales@commoditycentre.com",
-      "uk@commoditycentre.com"
+      "contact@classicuslp.com",
+      "olusola@classicuslp.com",
+      "oluwalayomi@classicuslp.com"
+    ],
+    "persons": [
+      {
+        "name": "Oluwalayomi Akinwunmi",
+        "role": "Olusola Akinyemi Esq. Managing Partner olusola@classicuslp.com",
+        "linkedin": "",
+        "email": "olusola@classicuslp.com",
+        "bio": "",
+        "confidence": "primary",
+        "strategy": "role_signal_template",
+        "evidence": "role_then_signal_strong",
+        "source_url": "https://classicuslp.com/our-expertise"
+      }
+    ],
+    "blocked": false,
+    "tab": "Beta",
+    "row": 13
+  },
+  {
+    "input_website": "http://www.venturegardengroup.com/",
+    "name": "Venture Garden Group",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/venture-garden-group"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/venture-garden-group",
+    "emails": [
+      "careers@venturegardengroup.com"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Gamma",
+    "row": 3
+  },
+  {
+    "input_website": "https://www.lotuscapitallimited.com/",
+    "name": "LOTUS Capital Limited",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/lotus-capital-limited"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/lotus-capital-limited",
+    "emails": [
+      "compliance@lotuscapitallimited.com",
+      "dealing@vetiva.com",
+      "dpo@lotuscapitallimited.com",
+      "info@lotuscapitallimited.com",
+      "support@lotuscapitaltribe.com",
+      "yourname@outlook.com"
     ],
     "persons": [],
     "blocked": false,
@@ -226,40 +2072,94 @@
     "row": 5
   },
   {
-    "input_website": "http://www.webbtraders.nl/",
-    "name": "WEBB Traders",
+    "input_website": "http://www.samtlng.com/",
+    "name": "SAMTL (Sterling Asset Management and Trustees Ltd.)",
     "linkedin_urls": [
-      "https://www.linkedin.com/company/webb-traders"
+      "https://www.linkedin.com/company/samtl"
     ],
-    "company_linkedin": "https://www.linkedin.com/company/webb-traders",
+    "company_linkedin": "https://www.linkedin.com/company/samtl",
     "emails": [
-      "compliance@webbtraders.com",
-      "contact@webbtraders.com",
-      "job.28fg2@webbtraders.recruitee.com",
-      "job.5w5vl@webbtraders.recruitee.com",
-      "job.6yt3l@webbtraders.recruitee.com",
-      "job.aoana@webbtraders.recruitee.com",
-      "job.f519d@webbtraders.recruitee.com",
-      "job.kas5u@webbtraders.recruitee.com",
-      "job.lybvs@webbtraders.recruitee.com",
-      "job.rant6@webbtraders.recruitee.com"
+      "dpo@nitda.gov.ng",
+      "dpo@samtlng.com",
+      "info@samtlng.com"
     ],
     "persons": [
       {
-        "name": "Job Aoana",
-        "role": "",
+        "name": "Venkateswaran Thygrajan Eashwar",
+        "role": "Venkateswaran Thygrajan Eashwar Chairman",
         "linkedin": "",
-        "email": "job.aoana@webbtraders.recruitee.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://www.samtlng.com/about-us"
       },
       {
-        "name": "Job Lybvs",
+        "name": "Segun Oluyori",
+        "role": "Segun Oluyori Director",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://www.samtlng.com/about-us"
+      },
+      {
+        "name": "Binta Suleiman",
+        "role": "Binta Suleiman Executive Director",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://www.samtlng.com/about-us"
+      },
+      {
+        "name": "Friday Omayebu",
+        "role": "Friday Omayebu Managing Director",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://www.samtlng.com/about-us"
+      },
+      {
+        "name": "Funke Abioye",
         "role": "",
         "linkedin": "",
-        "email": "job.lybvs@webbtraders.recruitee.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://www.samtlng.com/about-us"
+      },
+      {
+        "name": "Debra Adanikin",
+        "role": "",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://www.samtlng.com/about-us"
+      },
+      {
+        "name": "Olufemi Aiyegbusi",
+        "role": "Olufemi Aiyegbusi Company Secretary",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://www.samtlng.com/about-us"
       }
     ],
     "blocked": false,
@@ -267,1576 +2167,41 @@
     "row": 6
   },
   {
-    "input_website": "http://www.invest-nl.nl/",
-    "name": "Dutch Investment Agency",
+    "input_website": "http://first-ally.com/",
+    "name": "First Ally Capital Limited",
     "linkedin_urls": [
-      "https://www.linkedin.com/company/invest-nl"
+      "https://www.linkedin.com/company/first-ally-capital"
     ],
-    "company_linkedin": "https://www.linkedin.com/company/invest-nl",
-    "emails": [],
-    "persons": [],
-    "blocked": false,
-    "tab": "Gamma",
-    "row": 9
-  },
-  {
-    "input_website": "https://www.amdax.com/",
-    "name": "Amdax",
-    "linkedin_urls": [
-      "https://www.linkedin.com/company/amdaxgroup"
-    ],
-    "company_linkedin": "https://www.linkedin.com/company/amdaxgroup",
+    "company_linkedin": "https://www.linkedin.com/company/first-ally-capital",
     "emails": [
-      "email@provider.com",
-      "hello@amdax.com"
-    ],
-    "persons": [],
-    "blocked": false,
-    "tab": "Gamma",
-    "row": 8
-  },
-  {
-    "input_website": "http://thecfigroup.com/",
-    "name": "Corporate Finance International",
-    "linkedin_urls": [
-      "https://cn.linkedin.com/in/emmanuel-gros-7a386411",
-      "https://www.linkedin.com/company/corporate-finance-international",
-      "https://www.linkedin.com/in/1205jaapdejong",
-      "https://www.linkedin.com/in/achraf-ben-meftah-8a88449a",
-      "https://www.linkedin.com/in/akira-koga-188b9a53",
-      "https://www.linkedin.com/in/alain-le-floch-8b02bb45",
-      "https://www.linkedin.com/in/albertofranco",
-      "https://www.linkedin.com/in/alexisdubil",
-      "https://www.linkedin.com/in/alicesorato1",
-      "https://www.linkedin.com/in/anders-lorentzon-9618aa2",
-      "https://www.linkedin.com/in/antonio-di-paoli-b64a3b162",
-      "https://www.linkedin.com/in/arleu-anhalt-41826316",
-      "https://www.linkedin.com/in/bernardoquintino",
-      "https://www.linkedin.com/in/blake-davis",
-      "https://www.linkedin.com/in/bryan-hughes-4603822",
-      "https://www.linkedin.com/in/carl-egerlundh-9a1188a3",
-      "https://www.linkedin.com/in/charlotte-m%C3%A9lin-449b15131",
-      "https://www.linkedin.com/in/chris-mitchell-ca-3b511b46",
-      "https://www.linkedin.com/in/cl%C3%A9ment-richard-2174792",
-      "https://www.linkedin.com/in/daniel-delahaye-04325a107",
-      "https://www.linkedin.com/in/daniel-j%C3%BCrgenschellert-45704123",
-      "https://www.linkedin.com/in/dante-rodrigo-castillo-g%C3%B3mez-60441ba7",
-      "https://www.linkedin.com/in/dominik-olszewski-61988b4",
-      "https://www.linkedin.com/in/dries-bossuyt-1921b128",
-      "https://www.linkedin.com/in/eddie-zukowski-6ba94232",
-      "https://www.linkedin.com/in/eduard-dorzweiler",
-      "https://www.linkedin.com/in/eduardo-vallim",
-      "https://www.linkedin.com/in/elias-p%C3%B6yry-b445a5",
-      "https://www.linkedin.com/in/ellen-m-clark",
-      "https://www.linkedin.com/in/erik-arvidsson-b662a940",
-      "https://www.linkedin.com/in/erik-engn%C3%A9r-62ab6953",
-      "https://www.linkedin.com/in/fr%C3%A9d%C3%A9ric-damiron-46799b8",
-      "https://www.linkedin.com/in/frank-holmes-4a781228",
-      "https://www.linkedin.com/in/geraint-rowe-8a67885",
-      "https://www.linkedin.com/in/henri-porte-48608a7b",
-      "https://www.linkedin.com/in/hubert-huruk-09a58055",
-      "https://www.linkedin.com/in/igor-correa-pinto-65158337",
-      "https://www.linkedin.com/in/ivorkramer",
-      "https://www.linkedin.com/in/jaakko-lehto-bb247119",
-      "https://www.linkedin.com/in/jaakko-sasi-b0091712",
-      "https://www.linkedin.com/in/jacques-ropartz-69437046",
-      "https://www.linkedin.com/in/jan-erik-g%C3%BCrtner-9b016721",
-      "https://www.linkedin.com/in/jason-kluge",
-      "https://www.linkedin.com/in/jasonevansgambitcf",
-      "https://www.linkedin.com/in/jaysongitt",
-      "https://www.linkedin.com/in/jean-baptiste-duval-0492551",
-      "https://www.linkedin.com/in/jean-marc-teurquetil-046b5113",
-      "https://www.linkedin.com/in/jeremy-conway-46330891",
-      "https://www.linkedin.com/in/jo%C3%A3o-pedro-rodrigues-dos-santos-9408a419",
-      "https://www.linkedin.com/in/joe-wagner-7456377",
-      "https://www.linkedin.com/in/joerg-alting-b46b38116",
-      "https://www.linkedin.com/in/john-hart-4a48534",
-      "https://www.linkedin.com/in/jonas-brog%C3%A5rdh-72b3327a",
-      "https://www.linkedin.com/in/jonas-brog%C3%A5rdh-72b3327a/",
-      "https://www.linkedin.com/in/julien-dahan-44066b1",
-      "https://www.linkedin.com/in/julius-perttunen-252748180",
-      "https://www.linkedin.com/in/kasper-kooij-97ab27103",
-      "https://www.linkedin.com/in/kazunori-matsumoto-a2609564",
-      "https://www.linkedin.com/in/kevindriesen",
-      "https://www.linkedin.com/in/lauri-pohjavuori-48235315",
-      "https://www.linkedin.com/in/malte-jantz",
-      "https://www.linkedin.com/in/marcelpreisig",
-      "https://www.linkedin.com/in/mario-bottero-6a607751",
-      "https://www.linkedin.com/in/mario-ivani%C4%87-17b446151",
-      "https://www.linkedin.com/in/mario-van-gasse-60573b5",
-      "https://www.linkedin.com/in/markku-tervo-165841b4",
-      "https://www.linkedin.com/in/martijnliem",
-      "https://www.linkedin.com/in/mats-axell-672939",
-      "https://www.linkedin.com/in/matthew-j-rupprecht-cfa-b154152",
-      "https://www.linkedin.com/in/matthew-jamison-21a84",
-      "https://www.linkedin.com/in/michael-yared-09667223",
-      "https://www.linkedin.com/in/miti-s-jhaveri",
-      "https://www.linkedin.com/in/naomichi-nosaka-b39935ab",
-      "https://www.linkedin.com/in/nelson-bussachetti-57501b246",
-      "https://www.linkedin.com/in/nick-carrigan-profile",
-      "https://www.linkedin.com/in/nicolas-gubler-70617016a",
-      "https://www.linkedin.com/in/nirav-d-shah-229b556",
-      "https://www.linkedin.com/in/paolo-cusmano-4b30b928",
-      "https://www.linkedin.com/in/pasi-vainiotalo-29322a3",
-      "https://www.linkedin.com/in/patrick-suess",
-      "https://www.linkedin.com/in/pieter-de-vries-1043b35",
-      "https://www.linkedin.com/in/piotr-chorzewski-b1a25751",
-      "https://www.linkedin.com/in/pooja-motani-793031b",
-      "https://www.linkedin.com/in/raj-shroff-06254719",
-      "https://www.linkedin.com/in/ramonschuitevoerder",
-      "https://www.linkedin.com/in/raoul-duysens-246558",
-      "https://www.linkedin.com/in/rdevisser",
-      "https://www.linkedin.com/in/rianneroozeboom",
-      "https://www.linkedin.com/in/robbert-claassen-5539a57",
-      "https://www.linkedin.com/in/robwallacecfi",
-      "https://www.linkedin.com/in/roel-ter-steeg-managing-partner-mbcf-7589883",
-      "https://www.linkedin.com/in/s%C3%A9bastien-lambert-a795a0",
-      "https://www.linkedin.com/in/sam-forman-16470a5a",
-      "https://www.linkedin.com/in/samuel-f%C3%A4ssler-b520171a",
-      "https://www.linkedin.com/in/simon-marsden-24816a10",
-      "https://www.linkedin.com/in/sonja-kassies-2a7095b",
-      "https://www.linkedin.com/in/spprenting",
-      "https://www.linkedin.com/in/stephanie-brinkmann-bb719b89",
-      "https://www.linkedin.com/in/thibault-lacour-gayet-69041218",
-      "https://www.linkedin.com/in/thilo-herbertz-448b0a93",
-      "https://www.linkedin.com/in/tiago-s-oliveira-70b01735",
-      "https://www.linkedin.com/in/tim-miles-2ba8291a",
-      "https://www.linkedin.com/in/tobias-f%C3%BChrer-038b30a8",
-      "https://www.linkedin.com/in/tonybrown56",
-      "https://www.linkedin.com/in/toru-isono-1844b613a",
-      "https://www.linkedin.com/in/tsyuoshi-yamada-57195392",
-      "https://www.linkedin.com/in/wim-folens-97a7703",
-      "https://www.linkedin.com/in/yisong-dong-99b1126b",
-      "https://www.linkedin.com/in/zhangxinyue85",
-      "https://www.linkedin.com/in/zhangxinyue85/"
-    ],
-    "company_linkedin": "https://www.linkedin.com/company/corporate-finance-international",
-    "emails": [
-      "a.chau@frontier-mgmt.com",
-      "achraf.benmeftah@thecfigroup.com",
-      "akira.koga@thecfigroup.com",
-      "alain.lefloch@thecfigroup.com",
-      "alberto.franco@thecfigroup.com",
-      "alexis.dubil@thecfigroup.com",
-      "alice.sorato@thecfigroup.com",
-      "anders.lorentzon@thecfigroup.com",
-      "antonio.dipaoli@thecfigroup.com",
-      "arleu.anhalt@thecfigroup.com",
-      "bernardo.quintino@thecfigroup.com",
-      "blake.davis@thecfigroup.com",
-      "bryan.hughes@pmcf.com",
-      "carl.egerlundh@thecfigroup.com",
-      "charlotte.melin@thecfigroup.com",
-      "chris.mitchell@thecfigroup.com",
-      "clement.richard@thecfigroup.com",
-      "daniel.delahaye@thecfigroup.com",
-      "daniel.juergenschellert@thecfigroup.com",
-      "dante.gomez@thecfigroup.com",
-      "dominik.olszewski@thecfigroup.com",
-      "dries.bossuyt@thecfigroup.com",
-      "eddie.zukowski@thecfigroup.com",
-      "eduard.dorzweiler@thecfigroup.com",
-      "eduardo.vallim@thecfigroup.com",
-      "elias.poyry@thecfigroup.com",
-      "ellen.clark@pmcf.com",
-      "emmanuel.gros@thecfigroup.com",
-      "erik.arvidsson@thecfigroup.com",
-      "erik.engner@thecfigroup.com",
-      "feier.cheng@thecfigroup.com",
-      "frank.holmes@thecfigroup.com",
-      "frederic.damiron@thecfigroup.com",
-      "geraint.rowe@thecfigroup.com",
-      "hanna.pluck@thecfigroup.com",
-      "henri.porte@thecfigroup.com",
-      "hubert.huruk@thecfigroup.com",
-      "igor.correa@thecfigroup.com",
-      "ivor.kramer@thecfigroup.com",
-      "jaakko.lehto@thecfigroup.com",
-      "jaakko.sasi@thecfigroup.com",
-      "jaap.dejong@thecfigroup.com",
-      "jacques.ropartz@thecfigroup.com",
-      "jan-erik.guertner@thecfigroup.com",
-      "jason.evans@thecfigroup.com",
-      "jason.kluge@thecfigroup.com",
-      "jayson.gitt@pmcf.com",
-      "jean-baptiste.duval@thecfigroup.com",
-      "jeremy.conway@thecfigroup.com",
-      "jmt@thecfigroup.com",
-      "joao.santos@thecfigroup.com",
-      "joe.wagner@pmcf.com",
-      "joerg.alting@thecfigroup.com",
-      "john.hart@pmcf.com",
-      "jonas.brogardh@thecfigroup.com",
-      "julien.dahan@thecfigroup.com",
-      "julius.perttunen@thecfigroup.com",
-      "kasper.kooij@thecfigroup.com",
-      "kazunori.matsumoto@thecfigroup.com",
-      "ken.wee@thecfigroup.com",
-      "kevin.driesen@thecfigroup.com",
-      "lauri.pohjavuori@thecfigroup.com",
-      "lei.gong@thecfigroup.com",
-      "lionel.bordarier@thecfigroup.com",
-      "malte.jantz@thecfigroup.com",
-      "marcel.preisig@thecfigroup.com",
-      "mario.bottero@thecfigroup.com",
-      "mario.ivanic@thecfigroup.com",
-      "mario.vangasse@thecfigroup.com",
-      "markku.tervo@thecfigroup.com",
-      "martijn.liem@thecfigroup.com",
-      "mats.axell@thecfigroup.com",
-      "matt.jamison@pmcf.com",
-      "matt.rupprecht@pmcf.com",
-      "michael.yared@thecfigroup.com",
-      "miti.jhaveri@thecfigroup.com",
-      "n.nosaka@frontier-mgmt.com",
-      "nelson.bussachetti@thecfigroup.com",
-      "nick.carrigan@thecfigroup.com",
-      "nicolas.gubler@thecfigroup.com",
-      "ning.zhou@thecfigroup.com",
-      "nirav.shah@thecfigroup.com",
-      "olivier.dupont@thecfigroup.com",
-      "paolo.cusmano@thecfigroup.com",
-      "pasi.vainiotalo@thecfigroup.com",
-      "patrick.suess@thecfigroup.com",
-      "phillipe.lazare@thecfigroup.com",
-      "pieter.devries@thecfigroup.com",
-      "piotr.chorzewski@thecfigroup.com",
-      "pooja.motani@thecfigroup.com",
-      "raj.shroff@thecfigroup.com",
-      "ramon.schuitevoerder@thecfigroup.com",
-      "randy.devisser@thecfigroup.com",
-      "raoul.duysens@thecfigroup.com",
-      "rianne.roozeboom@thecfigroup.com",
-      "rob.wallace@thecfigroup.com",
-      "robbert.claassen@thecfigroup.com",
-      "roel.tersteeg@thecfigroup.com",
-      "samuel.faessler@thecfigroup.com",
-      "samuel.forman@thecfigroup.com",
-      "sebastiaan.renting@thecfigroup.com",
-      "sebastien.lambert@thecfigroup.com",
-      "simon.marsden@thecfigroup.com",
-      "sonja.kassies@thecfigroup.com",
-      "stefan.huber@thecfigroup.com",
-      "stephanie.brinkmann@thecfigroup.com",
-      "thibault.lacour@thecfigroup.com",
-      "thilo.herbertz@thecfigroup.com",
-      "tiago.oliveira@thecfigroup.com",
-      "tim.miles@thecfigroup.com",
-      "tobias.fuehrer@thecfigroup.com",
-      "tony.brown@thecfigroup.com",
-      "tsuyoshi.yamada@thecfigroup.com",
-      "wayne.harvey@gambitcf.com",
-      "wim.folens@thecfigroup.com",
-      "xinyue.zhang@thecfigroup.com",
-      "yisong.dong@thecfigroup.com",
-      "yoshinao.kawashima@thecfigroup.com"
+      "dataprotection@first-ally.com",
+      "helloproperties@first-ally.com",
+      "info@first-ally.com",
+      "info@firstally.com",
+      "media@first-ally.com"
     ],
     "persons": [
       {
-        "name": "Jean-Marc Teurquetil",
-        "role": "Chairman, Managing Partner",
-        "linkedin": "https://www.linkedin.com/in/jean-marc-teurquetil-046b5113",
-        "email": "jmt@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Raoul Duysens",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/raoul-duysens-246558",
-        "email": "raoul.duysens@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Matt Jamison",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/matthew-jamison-21a84",
-        "email": "Matt.Jamison@pmcf.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Geraint Rowe",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/geraint-rowe-8a67885",
-        "email": "geraint.rowe@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Sonja Kassies",
-        "role": "Business Development Coordinator",
-        "linkedin": "https://www.linkedin.com/in/sonja-kassies-2a7095b",
-        "email": "sonja.kassies@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Arleu Anhalt",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/arleu-anhalt-41826316",
-        "email": "arleu.anhalt@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Erik Arvidsson",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/erik-arvidsson-b662a940",
-        "email": "erik.arvidsson@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Mats Axell",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/mats-axell-672939",
-        "email": "mats.axell@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Dries Bossuyt",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/dries-bossuyt-1921b128",
-        "email": "dries.bossuyt@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Mario Bottero",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/mario-bottero-6a607751",
-        "email": "mario.bottero@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Jonas Brogardh",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/jonas-brog%C3%A5rdh-72b3327a/",
-        "email": "jonas.brogardh@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Tony Brown",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/tonybrown56",
-        "email": "tony.brown@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Feier Cheng",
-        "role": "Partner, Managing Director",
+        "name": "First Ally Trust Microfinance Bank",
+        "role": "Manager, Audit & Compliance",
         "linkedin": "",
-        "email": "feier.cheng@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Piotr Chorzewski",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/piotr-chorzewski-b1a25751",
-        "email": "piotr.chorzewski@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Robbert Claassen",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/robbert-claassen-5539a57",
-        "email": "robbert.claassen@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Ellen Clark",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/ellen-m-clark",
-        "email": "ellen.clark@pmcf.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Kevin Driesen",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/kevindriesen",
-        "email": "kevin.driesen@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Erik Engn\u00e9r",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/erik-engn%C3%A9r-62ab6953",
-        "email": "erik.engner@thecfigroup.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_medium",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Jason Evans",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/jasonevansgambitcf",
-        "email": "jason.evans@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Wim Folens",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/wim-folens-97a7703",
-        "email": "wim.folens@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Sam Forman",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/sam-forman-16470a5a",
-        "email": "samuel.forman@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Alberto Franco",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/albertofranco",
-        "email": "alberto.franco@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Mario Van Gasse",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/mario-van-gasse-60573b5",
-        "email": "mario.vangasse@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Emmanuel Gros",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://cn.linkedin.com/in/emmanuel-gros-7a386411",
-        "email": "emmanuel.gros@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Jan-Erik G\u00fcrtner",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/jan-erik-g%C3%BCrtner-9b016721",
-        "email": "jan-erik.guertner@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "John Hart",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/john-hart-4a48534",
-        "email": "John.Hart@pmcf.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Wayne Harvey",
-        "role": "Partner, Managing Director",
-        "linkedin": "",
-        "email": "wayne.harvey@gambitcf.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Thilo Herbertz",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/thilo-herbertz-448b0a93",
-        "email": "thilo.herbertz@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Frank Holmes",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/frank-holmes-4a781228",
-        "email": "frank.holmes@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Stefan Huber",
-        "role": "Partner, Managing Director",
-        "linkedin": "",
-        "email": "stefan.huber@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Bryan Hughes",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/bryan-hughes-4603822",
-        "email": "Bryan.Hughes@pmcf.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Hubert Huruk",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/hubert-huruk-09a58055",
-        "email": "hubert.huruk@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Malte Jantz",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/malte-jantz",
-        "email": "malte.jantz@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Jaap de Jong",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/1205jaapdejong",
-        "email": "jaap.dejong@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Daniel J\u00fcrgenschellert",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/daniel-j%C3%BCrgenschellert-45704123",
-        "email": "daniel.juergenschellert@thecfigroup.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_medium",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Jaakko Lehto",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/jaakko-lehto-bb247119",
-        "email": "jaakko.lehto@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Martijn Liem",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/martijnliem",
-        "email": "martijn.liem@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Anders Lorentzon",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/anders-lorentzon-9618aa2",
-        "email": "anders.lorentzon@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Simon Marsden",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/simon-marsden-24816a10",
-        "email": "simon.marsden@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Kazunori Matsumoto",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/kazunori-matsumoto-a2609564",
-        "email": "kazunori.matsumoto@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Dominik Olszewski",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/dominik-olszewski-61988b4",
-        "email": "dominik.olszewski@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Lauri Pohjavuori",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/lauri-pohjavuori-48235315",
-        "email": "lauri.pohjavuori@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Jo\u00e3o Santos",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/jo%C3%A3o-pedro-rodrigues-dos-santos-9408a419",
-        "email": "joao.santos@thecfigroup.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_medium",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Jaakko Sasi",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/jaakko-sasi-b0091712",
-        "email": "jaakko.sasi@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Ramon Schuitevoerder",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/ramonschuitevoerder",
-        "email": "ramon.schuitevoerder@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Raj Shroff",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/raj-shroff-06254719",
-        "email": "raj.shroff@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Roel ter Steeg",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/roel-ter-steeg-managing-partner-mbcf-7589883",
-        "email": "roel.tersteeg@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Pasi Vainiotalo",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/pasi-vainiotalo-29322a3",
-        "email": "pasi.vainiotalo@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Pieter de Vries",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/pieter-de-vries-1043b35",
-        "email": "pieter.devries@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Joe Wagner",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/joe-wagner-7456377",
-        "email": "Joe.Wagner@pmcf.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Rob Wallace",
-        "role": "Partner, Managing Director",
-        "linkedin": "https://www.linkedin.com/in/robwallacecfi",
-        "email": "rob.wallace@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Nick Carrigan",
-        "role": "Partner",
-        "linkedin": "https://www.linkedin.com/in/nick-carrigan-profile",
-        "email": "nick.carrigan@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Jeremy Conway",
-        "role": "Partner",
-        "linkedin": "https://www.linkedin.com/in/jeremy-conway-46330891",
-        "email": "jeremy.conway@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Paolo Cusmano",
-        "role": "Partner",
-        "linkedin": "https://www.linkedin.com/in/paolo-cusmano-4b30b928",
-        "email": "paolo.cusmano@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Blake Davis",
-        "role": "Partner",
-        "linkedin": "https://www.linkedin.com/in/blake-davis",
-        "email": "blake.davis@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Yisong Dong",
-        "role": "Partner",
-        "linkedin": "https://www.linkedin.com/in/yisong-dong-99b1126b",
-        "email": "yisong.dong@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Carl Egerlundh",
-        "role": "Partner",
-        "linkedin": "https://www.linkedin.com/in/carl-egerlundh-9a1188a3",
-        "email": "carl.egerlundh@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Lei Gong",
-        "role": "Partner",
-        "linkedin": "",
-        "email": "lei.gong@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Tim Miles",
-        "role": "Partner",
-        "linkedin": "https://www.linkedin.com/in/tim-miles-2ba8291a",
-        "email": "tim.miles@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Chris Mitchell",
-        "role": "Partner",
-        "linkedin": "https://www.linkedin.com/in/chris-mitchell-ca-3b511b46",
-        "email": "chris.mitchell@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Michael Yared",
-        "role": "Partner",
-        "linkedin": "https://www.linkedin.com/in/michael-yared-09667223",
-        "email": "michael.yared@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Yoshinao Kawashima",
-        "role": "Managing Director",
-        "linkedin": "",
-        "email": "yoshinao.kawashima@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Akira Koga",
-        "role": "Managing Director",
-        "linkedin": "https://www.linkedin.com/in/akira-koga-188b9a53",
-        "email": "akira.koga@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Naomichi Nosaka",
-        "role": "Managing Director",
-        "linkedin": "https://www.linkedin.com/in/naomichi-nosaka-b39935ab",
-        "email": "n.nosaka@frontier-mgmt.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Ken Wee",
-        "role": "Managing Director",
-        "linkedin": "",
-        "email": "ken.wee@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Tsuyoshi Yamada",
-        "role": "Managing Director",
-        "linkedin": "https://www.linkedin.com/in/tsyuoshi-yamada-57195392",
-        "email": "tsuyoshi.yamada@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Alex Chau",
-        "role": "Senior Director",
-        "linkedin": "",
-        "email": "a.chau@frontier-mgmt.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_medium",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Toru Isono",
-        "role": "Senior Director",
-        "linkedin": "https://www.linkedin.com/in/toru-isono-1844b613a",
         "email": "",
         "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Julien Dahan",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/julien-dahan-44066b1",
-        "email": "julien.dahan@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Fr\u00e9d\u00e9ric Damiron",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/fr%C3%A9d%C3%A9ric-damiron-46799b8",
-        "email": "frederic.damiron@thecfigroup.com",
-        "bio": "",
         "confidence": "secondary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_medium",
-        "source_url": "https://www.thecfigroup.com/team"
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth2",
+        "source_url": "https://first-ally.com/join-our-team"
       },
       {
-        "name": "Alexis Dubil",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/alexisdubil",
-        "email": "alexis.dubil@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Jean-Baptiste Duval",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/jean-baptiste-duval-0492551",
-        "email": "jean-baptiste.duval@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Jayson Gitt",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/jaysongitt",
-        "email": "jayson.gitt@pmcf.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Kasper Kooij",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/kasper-kooij-97ab27103",
-        "email": "kasper.kooij@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Ivor Kramer",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/ivorkramer",
-        "email": "ivor.kramer@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Julius Perttunen",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/julius-perttunen-252748180",
-        "email": "julius.perttunen@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Marcel Preisig",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/marcelpreisig",
-        "email": "marcel.preisig@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Bernardo Quintino",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/bernardoquintino",
-        "email": "bernardo.quintino@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Sebastiaan Renting",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/spprenting",
-        "email": "sebastiaan.renting@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Cl\u00e9ment Richard",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/cl%C3%A9ment-richard-2174792",
-        "email": "clement.richard@thecfigroup.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_medium",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Rianne Roozeboom",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/rianneroozeboom",
-        "email": "rianne.roozeboom@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Jacques Ropartz",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/jacques-ropartz-69437046",
-        "email": "jacques.ropartz@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Matt Rupprecht",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/matthew-j-rupprecht-cfa-b154152",
-        "email": "Matt.Rupprecht@pmcf.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Markku Tervo",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/markku-tervo-165841b4",
-        "email": "markku.tervo@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Eduardo Vallim",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/eduardo-vallim",
-        "email": "eduardo.vallim@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Randy de Visser",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/rdevisser",
-        "email": "randy.devisser@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Ning Zhou",
-        "role": "Director",
+        "name": "First Ally Capital Limited",
+        "role": "Front Desk Officer",
         "linkedin": "",
-        "email": "ning.zhou@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Eddie Zukowski",
-        "role": "Director",
-        "linkedin": "https://www.linkedin.com/in/eddie-zukowski-6ba94232",
-        "email": "eddie.zukowski@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Nirav Shah",
-        "role": "Senior Vice President",
-        "linkedin": "https://www.linkedin.com/in/nirav-d-shah-229b556",
-        "email": "nirav.shah@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Achraf Ben Meftah",
-        "role": "Vice President",
-        "linkedin": "https://www.linkedin.com/in/achraf-ben-meftah-8a88449a",
-        "email": "achraf.benmeftah@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Stephanie Brinkmann",
-        "role": "Vice President",
-        "linkedin": "https://www.linkedin.com/in/stephanie-brinkmann-bb719b89",
-        "email": "stephanie.brinkmann@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Igor Corr\u00eaa Pinto",
-        "role": "Vice President",
-        "linkedin": "https://www.linkedin.com/in/igor-correa-pinto-65158337",
-        "email": "igor.correa@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Eduard Dorzweiler",
-        "role": "Vice President",
-        "linkedin": "https://www.linkedin.com/in/eduard-dorzweiler",
-        "email": "eduard.dorzweiler@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Tobias F\u00fchrer",
-        "role": "Vice President",
-        "linkedin": "https://www.linkedin.com/in/tobias-f%C3%BChrer-038b30a8",
-        "email": "tobias.fuehrer@thecfigroup.com",
+        "email": "",
         "bio": "",
         "confidence": "secondary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_medium",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Dante G\u00f3mez",
-        "role": "Vice President",
-        "linkedin": "https://www.linkedin.com/in/dante-rodrigo-castillo-g%C3%B3mez-60441ba7",
-        "email": "dante.gomez@thecfigroup.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_medium",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Miti Jhaveri",
-        "role": "Vice President",
-        "linkedin": "https://www.linkedin.com/in/miti-s-jhaveri",
-        "email": "miti.jhaveri@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Jason Kluge",
-        "role": "Vice President",
-        "linkedin": "https://www.linkedin.com/in/jason-kluge",
-        "email": "jason.kluge@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Thibault Lacour-Gayet",
-        "role": "Vice President",
-        "linkedin": "https://www.linkedin.com/in/thibault-lacour-gayet-69041218",
-        "email": "thibault.lacour@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "S\u00e9bastien Lambert",
-        "role": "Vice President",
-        "linkedin": "https://www.linkedin.com/in/s%C3%A9bastien-lambert-a795a0",
-        "email": "sebastien.lambert@thecfigroup.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_medium",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Charlotte M\u00e9lin",
-        "role": "Vice President",
-        "linkedin": "https://www.linkedin.com/in/charlotte-m%C3%A9lin-449b15131",
-        "email": "charlotte.melin@thecfigroup.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_medium",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Pooja Motani",
-        "role": "Vice President",
-        "linkedin": "https://www.linkedin.com/in/pooja-motani-793031b",
-        "email": "pooja.motani@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Tiago Oliveira",
-        "role": "Vice President",
-        "linkedin": "https://www.linkedin.com/in/tiago-s-oliveira-70b01735",
-        "email": "tiago.oliveira@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Antonio Di Paoli",
-        "role": "Vice President",
-        "linkedin": "https://www.linkedin.com/in/antonio-di-paoli-b64a3b162",
-        "email": "antonio.dipaoli@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Alice Sorato",
-        "role": "Vice President",
-        "linkedin": "https://www.linkedin.com/in/alicesorato1",
-        "email": "alice.sorato@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Patrick S\u00fc\u00df",
-        "role": "Vice President",
-        "linkedin": "https://www.linkedin.com/in/patrick-suess",
-        "email": "patrick.suess@thecfigroup.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_medium",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Xinyue Zhang",
-        "role": "Vice President",
-        "linkedin": "https://www.linkedin.com/in/zhangxinyue85/",
-        "email": "xinyue.zhang@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "J\u00f6rg Alting",
-        "role": "Senior Advisor",
-        "linkedin": "https://www.linkedin.com/in/joerg-alting-b46b38116",
-        "email": "joerg.alting@thecfigroup.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_medium",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Lionel Bordarier",
-        "role": "Senior Advisor",
-        "linkedin": "",
-        "email": "Lionel.bordarier@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Nelson Bussachetti",
-        "role": "Senior Advisor",
-        "linkedin": "https://www.linkedin.com/in/nelson-bussachetti-57501b246",
-        "email": "nelson.bussachetti@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Daniel Delahaye",
-        "role": "Senior Advisor",
-        "linkedin": "https://www.linkedin.com/in/daniel-delahaye-04325a107",
-        "email": "daniel.delahaye@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Olivier Dupont",
-        "role": "Senior Advisor",
-        "linkedin": "",
-        "email": "olivier.dupont@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Alain Le Floch",
-        "role": "Senior Advisor",
-        "linkedin": "https://www.linkedin.com/in/alain-le-floch-8b02bb45",
-        "email": "alain.lefloch@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Philippe Lazare",
-        "role": "Senior Advisor",
-        "linkedin": "",
-        "email": "Phillipe.lazare@thecfigroup.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_medium",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Henri Porte",
-        "role": "Senior Advisor",
-        "linkedin": "https://www.linkedin.com/in/henri-porte-48608a7b",
-        "email": "henri.porte@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Elias P\u00f6yry",
-        "role": "Senior Advisor",
-        "linkedin": "https://www.linkedin.com/in/elias-p%C3%B6yry-b445a5",
-        "email": "elias.poyry@thecfigroup.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_medium",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Samuel F\u00e4ssler",
-        "role": "Associate",
-        "linkedin": "https://www.linkedin.com/in/samuel-f%C3%A4ssler-b520171a",
-        "email": "samuel.faessler@thecfigroup.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_medium",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Nicolas Gubler",
-        "role": "Associate",
-        "linkedin": "https://www.linkedin.com/in/nicolas-gubler-70617016a",
-        "email": "nicolas.gubler@thecfigroup.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_strong",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Mario Ivani\u0107",
-        "role": "Associate",
-        "linkedin": "https://www.linkedin.com/in/mario-ivani%C4%87-17b446151",
-        "email": "mario.ivanic@thecfigroup.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "role_signal_template",
-        "evidence": "role_then_signal_medium",
-        "source_url": "https://www.thecfigroup.com/team"
-      },
-      {
-        "name": "Hanna Pluck",
-        "role": "",
-        "linkedin": "",
-        "email": "hanna.pluck@thecfigroup.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
+        "strategy": "ancestor_consensus",
+        "evidence": "ancestor_consensus_depth2",
+        "source_url": "https://first-ally.com/join-our-team"
       }
     ],
     "blocked": false,
@@ -1844,387 +2209,568 @@
     "row": 7
   },
   {
-    "input_website": "https://brightpensioen.nl/",
-    "name": "BrightPensioen",
+    "input_website": "https://dlm.group/",
+    "name": "DLM Capital Group",
     "linkedin_urls": [
-      "https://www.linkedin.com/company/brightpensioen"
+      "https://www.linkedin.com/company/dlmgroup"
     ],
-    "company_linkedin": "https://www.linkedin.com/company/brightpensioen",
+    "company_linkedin": "https://www.linkedin.com/company/dlmgroup",
     "emails": [
-      "info@brightpensioen.nl"
+      "golutayo@dlmtrustcompany.com",
+      "groupcompliance@dlm.group",
+      "hello@dlm.group",
+      "info@dlm.group",
+      "klawal@dlmtrustcompany.com"
     ],
-    "persons": [],
+    "persons": [
+      {
+        "name": "Eniola Adenubi",
+        "role": "CFO Griffin Holdings",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://dlm.group/DLM-Capital-Group.html"
+      },
+      {
+        "name": "Sandra Ogunniyi",
+        "role": "",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://dlm.group/DLM-Capital-Group.html"
+      },
+      {
+        "name": "Patrick\u00a0 Awolowo",
+        "role": "Retired Executive",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://dlm.group/DLM-Capital-Group.html"
+      },
+      {
+        "name": "Faith Ugo",
+        "role": "",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://dlm.group/DLM-Capital-Group.html"
+      },
+      {
+        "name": "Charles Oti",
+        "role": "",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://dlm.group/DLM-Capital-Group.html"
+      },
+      {
+        "name": "Babatunde Obaniyi",
+        "role": "Babatunde Obaniyi Group Managing Director",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://dlm.group/Global-Markets.html"
+      },
+      {
+        "name": "Ruth Osime",
+        "role": "Ruth Osime Non - Executive Director",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://dlm.group/Global-Markets.html"
+      },
+      {
+        "name": "Kasham Musa Iliya",
+        "role": "Kasham Musa Iliya Non - Executive Director",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://dlm.group/Global-Markets.html"
+      }
+    ],
     "blocked": false,
     "tab": "Gamma",
     "row": 10
   },
   {
-    "input_website": "http://www.otcflow.com/",
-    "name": "OTC FLOW B.V.",
+    "input_website": "http://www.africinvest.com/",
+    "name": "Great Private Equity Company",
     "linkedin_urls": [
-      "http://www.linkedin.com/in/marcellebow",
-      "https://nl.linkedin.com/company/otc-flow",
-      "https://www.linkedin.com/company/assises-nationales-du-logement-et-de-la-ville",
-      "https://www.linkedin.com/company/association-des-maires-d",
-      "https://www.linkedin.com/company/association-des-maires-d'ile-de-france",
-      "https://www.linkedin.com/company/carbonunbound",
-      "https://www.linkedin.com/company/etcsee-energy-trading",
-      "https://www.linkedin.com/company/montel",
-      "https://www.linkedin.com/company/otc-flow",
-      "https://www.linkedin.com/company/recs-eca",
-      "https://www.linkedin.com/company/rgfi-renewable-gas-forum-ireland",
-      "https://www.linkedin.com/in/ACoAAAUdWD4BXAEgi51b3tjWYhobFp0X3xXM39A",
-      "https://www.linkedin.com/in/ACoAADX2umIB9y3hcq2qJBUCEm3Xke1XcZIN-a8",
-      "https://www.linkedin.com/in/alessio-esposito-corona-b7273422b",
-      "https://www.linkedin.com/in/alexanderstarck",
-      "https://www.linkedin.com/in/bartosz-olszewski-94432a172",
-      "https://www.linkedin.com/in/bastienlalet",
-      "https://www.linkedin.com/in/benjamin-elrouah-a0610a162",
-      "https://www.linkedin.com/in/dschapira4",
-      "https://www.linkedin.com/in/edouard-raymondiere-1386b519b",
-      "https://www.linkedin.com/in/eemilvuori",
-      "https://www.linkedin.com/in/ego-pleijsier-180627268",
-      "https://www.linkedin.com/in/eren-%C5%9Ferbet%C3%A7i-704713193",
-      "https://www.linkedin.com/in/federico-resta",
-      "https://www.linkedin.com/in/guillaume-de-la-celle-b04542205",
-      "https://www.linkedin.com/in/guillem-rondole",
-      "https://www.linkedin.com/in/jacopo-piazza",
-      "https://www.linkedin.com/in/jan-siara-25bb61195",
-      "https://www.linkedin.com/in/jerry-sheehan-3ab1bb174",
-      "https://www.linkedin.com/in/johanna-burholt-7a1aab275",
-      "https://www.linkedin.com/in/julien-alexandre-lefebvre",
-      "https://www.linkedin.com/in/karimelsayed10",
-      "https://www.linkedin.com/in/liam-nunn-10289317b",
-      "https://www.linkedin.com/in/lorinda-vannha-92b651181",
-      "https://www.linkedin.com/in/maxime-bescond-bb695a118",
-      "https://www.linkedin.com/in/maxime-lesueur-b87827226",
-      "https://www.linkedin.com/in/sebastiaan-beekhuizen-604717131",
-      "https://www.linkedin.com/in/vincentwergeland"
+      "https://www.linkedin.com/company/tuninvest"
     ],
-    "company_linkedin": "https://nl.linkedin.com/company/otc-flow",
+    "company_linkedin": "https://www.linkedin.com/company/tuninvest",
     "emails": [
-      "adam.tavernier@otcflow.com",
-      "alessio.corona@otcflow.com",
-      "alexander.starck@otcflow.com",
-      "amri.azmi@otcflow.com",
-      "arthur.walles@otcflow.com",
-      "bartosz.olszewski@otcflow.com",
-      "bastien.lalet@otcflow.com",
-      "benjamin.elrouah@otcflow.com",
-      "communications@otcflow.com",
-      "contact@otcflow.com",
-      "david.schapira@otcflow.com",
-      "edouard.raymondiere@otcflow.com",
-      "ego.pleijsier@otcflow.com",
-      "federico.resta@otcflow.com",
-      "friso.hoving@otcflow.com",
-      "guillaume.delacelle@otcflow.com",
-      "guillem.rondole@otcflow.com",
-      "info@otcflow.com",
-      "jacopo.piazza@otcflow.com",
-      "jan.siara@otcflow.com",
-      "julien.lefebvre@otcflow.com",
-      "karim.elsayed@otcflow.com",
-      "liam.nunn@otcflow.com",
-      "lorinda.vannha@otcflow.com",
-      "marcel.lebow@otcflow.com",
-      "maxime.bescond@otcflow.com",
-      "maxime.lesueur@otcflow.com",
-      "mike.vaneijkelenborg@otcflow.com",
-      "nicolas.puente@otcflow.com",
-      "nils.eyer@otcflow.com",
-      "renewable.certificates@otcflow.com",
-      "sebastiaan.beekhuizen@otcflow.com",
-      "su@empresa.com",
-      "sue.feng@otcflow.com",
-      "vincent.wergeland@otcflow.com",
-      "your@company.com"
+      "investor-relations@africinvest.com"
     ],
     "persons": [
       {
-        "name": "Benjamin Elrouah",
-        "role": "OTC FLOW France",
-        "linkedin": "https://www.linkedin.com/in/benjamin-elrouah-a0610a162",
-        "email": "benjamin.elrouah@otcflow.com",
-        "confidence": "medium",
-        "strategy": "linkedin_page"
-      },
-      {
-        "name": "Adam Tavernier",
+        "name": "Investor Relations",
         "role": "",
         "linkedin": "",
-        "email": "adam.tavernier@otcflow.com",
+        "email": "investor-relations@africinvest.com",
         "confidence": "medium",
         "strategy": "email_parsing"
+      }
+    ],
+    "blocked": false,
+    "tab": "Gamma",
+    "row": 11
+  },
+  {
+    "input_website": "https://emergingafricagroup.com/",
+    "name": "Emerging Africa Capital Limited",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/emerging-africa-group"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/emerging-africa-group",
+    "emails": [
+      "info@emergingafricagroup.com"
+    ],
+    "persons": [
+      {
+        "name": "Felicia Sonubi",
+        "role": "Felicia Sonubi MD/CEO",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://emergingafricagroup.com/board-of-directors"
       },
       {
-        "name": "Alessio Corona",
+        "name": "Mallam Mohammed Bintube",
+        "role": "Mallam Mohammed Bintube Chairman/Independent Non-Executive Director",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://emergingafricagroup.com/board-of-directors"
+      },
+      {
+        "name": "Mary Uduk",
+        "role": "Mary Uduk Vice-chair/ Non-Executive Director",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://emergingafricagroup.com/board-of-directors"
+      },
+      {
+        "name": "Olusegun Sanni",
+        "role": "Olusegun Sanni Non-Executive Director",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://emergingafricagroup.com/board-of-directors"
+      },
+      {
+        "name": "Oghogho Osula",
+        "role": "Oghogho Osula Non-Executive Director, Emerging Africa Trustees Limited",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://emergingafricagroup.com/board-of-directors"
+      },
+      {
+        "name": "Toyin Sanni",
+        "role": "Toyin Sanni Executive Vice-Chair /Group Chief Executive Officer",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://emergingafricagroup.com/ea-management"
+      },
+      {
+        "name": "Shuaib Mahmoud",
+        "role": "Shuaib Mahmoud Group Executive Director / Deputy Group CEO Designate",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://emergingafricagroup.com/ea-management"
+      },
+      {
+        "name": "Peace Oladunjoye",
+        "role": "Peace Oladunjoye Group Chief Financial Officer",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://emergingafricagroup.com/ea-management"
+      },
+      {
+        "name": "Collins Oliseh",
+        "role": "Collins Oliseh Director, Group Treasury and Southern Region",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://emergingafricagroup.com/ea-management"
+      },
+      {
+        "name": "Adetoun Anene",
         "role": "",
         "linkedin": "",
-        "email": "alessio.corona@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://emergingafricagroup.com/ea-management"
       },
       {
-        "name": "Alexander Starck",
+        "name": "Henry Esenwa",
+        "role": "Henry Esenwa Chief Information Officer",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://emergingafricagroup.com/ea-management"
+      },
+      {
+        "name": "Omodolapo Olawale",
         "role": "",
         "linkedin": "",
-        "email": "alexander.starck@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://emergingafricagroup.com/ea-management"
       },
       {
-        "name": "Amri Azmi",
+        "name": "Olutoye Sanni",
+        "role": "Olutoye Sanni Deputy Managing Director, EATL.",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://emergingafricagroup.com/ea-management"
+      },
+      {
+        "name": "Omobowale Ademola",
+        "role": "Omobowale Ademola Chairman",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://emergingafricagroup.com/ea-management"
+      },
+      {
+        "name": "Yomi Adeboye",
+        "role": "Yomi Adeboye Director",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://emergingafricagroup.com/ea-management"
+      },
+      {
+        "name": "Oluseyi Adewale",
+        "role": "Oluseyi Adewale Director",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://emergingafricagroup.com/ea-management"
+      },
+      {
+        "name": "Olufunmbi Akinluyi",
+        "role": "Olufunmbi Akinluyi Executive Director",
+        "linkedin": "",
+        "email": "",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "contactless_grid",
+        "evidence": "uniform_repeated_people_grid",
+        "source_url": "https://emergingafricagroup.com/ea-management"
+      }
+    ],
+    "blocked": false,
+    "tab": "Gamma",
+    "row": 8
+  },
+  {
+    "input_website": "http://www.vetiva.com/",
+    "name": "Vetiva Capital Management Limited",
+    "linkedin_urls": [
+      "https://www.linkedin.com/company/vetiva-capital-management-limited"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/vetiva-capital-management-limited",
+    "emails": [
+      "dealing@vetiva.com",
+      "fund@vetiva.com",
+      "funds@vetiva.com",
+      "info@vetiva.com",
+      "legal@vetiva.com",
+      "trustees@vetiva.com",
+      "vufi@vetiva.com"
+    ],
+    "persons": [],
+    "blocked": false,
+    "tab": "Gamma",
+    "row": 9
+  },
+  {
+    "input_website": "http://www.banwo-ighodalo.com/",
+    "name": "Banwo & Ighodalo",
+    "linkedin_urls": [
+      "http://linkedin.com/in/oluwatosin-ajijola-90214619a",
+      "https://www.linkedin.com/company/banwo",
+      "https://www.linkedin.com/company/banwo%26ighodalo",
+      "https://www.linkedin.com/company/banwo&ighodalo",
+      "https://www.linkedin.com/in/ayorinde-oluwasoji-temidire",
+      "https://www.linkedin.com/in/ibiyemi-ajiboye-b022b6125",
+      "https://www.linkedin.com/in/isa-alade-917820b3",
+      "https://www.linkedin.com/in/kehinde-ojuawo-52254b55",
+      "https://www.linkedin.com/in/olere-ilegogie-b34192150",
+      "https://www.linkedin.com/in/olumide-osundolire-918b2313",
+      "https://www.linkedin.com/in/oluwatobiloba-odubela-81803219b",
+      "https://www.linkedin.com/in/omogbolahan-noah-opawale",
+      "https://www.linkedin.com/in/osaheni-ezomo-180933175",
+      "https://www.linkedin.com/in/osinachiakanegbu",
+      "https://www.linkedin.com/in/rashidatjimoh",
+      "https://www.linkedin.com/in/seyi-bella-44959b86",
+      "https://www.linkedin.com/in/stella-duru-8318151a",
+      "https://www.linkedin.com/in/tamunokieibi-green-246845159",
+      "https://www.linkedin.com/in/toyin-bashir-02a72031",
+      "https://www.linkedin.com/in/vincent-zan-ogbu"
+    ],
+    "company_linkedin": "https://www.linkedin.com/company/banwo",
+    "emails": [
+      "aagunbiade@banwo-ighodalo.com",
+      "aighodalo@banwo-ighodalo.com",
+      "aonyemakonor@banwo-ighodalo.com",
+      "aowoigbe@banwo-ighodalo.com",
+      "banwigho@banwo-ighodalo.com",
+      "canya-awa@banwo-ighodalo.com",
+      "cumeche@banwo-ighodalo.com",
+      "folubanwo@banwo-ighodalo.com",
+      "iajiboye@banwo-ighodalo.com",
+      "ialade@banwo-ighodalo.com",
+      "ketim@banwo-ighodalo.com",
+      "kojuawo@banwo-ighodalo.com",
+      "loshikoya@banwo-ighodalo.com",
+      "oajijola@banwo-ighodalo.com",
+      "oakanegbu@banwo-ighodalo.com",
+      "oayorinde@banwo-ighodalo.com",
+      "oezomo@banwo-ighodalo.com",
+      "oilegogie@banwo-ighodalo.com",
+      "oodubela@banwo-ighodalo.com",
+      "oogunseitan@banwo-ighodalo.com",
+      "oomoniyi@banwo-ighodalo.com",
+      "oopawale@banwo-ighodalo.com",
+      "oosundolire@banwo-ighodalo.com",
+      "rjimoh@banwo-ighodalo.com",
+      "sakwuobi@banwo-ighodalo.com",
+      "sbella@banwo-ighodalo.com",
+      "sduru@banwo-ighodalo.com",
+      "siwuoha@banwo-ighodalo.com",
+      "sowonikoko@banwo-ighodalo.com",
+      "tadeyemi@banwo-ighodalo.com",
+      "tbashir@banwo-ighodalo.com",
+      "test@fwe.com",
+      "tgreen@banwo-ighodalo.com",
+      "vogbu@banwo-ighodalo.com"
+    ],
+    "persons": [
+      {
+        "name": "Tunji Adeyemi",
         "role": "",
         "linkedin": "",
-        "email": "amri.azmi@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
+        "email": "tadeyemi@banwo-ighodalo.com",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "signal_template",
+        "evidence": "signal_template_medium",
+        "source_url": "https://www.banwo-ighodalo.com/people"
       },
       {
-        "name": "Arthur Walles",
+        "name": "Seyi Bella",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/seyi-bella-44959b86",
+        "email": "sbella@banwo-ighodalo.com",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "signal_template",
+        "evidence": "signal_template_medium",
+        "source_url": "https://www.banwo-ighodalo.com/people"
+      },
+      {
+        "name": "Kehinde Ojuawo",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/kehinde-ojuawo-52254b55",
+        "email": "kojuawo@banwo-ighodalo.com",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "signal_template",
+        "evidence": "signal_template_medium",
+        "source_url": "https://www.banwo-ighodalo.com/people"
+      },
+      {
+        "name": "Toyin Bashir",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/toyin-bashir-02a72031",
+        "email": "tbashir@banwo-ighodalo.com",
+        "bio": "",
+        "confidence": "secondary",
+        "strategy": "signal_template",
+        "evidence": "signal_template_medium",
+        "source_url": "https://www.banwo-ighodalo.com/people"
+      },
+      {
+        "name": "Canya Awa",
         "role": "",
         "linkedin": "",
-        "email": "arthur.walles@otcflow.com",
+        "email": "canya-awa@banwo-ighodalo.com",
         "confidence": "medium",
         "strategy": "email_parsing"
       },
       {
-        "name": "Bartosz Olszewski",
+        "name": "Oluwatosin Ajijola",
         "role": "",
-        "linkedin": "https://www.linkedin.com/in/bartosz-olszewski-94432a172",
-        "email": "bartosz.olszewski@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Bastien Lalet",
-        "role": "",
-        "linkedin": "",
-        "email": "bastien.lalet@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "David Schapira",
-        "role": "",
-        "linkedin": "",
-        "email": "david.schapira@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Edouard Raymondiere",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/edouard-raymondiere-1386b519b",
-        "email": "edouard.raymondiere@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Ego Pleijsier",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/ego-pleijsier-180627268",
-        "email": "ego.pleijsier@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Federico Resta",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/federico-resta",
-        "email": "federico.resta@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Friso Hoving",
-        "role": "",
-        "linkedin": "",
-        "email": "friso.hoving@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Guillaume Delacelle",
-        "role": "",
-        "linkedin": "",
-        "email": "guillaume.delacelle@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Guillem Rondole",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/guillem-rondole",
-        "email": "guillem.rondole@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Jacopo Piazza",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/jacopo-piazza",
-        "email": "jacopo.piazza@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Jan Siara",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/jan-siara-25bb61195",
-        "email": "jan.siara@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Julien Lefebvre",
-        "role": "",
-        "linkedin": "",
-        "email": "julien.lefebvre@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Karim Elsayed",
-        "role": "",
-        "linkedin": "",
-        "email": "karim.elsayed@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Liam Nunn",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/liam-nunn-10289317b",
-        "email": "liam.nunn@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Lorinda Vannha",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/lorinda-vannha-92b651181",
-        "email": "lorinda.vannha@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Marcel Lebow",
-        "role": "",
-        "linkedin": "",
-        "email": "marcel.lebow@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Maxime Bescond",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/maxime-bescond-bb695a118",
-        "email": "maxime.bescond@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Maxime Lesueur",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/maxime-lesueur-b87827226",
-        "email": "maxime.lesueur@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Mike Vaneijkelenborg",
-        "role": "",
-        "linkedin": "",
-        "email": "mike.vaneijkelenborg@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Nicolas Puente",
-        "role": "",
-        "linkedin": "",
-        "email": "nicolas.puente@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Nils Eyer",
-        "role": "",
-        "linkedin": "",
-        "email": "nils.eyer@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Renewable Certificates",
-        "role": "",
-        "linkedin": "",
-        "email": "renewable.certificates@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Sebastiaan Beekhuizen",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/sebastiaan-beekhuizen-604717131",
-        "email": "sebastiaan.beekhuizen@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Sue Feng",
-        "role": "",
-        "linkedin": "",
-        "email": "sue.feng@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Vincent Wergeland",
-        "role": "",
-        "linkedin": "",
-        "email": "vincent.wergeland@otcflow.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Alessio Esposito Corona",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/alessio-esposito-corona-b7273422b",
+        "linkedin": "http://linkedin.com/in/oluwatosin-ajijola-90214619a",
         "email": "",
         "confidence": "low",
         "strategy": "url_slug"
       },
       {
-        "name": "Guillaume De La Celle",
+        "name": "Ayorinde Oluwasoji Temidire",
         "role": "",
-        "linkedin": "https://www.linkedin.com/in/guillaume-de-la-celle-b04542205",
+        "linkedin": "https://www.linkedin.com/in/ayorinde-oluwasoji-temidire",
         "email": "",
         "confidence": "low",
         "strategy": "url_slug"
       },
       {
-        "name": "Jerry Sheehan",
+        "name": "Ibiyemi Ajiboye",
         "role": "",
-        "linkedin": "https://www.linkedin.com/in/jerry-sheehan-3ab1bb174",
+        "linkedin": "https://www.linkedin.com/in/ibiyemi-ajiboye-b022b6125",
         "email": "",
         "confidence": "low",
         "strategy": "url_slug"
       },
       {
-        "name": "Johanna Burholt",
+        "name": "Isa Alade",
         "role": "",
-        "linkedin": "https://www.linkedin.com/in/johanna-burholt-7a1aab275",
+        "linkedin": "https://www.linkedin.com/in/isa-alade-917820b3",
         "email": "",
         "confidence": "low",
         "strategy": "url_slug"
       },
       {
-        "name": "Julien Alexandre Lefebvre",
+        "name": "Olere Ilegogie",
         "role": "",
-        "linkedin": "https://www.linkedin.com/in/julien-alexandre-lefebvre",
+        "linkedin": "https://www.linkedin.com/in/olere-ilegogie-b34192150",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Olumide Osundolire",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/olumide-osundolire-918b2313",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Oluwatobiloba Odubela",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/oluwatobiloba-odubela-81803219b",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Omogbolahan Noah Opawale",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/omogbolahan-noah-opawale",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Osaheni Ezomo",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/osaheni-ezomo-180933175",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Stella Duru",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/stella-duru-8318151a",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Tamunokieibi Green",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/tamunokieibi-green-246845159",
+        "email": "",
+        "confidence": "low",
+        "strategy": "url_slug"
+      },
+      {
+        "name": "Vincent Zan Ogbu",
+        "role": "",
+        "linkedin": "https://www.linkedin.com/in/vincent-zan-ogbu",
         "email": "",
         "confidence": "low",
         "strategy": "url_slug"
@@ -2233,519 +2779,5 @@
     "blocked": false,
     "tab": "Gamma",
     "row": 12
-  },
-  {
-    "input_website": "https://www.aaa-riskfinance.nl/",
-    "name": "Triple A - Risk Finance B.V.",
-    "linkedin_urls": [
-      "https://www.linkedin.com/company/triple-a---risk-finance"
-    ],
-    "company_linkedin": "https://www.linkedin.com/company/triple-a---risk-finance",
-    "emails": [
-      "info@aaa-riskfinance.nl"
-    ],
-    "persons": [],
-    "blocked": false,
-    "tab": "Gamma",
-    "row": 14
-  },
-  {
-    "input_website": "https://www.bridgefund.nl/",
-    "name": "BridgeFund",
-    "linkedin_urls": [],
-    "company_linkedin": "",
-    "emails": [],
-    "persons": [],
-    "error": "timed out after 180s",
-    "blocked": false,
-    "tab": "Gamma",
-    "row": 11
-  },
-  {
-    "input_website": "https://www.home.saxo/nl-nl",
-    "name": "Saxo Bank Nederland",
-    "linkedin_urls": [
-      "https://uk.linkedin.com/in/jameswdonovan",
-      "https://www.linkedin.com/company/2440985",
-      "https://www.linkedin.com/company/saxo-bank",
-      "https://www.linkedin.com/company/saxo-bank-group-asia-pacific",
-      "https://www.linkedin.com/company/saxo-bank-switzerland",
-      "https://www.linkedin.com/company/saxo-banque-france",
-      "https://www.linkedin.com/company/saxo-institutional",
-      "https://www.linkedin.com/company/saxobelgium",
-      "https://www.linkedin.com/company/saxonl",
-      "https://www.linkedin.com/company/scmhk",
-      "https://www.linkedin.com/in/adammoltrup",
-      "https://www.linkedin.com/in/anastasia-anikina-622b7b10",
-      "https://www.linkedin.com/in/bertrandmaurice",
-      "https://www.linkedin.com/in/brian-scharrenberg",
-      "https://www.linkedin.com/in/carsten-k%C3%B6lsky-38300b52",
-      "https://www.linkedin.com/in/daniel-bergman-786a7117",
-      "https://www.linkedin.com/in/eugenektwong",
-      "https://www.linkedin.com/in/fatma-al-naggar-08747890",
-      "https://www.linkedin.com/in/florina-schmid",
-      "https://www.linkedin.com/in/giftmuthita",
-      "https://www.linkedin.com/in/ianphipps",
-      "https://www.linkedin.com/in/indiraminsal",
-      "https://www.linkedin.com/in/ivan-chang-80623aaa",
-      "https://www.linkedin.com/in/janice-loh-342a7739",
-      "https://www.linkedin.com/in/jonas-pallesen-4861686",
-      "https://www.linkedin.com/in/lirong-h-6ab24372",
-      "https://www.linkedin.com/in/luisspereira",
-      "https://www.linkedin.com/in/melanie-struffi-2b58a81b9",
-      "https://www.linkedin.com/in/nicholas-wright-9144027",
-      "https://www.linkedin.com/in/nielseimers",
-      "https://www.linkedin.com/in/pavel-n%C4%9Bme%C4%8Dek-39550751",
-      "https://www.linkedin.com/in/reece-baker",
-      "https://www.linkedin.com/in/saxoinstitutionalsales",
-      "https://www.linkedin.com/in/vivian-nguyen-8b663126"
-    ],
-    "company_linkedin": "https://www.linkedin.com/company/2440985",
-    "emails": [
-      "aam@saxomarkets.com",
-      "anaa@saxobank.com",
-      "belgie@saxobank.com",
-      "berm@saxobank.com",
-      "brsc@saxobank.com",
-      "cko@saxobank.com",
-      "compliance@saxobank.com",
-      "consumenten@kifid.nl",
-      "contact@saxobanque.fr",
-      "dbe@saxobank.com",
-      "dubai@saxobank.com",
-      "ewo@saxomarkets.com",
-      "fata@saxobank.com",
-      "flos@saxobank.com",
-      "ich@saxomarkets.com",
-      "indm@saxobank.com",
-      "info.japan@saxobank.com",
-      "iph@saxobank.com",
-      "italiandesk@saxobank.com",
-      "jado@saxomarkets.com",
-      "janl@saxobank.com",
-      "jpa@saxobank.com",
-      "konp@saxobank.com",
-      "lirh@saxomarkets.com",
-      "luis@saxobank.com",
-      "media@saxobank.com",
-      "mest@saxobank.com",
-      "muta@saxomarkets.com",
-      "nicw@saxobank.com",
-      "nlms@saxobank.com",
-      "pavn@saxobank.com",
-      "praguemarketing@saxobank.com",
-      "press@saxobank.com",
-      "privacy@saxobank.com",
-      "privacy_nl@saxobank.com",
-      "privatesalessingapore@saxobank.com",
-      "reception@saxobank.com",
-      "reeb@saxomarkets.com",
-      "sales.ch@saxobank.com",
-      "salescee@saxobank.com",
-      "saleseurope@saxobank.com",
-      "salesuk@saxomarkets.com",
-      "saxobankdanmark@saxobank.com",
-      "saxobelgiumfeedback@saxobank.com",
-      "security@saxobank.com",
-      "servicecenter@saxobank.com",
-      "solutions-ch@saxobank.com",
-      "solutions-copenhagen@saxobank.com",
-      "solutions-cz@saxobank.com",
-      "solutions-dk@saxobank.com",
-      "solutions-fr@saxobank.com",
-      "solutions-jp@saxomarkets.com",
-      "solutions-nl@saxobank.com",
-      "solutions-sg@saxomarkets.com",
-      "solutions-uk@saxomarkets.com",
-      "solutions.ae@saxobank.com",
-      "support@accountservices.saxo",
-      "tmo@saxobank.com",
-      "vivn@saxomarkets.com"
-    ],
-    "persons": [
-      {
-        "name": "Brian Scharrenberg",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/brian-scharrenberg",
-        "email": "brsc@saxobank.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Adam Moltrup",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/adammoltrup",
-        "email": "aam@saxomarkets.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Carsten K\u00f6lsky",
-        "role": "Senior Relationship Manager, Switzerland +41 (58) 3179621 cko@saxobank.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/carsten-k%C3%B6lsky-38300b52",
-        "email": "cko@saxobank.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_medium",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Melanie Struffi",
-        "role": "Sales, Switzerland +41 (58) 317 95 81 mest@saxobank.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/melanie-struffi-2b58a81b9",
-        "email": "mest@saxobank.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Daniel Bergman",
-        "role": "Sales, Nordic +45 39774952 dbe@saxobank.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/daniel-bergman-786a7117",
-        "email": "dbe@saxobank.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Bertrand Maurice",
-        "role": "Senior Sales and Relationship Manager, France +33 (1) 78945641 berm@saxobank.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/bertrandmaurice",
-        "email": "berm@saxobank.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Ian Phipps",
-        "role": "Senior Sales and Relationship Manager, United Kingdom +45 39774240 iph@saxobank.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/ianphipps",
-        "email": "iph@saxobank.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Reece Baker",
-        "role": "Senior Sales and Relationship Manager, United Kingdom +44 (20) 71512061 reeb@saxomarkets.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/reece-baker",
-        "email": "reeb@saxomarkets.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Niels Eimers",
-        "role": "Sales and Relationship Manager, Netherlands +31 (20) 2256060 nlms@saxobank.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/nielseimers",
-        "email": "nlms@saxobank.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Anastasia Anikina",
-        "role": "Senior Relationship Manager, CEE +420 (22) 6238356 anaa@saxobank.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/anastasia-anikina-622b7b10",
-        "email": "anaa@saxobank.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Jonas Pallesen",
-        "role": "Senior Relationship Manager, CEE +45 39774087 jpa@saxobank.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/jonas-pallesen-4861686",
-        "email": "jpa@saxobank.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Pavel N\u011bme\u010dek",
-        "role": "Senior Sales, CEE +420 (226) 238365 pavn@saxobank.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/pavel-n%C4%9Bme%C4%8Dek-39550751",
-        "email": "pavn@saxobank.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_medium",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Indira Marron-Minsal",
-        "role": "Senior Relationship Manager, Iberia +45 39774048 indm@saxobank.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/indiraminsal",
-        "email": "indm@saxobank.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_medium",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Luis Sim\u00f5es Pereira",
-        "role": "Senior Relationship Manager, Iberia +45 31698464 luis@saxobank.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/luisspereira",
-        "email": "luis@saxobank.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Nicholas Wright",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/nicholas-wright-9144027",
-        "email": "nicw@saxobank.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Fatma Al Naggar",
-        "role": "Senior Relationship Manager, Middle East +971 (4) 5206827 fata@saxobank.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/fatma-al-naggar-08747890",
-        "email": "fata@saxobank.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Ivan Chang",
-        "role": "",
-        "linkedin": "https://www.linkedin.com/in/ivan-chang-80623aaa",
-        "email": "ich@saxomarkets.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Vivian Nguyen",
-        "role": "Senior Sales, Asia-Pacific Bank and Broker Partnerships +65 63037746 vivn@saxomarkets.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/vivian-nguyen-8b663126",
-        "email": "vivn@saxomarkets.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Eugene Wong",
-        "role": "Senior Sales, Asia-Pacific Hedge Funds, Family Offices and EAMs +65 63037734 ewo@saxomarkets.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/eugenektwong",
-        "email": "ewo@saxomarkets.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Gift Anankaphannan",
-        "role": "Senior Relationship Manager, Asia-Pacific +65 6303 7696 muta@saxomarkets.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/giftmuthita",
-        "email": "muta@saxomarkets.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_medium",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Florina Schmid",
-        "role": "Relationship Manager, Asia-Pacific +65 63037812 flos@saxobank.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/florina-schmid",
-        "email": "flos@saxobank.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Janice Loh",
-        "role": "Senior Relationship Manager, Asia-Pacific +65 63037716 janl@saxobank.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/janice-loh-342a7739",
-        "email": "janl@saxobank.com",
-        "bio": "",
-        "confidence": "primary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_strong",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Lirong Hu",
-        "role": "Relationship Manager, Asia-Pacific +65 63037625 lirh@saxomarkets.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/lirong-h-6ab24372",
-        "email": "lirh@saxomarkets.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "signal_template",
-        "evidence": "signal_template_medium",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Konstantinos Pogiatzis",
-        "role": "Konstantinos Pogiatzis Senior Relationship Manager, Middle East +971 (4) 5206818 konp@saxobank.com LinkedIn",
-        "linkedin": "https://www.linkedin.com/in/saxoinstitutionalsales",
-        "email": "konp@saxobank.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "contactless_grid",
-        "evidence": "uniform_repeated_people_grid",
-        "source_url": "https://www.home.saxo/institutional-and-partners"
-      },
-      {
-        "name": "Tue Mortensen",
-        "role": "",
-        "linkedin": "",
-        "email": "tmo@saxobank.com",
-        "bio": "",
-        "confidence": "secondary",
-        "strategy": "sibling_sweep",
-        "evidence": "sibling_sweep",
-        "source_url": "https://www.home.saxo/institutional-and-partners",
-        "phone": "004551595019"
-      },
-      {
-        "name": "Info Japan",
-        "role": "",
-        "linkedin": "",
-        "email": "info.japan@saxobank.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Privacy Nl",
-        "role": "",
-        "linkedin": "",
-        "email": "privacy_nl@saxobank.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Sales Ch",
-        "role": "",
-        "linkedin": "",
-        "email": "sales.ch@saxobank.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Solutions Ch",
-        "role": "",
-        "linkedin": "",
-        "email": "solutions-ch@saxobank.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Solutions Copenhagen",
-        "role": "",
-        "linkedin": "",
-        "email": "solutions-copenhagen@saxobank.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Solutions Cz",
-        "role": "",
-        "linkedin": "",
-        "email": "solutions-cz@saxobank.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Solutions Dk",
-        "role": "",
-        "linkedin": "",
-        "email": "solutions-dk@saxobank.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Solutions Fr",
-        "role": "",
-        "linkedin": "",
-        "email": "solutions-fr@saxobank.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Solutions Jp",
-        "role": "",
-        "linkedin": "",
-        "email": "solutions-jp@saxomarkets.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Solutions Nl",
-        "role": "",
-        "linkedin": "",
-        "email": "solutions-nl@saxobank.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Solutions Sg",
-        "role": "",
-        "linkedin": "",
-        "email": "solutions-sg@saxomarkets.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Solutions Uk",
-        "role": "",
-        "linkedin": "",
-        "email": "solutions-uk@saxomarkets.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      },
-      {
-        "name": "Solutions Ae",
-        "role": "",
-        "linkedin": "",
-        "email": "solutions.ae@saxobank.com",
-        "confidence": "medium",
-        "strategy": "email_parsing"
-      }
-    ],
-    "blocked": false,
-    "tab": "Gamma",
-    "row": 13
   }
 ]

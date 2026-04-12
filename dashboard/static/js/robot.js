@@ -71,6 +71,32 @@ function robotFmtWaitWindow(waitingMinutes, maxWaitMinutes) {
     return `${robotFmtNum(waitingMinutes)}m / ${robotFmtNum(maxWaitMinutes)}m`;
 }
 
+function robotFmtRemaining(isoString) {
+    if (!isoString) return '--';
+    const diffMs = new Date(isoString).getTime() - Date.now();
+    if (!Number.isFinite(diffMs)) return '--';
+    if (diffMs <= 0) return 'due now';
+    const mins = Math.floor(diffMs / 60000);
+    const secs = Math.floor((diffMs % 60000) / 1000);
+    if (mins < 1) return `${secs}s`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 1) return `${mins}m`;
+    return `${hours}h ${mins % 60}m`;
+}
+
+let robotCategoryApprovalInFlight = false;
+let robotCategoryAutoApprovedDeadline = null;
+let robotCategoryCountdownTimer = null;
+let robotCategoryUiState = {
+    awaitingApproval: false,
+    processRunning: false,
+    nextCategory: null,
+    deadline: null,
+    timeoutMinutes: null,
+    overdue: false,
+    allComplete: false,
+};
+
 function enrichmentStateText(enrichment) {
     if (!enrichment) return 'Idle';
     if (enrichment.is_stale) return 'Stale lock';
@@ -82,6 +108,7 @@ function enrichmentStateText(enrichment) {
 }
 
 function summarizeRobotState(process, scheduler, scraper, attention, callouts, enrichment) {
+    const progression = scraper.category_progression || {};
     const criticalCount =
         callouts.filter((item) => item.severity === 'critical').length +
         attention.filter((item) => item.level === 'danger').length;
@@ -163,6 +190,21 @@ function summarizeRobotState(process, scheduler, scraper, attention, callouts, e
             summary: 'Robot is allowing automation to continue while warning-level signals stay on watch.',
             next: 'Check whether warnings are batch-specific or building into a wider pattern.',
             tone: 'warning',
+        };
+    }
+
+    if (progression.awaiting_approval) {
+        return {
+            state: progression.auto_progress_overdue ? 'Auto Progress Due' : 'Awaiting Category Approval',
+            action: progression.auto_progress_overdue ? 'Auto-progressing' : 'Approve or wait',
+            source: 'Category progression gate',
+            summary: progression.auto_progress_overdue
+                ? 'Robot reached the category timeout window and is ready to auto-progress the scraper.'
+                : 'Robot is holding the next scraper category until an operator approves it or the timeout window expires.',
+            next: progression.auto_progress_overdue
+                ? 'The next status refresh will auto-progress if the controller is still idle.'
+                : 'Approve the next category here on Robot, or wait for the timeout window to expire.',
+            tone: progression.auto_progress_overdue ? 'warning' : 'info',
         };
     }
 
@@ -476,6 +518,135 @@ function renderAutomationMesh(data) {
     document.getElementById('robot-mesh-note').textContent = note.join(' · ');
 }
 
+function renderRobotCategoryProgression(data) {
+    const process = data.process || {};
+    const scraper = data.pipeline?.maps_scraper || {};
+    const progression = scraper.category_progression || {};
+    const button = document.getElementById('btn-robot-approve-category');
+    const buttonLabel = document.getElementById('robot-category-button-label');
+    const noteEl = document.getElementById('robot-category-cta-note');
+    const stateEl = document.getElementById('robot-category-state');
+    const nextEl = document.getElementById('robot-category-next');
+    const deadlineEl = document.getElementById('robot-category-deadline');
+    if (!button || !buttonLabel || !noteEl || !stateEl || !nextEl || !deadlineEl) return;
+
+    const awaitingApproval = Boolean(progression.awaiting_approval);
+    const nextCategory = progression.next_category_number;
+    const deadline = progression.auto_progress_deadline;
+    const timeoutMinutes = progression.timeout_minutes;
+    const overdue = Boolean(progression.auto_progress_overdue);
+
+    if (awaitingApproval) {
+        stateEl.textContent = overdue ? 'Auto-progress due' : 'Waiting for approval';
+        nextEl.textContent = nextCategory != null ? `Category ${robotFmtNum(nextCategory)}` : '--';
+        deadlineEl.textContent = deadline
+            ? `${robotFmtRemaining(deadline)} · timeout ${robotFmtNum(timeoutMinutes)}m`
+            : `timeout ${robotFmtNum(timeoutMinutes)}m`;
+    } else if (progression.state === 'all_complete') {
+        stateEl.textContent = 'All categories complete';
+        nextEl.textContent = '--';
+        deadlineEl.textContent = '--';
+    } else {
+        stateEl.textContent = 'No approval needed';
+        nextEl.textContent = '--';
+        deadlineEl.textContent = '--';
+    }
+
+    const enabled = awaitingApproval && !process.running;
+    button.disabled = !enabled;
+    button.classList.toggle('btn-disabled', !enabled);
+
+    robotCategoryUiState = {
+        awaitingApproval,
+        processRunning: Boolean(process.running),
+        nextCategory,
+        deadline,
+        timeoutMinutes,
+        overdue,
+        allComplete: progression.state === 'all_complete',
+    };
+    updateRobotCategoryCountdownUi();
+}
+
+function updateRobotCategoryCountdownUi() {
+    const buttonLabel = document.getElementById('robot-category-button-label');
+    const noteEl = document.getElementById('robot-category-cta-note');
+    const deadlineEl = document.getElementById('robot-category-deadline');
+    if (!buttonLabel || !noteEl || !deadlineEl) return;
+
+    const {
+        awaitingApproval,
+        processRunning,
+        nextCategory,
+        deadline,
+        timeoutMinutes,
+        overdue,
+        allComplete,
+    } = robotCategoryUiState;
+
+    if (awaitingApproval) {
+        const remaining = deadline ? robotFmtRemaining(deadline) : '--';
+        buttonLabel.textContent = overdue ? 'Approve Next Category Now' : 'Approve Next Category';
+        deadlineEl.textContent = deadline
+            ? `${remaining} · timeout ${robotFmtNum(timeoutMinutes)}m`
+            : `timeout ${robotFmtNum(timeoutMinutes)}m`;
+
+        if (processRunning) {
+            noteEl.textContent = nextCategory != null
+                ? `Category ${robotFmtNum(nextCategory)} is queued. Approval unlocks once the current controller activity ends.`
+                : 'Approval unlocks once the current controller activity ends.';
+        } else if (overdue) {
+            noteEl.textContent = 'Auto-progress is due now. You can approve here immediately, or the next Robot refresh should trigger it automatically.';
+        } else {
+            noteEl.textContent = nextCategory != null
+                ? `Category ${robotFmtNum(nextCategory)} will auto-progress in ${remaining} if nobody approves it first.`
+                : `Auto-progress will fire in ${remaining} if nobody approves it first.`;
+        }
+        return;
+    }
+
+    buttonLabel.textContent = 'Approve Next Category';
+    deadlineEl.textContent = '--';
+    if (allComplete) {
+        noteEl.textContent = 'All scraper categories are complete. No further approval is needed.';
+    } else {
+        noteEl.textContent = 'Approval timing will appear here when a category finishes.';
+    }
+}
+
+async function robotApproveNextCategory(autoTriggered = false, autoDeadline = null) {
+    if (robotCategoryApprovalInFlight) return;
+    if (!autoTriggered && !confirm(`Approve progression to the next scraper category?`)) return;
+    robotCategoryApprovalInFlight = true;
+    try {
+        const result = await api('/control/scraper/approve-next-category', 'POST');
+        if (autoTriggered && autoDeadline) {
+            robotCategoryAutoApprovedDeadline = autoDeadline;
+        }
+        showToast(
+            autoTriggered ? `Auto-progressed to the next category.` : result.message,
+            result.success ? 'success' : 'error'
+        );
+    } catch (error) {
+        showToast(error.message, 'error');
+    } finally {
+        robotCategoryApprovalInFlight = false;
+    }
+}
+
+function maybeAutoApproveCategory(data) {
+    const process = data.process || {};
+    const progression = data.pipeline?.maps_scraper?.category_progression || {};
+    const deadline = progression.auto_progress_deadline || null;
+    if (process.running || !progression.awaiting_approval || !progression.auto_progress_overdue || !deadline) {
+        return;
+    }
+    if (robotCategoryAutoApprovedDeadline === deadline) {
+        return;
+    }
+    robotApproveNextCategory(true, deadline);
+}
+
 window.addEventListener('status-update', (e) => {
     const data = e.detail;
     renderRobotState(data);
@@ -483,6 +654,21 @@ window.addEventListener('status-update', (e) => {
     renderRobotEnrichment(data.pipeline?.enrichment);
     renderRobotAttention(data.pipeline);
     renderAutomationMesh(data);
+    renderRobotCategoryProgression(data);
+    maybeAutoApproveCategory(data);
 });
+
+const robotApproveButton = document.getElementById('btn-robot-approve-category');
+if (robotApproveButton) {
+    robotApproveButton.addEventListener('click', () => robotApproveNextCategory(false));
+}
+
+if (!robotCategoryCountdownTimer) {
+    robotCategoryCountdownTimer = window.setInterval(() => {
+        if (robotCategoryUiState.awaitingApproval) {
+            updateRobotCategoryCountdownUi();
+        }
+    }, 1000);
+}
 
 lucide.createIcons();

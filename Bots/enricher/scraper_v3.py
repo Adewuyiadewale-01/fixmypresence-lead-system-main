@@ -3933,6 +3933,13 @@ def _save_checkpoint_state(path: str, state: Dict[str, Dict]):
     os.replace(tmp_path, path)
 
 
+def _clear_checkpoint_state(path: str):
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w") as f:
+        json.dump({}, f, indent=2)
+    os.replace(tmp_path, path)
+
+
 def _checkpoint_resume_action(site_info: dict, checkpoint_state: Dict[str, Dict]) -> str:
     entry = checkpoint_state.get(_checkpoint_key(site_info))
     if not entry:
@@ -4201,6 +4208,7 @@ async def main_from_sheet(batch_size: int = 50, dry_run: bool = False):
         pass
 
     checkpoint_state = _load_checkpoint_state(checkpoint_path)
+    completed_normally = False
 
     # Counters for summary
     posted_count = 0
@@ -4219,6 +4227,7 @@ async def main_from_sheet(batch_size: int = 50, dry_run: bool = False):
                 url_list = await fetch_urls_from_sheet(session)
             if not url_list:
                 logger.info("No unprocessed URLs found.")
+                _clear_checkpoint_state(checkpoint_path)
                 return
 
             if len(url_list) > batch_size:
@@ -4515,9 +4524,13 @@ async def main_from_sheet(batch_size: int = 50, dry_run: bool = False):
                 "persons_extracted": total_persons,
             }
             _save_checkpoint_state(summary_path, run_summary)
+            _clear_checkpoint_state(checkpoint_path)
+            completed_normally = True
             logger.info(f"Summary:    {summary_path}")
 
     finally:
+        if completed_normally:
+            logger.info("Cleared latest checkpoint after successful run.")
         run_lock.release()
         logger.info(f"Run lock released: {run_id}")
 

@@ -53,7 +53,7 @@
 
     <section class="panel pgrid-full">
         <h2>Quick Actions</h2>
-        <div class="action-row">
+        <div class="action-row overview-action-row">
             <button id="ov-btn-start" class="btn btn-primary">
                 <i data-lucide="play"></i>
                 Start Scraper
@@ -65,6 +65,16 @@
             <button id="ov-btn-stop" class="btn btn-warning">
                 <i data-lucide="square"></i>
                 Stop
+            </button>
+        </div>
+        <div class="action-row overview-action-row overview-action-row-secondary">
+            <button id="ov-btn-dashboard-restart" class="btn btn-secondary">
+                <i data-lucide="refresh-ccw"></i>
+                Restart Dashboard
+            </button>
+            <button id="ov-btn-dashboard-shutdown" class="btn btn-warning">
+                <i data-lucide="power"></i>
+                Shutdown Dashboard
             </button>
         </div>
     </section>
@@ -302,11 +312,11 @@
                 <span id="ov-v3-status" class="pipeline-val">Awaiting trigger</span>
             </div>
             <div class="pipeline-row">
-                <span class="pipeline-label">A+B progress</span>
+                <span class="pipeline-label">A+B threshold</span>
                 <span id="ov-v3-progress" class="pipeline-val">--</span>
             </div>
             <div class="pipeline-row">
-                <span class="pipeline-label">Gamma ready</span>
+                <span class="pipeline-label">Total ready</span>
                 <span id="ov-v3-gamma" class="pipeline-val">--</span>
             </div>
             <div class="pipeline-row">
@@ -717,7 +727,7 @@
             enrichmentThresholdEl.textContent =
                 backlogPending != null && backlogThreshold != null
                     ? `${fmtNum(backlogPending)} / ${fmtNum(backlogThreshold)}`
-                    : '--';
+                    : (backlogThreshold != null ? `Threshold ${fmtNum(backlogThreshold)}` : '--');
         }
         if (enrichmentFillEl) {
             enrichmentFillEl.style.width = `${thresholdPct}%`;
@@ -833,7 +843,9 @@
         document.getElementById('ov-v3-progress').textContent =
             (v3.alpha_beta != null && v3.threshold != null) ? `${v3.alpha_beta}/${v3.threshold}` : '--';
         document.getElementById('ov-v3-gamma').textContent =
-            v3.gamma != null ? v3.gamma : '--';
+            (v3.total != null)
+                ? `${v3.total}${v3.gamma_family != null ? ` total · ${v3.gamma_family} gamma` : ''}`
+                : '--';
         document.getElementById('ov-v3-lastbatch').textContent =
             v3.last_batch != null ? `${v3.last_batch} leads` : '--';
 
@@ -910,6 +922,22 @@
         try {
             const result = await api('/control/stop', 'POST');
             showToast(result.message, 'success');
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+
+    document.getElementById('ov-btn-dashboard-restart').addEventListener('click', async () => {
+        if (!confirmAction('Restart the dashboard backend now?\n\nThe page should reconnect automatically after a moment.')) return;
+        try {
+            const result = await api('/control/dashboard/restart', 'POST');
+            showToast(result.message, 'warning');
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+
+    document.getElementById('ov-btn-dashboard-shutdown').addEventListener('click', async () => {
+        if (!confirmAction('Shutdown the dashboard backend now?\n\nThe page will stop responding until you start it again with the launcher script.')) return;
+        try {
+            const result = await api('/control/dashboard/shutdown', 'POST');
+            showToast(result.message, 'warning');
         } catch (e) { showToast(e.message, 'error'); }
     });
 
