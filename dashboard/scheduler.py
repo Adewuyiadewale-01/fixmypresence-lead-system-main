@@ -26,8 +26,8 @@ class Scheduler:
     def __init__(self):
         self._enabled = False
         self._phase = CyclePhase.DISABLED
-        self._run_hours = settings.DEFAULT_RUN_HOURS
-        self._rest_hours = settings.DEFAULT_REST_HOURS
+        self._run_minutes = settings.DEFAULT_RUN_MINUTES
+        self._rest_minutes = settings.DEFAULT_REST_MINUTES
         self._next_transition: Optional[datetime] = None
         self._thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
@@ -37,19 +37,19 @@ class Scheduler:
     # CONFIGURATION
     # =========================================================================
     
-    def configure(self, run_hours: int = None, rest_hours: int = None):
-        """Update cycle durations."""
+    def configure(self, run_minutes: int = None, rest_minutes: int = None):
+        """Update cycle durations (in minutes)."""
         with self._lock:
-            if run_hours is not None:
-                self._run_hours = max(1, run_hours)
-            if rest_hours is not None:
-                self._rest_hours = max(1, rest_hours)
-    
+            if run_minutes is not None:
+                self._run_minutes = max(1, run_minutes)
+            if rest_minutes is not None:
+                self._rest_minutes = max(1, rest_minutes)
+
     def get_config(self) -> Dict[str, int]:
         """Get current configuration."""
         return {
-            "run_hours": self._run_hours,
-            "rest_hours": self._rest_hours
+            "run_minutes": self._run_minutes,
+            "rest_minutes": self._rest_minutes
         }
     
     # =========================================================================
@@ -68,26 +68,26 @@ class Scheduler:
                     "message": "Cycle already running"
                 }
             
-            # Start the controller
+            # Start the controller — always approve category advancement in cycle mode
             pm = get_process_manager()
-            result = pm.start()
-            
+            result = pm.start(extra_flags=["--approve-next-category"])
+
             if not result["success"]:
                 return result
             
             # Enable scheduler
             self._enabled = True
             self._phase = CyclePhase.RUNNING
-            self._next_transition = datetime.now() + timedelta(hours=self._run_hours)
-            
+            self._next_transition = datetime.now() + timedelta(minutes=self._run_minutes)
+
             # Start background thread
             self._stop_event.clear()
             self._thread = threading.Thread(target=self._cycle_loop, daemon=True)
             self._thread.start()
-            
+
             return {
                 "success": True,
-                "message": f"Cycle started. Will rest in {self._run_hours}h.",
+                "message": f"Cycle started. Will rest in {self._run_minutes}min.",
                 "next_transition": self._next_transition.isoformat()
             }
     
@@ -159,19 +159,18 @@ class Scheduler:
                 # Check for time-based transitions
                 if self._next_transition and now >= self._next_transition:
                     if self._phase == CyclePhase.RUNNING:
-                        # Transition to REST
+                        # Transition to REST — stop only the scraper, keep enrichment running
                         self._phase = CyclePhase.RESTING
-                        self._next_transition = now + timedelta(hours=self._rest_hours)
-                        print(f"[Scheduler] Entering REST phase for {self._rest_hours}h")
-                        
-                        # Stop controller
-                        pm.stop()
-                        
+                        self._next_transition = now + timedelta(minutes=self._rest_minutes)
+                        print(f"[Scheduler] Entering REST phase for {self._rest_minutes}min")
+
+                        pm.stop_scraper_only()
+
                     elif self._phase == CyclePhase.RESTING:
                         # Transition to RUN
                         self._phase = CyclePhase.RUNNING
-                        self._next_transition = now + timedelta(hours=self._run_hours)
-                        print(f"[Scheduler] Entering RUN phase for {self._run_hours}h")
+                        self._next_transition = now + timedelta(minutes=self._run_minutes)
+                        print(f"[Scheduler] Entering RUN phase for {self._run_minutes}min")
                         
                         # Start controller
                         pm.start()
@@ -181,7 +180,7 @@ class Scheduler:
                 elif self._phase == CyclePhase.RUNNING and not pm.is_controller_running():
                     print(f"[Scheduler] Controller exited during RUN phase. Restarting to continue...")
                     time.sleep(5)  # Brief delay before restart
-                    pm.start()
+                    pm.start(extra_flags=["--approve-next-category"])
             
             # Sleep in small increments for responsiveness
             for _ in range(10):  # 10 x 1s = 10s between checks

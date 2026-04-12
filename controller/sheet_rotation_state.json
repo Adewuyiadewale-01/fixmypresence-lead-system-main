@@ -2,46 +2,46 @@
   "registries": {
     "pipeline_sheets": {
       "registry": "pipeline_sheets",
-      "last_checked_at": "2026-04-12T12:19:39.766395+00:00",
+      "last_checked_at": "2026-04-12T16:02:08.639471+00:00",
       "active_sheet_key": "primary",
       "active_label": "Primary Pipeline",
-      "percent_used": 0.9,
-      "current_rows": 409,
+      "percent_used": 1.1,
+      "tab_name": "Leads",
+      "current_rows": 496,
+      "warning_row_threshold": 42000,
       "stop_row_threshold": 45000,
       "phase": "healthy",
       "last_error": null,
-      "next_check_at": "2026-04-12T12:34:39.766395+00:00",
-      "tab_name": "Leads",
-      "warning_row_threshold": 42000
+      "next_check_at": "2026-04-12T16:17:08.639471+00:00"
     },
     "source_settlement": {
       "registry": "source_settlement",
-      "last_checked_at": "2026-04-12T12:19:41.655232+00:00",
+      "last_checked_at": "2026-04-12T16:02:11.316718+00:00",
       "active_sheet_key": "primary_source",
       "active_label": "Primary Source Settlement",
-      "percent_used": 0.4,
-      "current_rows": 194,
+      "percent_used": 0.5,
+      "tab_name": "Hydro_formula",
+      "current_rows": 205,
+      "warning_row_threshold": 42000,
       "stop_row_threshold": 45000,
       "phase": "healthy",
       "last_error": null,
-      "next_check_at": "2026-04-12T12:34:41.655232+00:00",
-      "tab_name": "Hydro_formula",
-      "warning_row_threshold": 42000
+      "next_check_at": "2026-04-12T16:17:11.316718+00:00"
     },
     "output_target": {
       "registry": "output_target",
-      "last_checked_at": "2026-04-12T12:20:49.186840+00:00",
+      "last_checked_at": "2026-04-12T16:03:09.676983+00:00",
       "active_sheet_key": "primary_output",
       "active_label": "Primary Output",
       "percent_used": null,
+      "tab_name": "Employee_db",
       "current_rows": null,
+      "warning_row_threshold": null,
       "stop_row_threshold": null,
       "phase": "healthy",
       "last_error": "",
-      "next_check_at": "2026-04-12T12:35:49.186840+00:00",
-      "tab_name": "Employee_db",
-      "warning_row_threshold": null
+      "next_check_at": "2026-04-12T16:18:09.676983+00:00"
     }
   },
-  "updated_at": "2026-04-12T12:21:50.800416+00:00"
+  "updated_at": "2026-04-12T16:07:16.339246+00:00"
 }

@@ -61,6 +61,11 @@ STATE_FILES = [
     "scraper_v3_backlog_state.json",
     "enrichment_watcher_state.json",
     "enrichment_batch_counter.txt",
+    "enrichment_run_state.json",
+    "sheets_rate_gate.lock",
+    "sheets_rate_gate_state.json",
+    "sheet_rotation_state.json",
+    "auto_scale_state.json",
 ]
 
 # Processes to kill

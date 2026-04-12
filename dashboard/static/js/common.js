@@ -320,3 +320,78 @@ function formatTimestamp(isoString) {
 function confirmAction(message) {
     return confirm(message);
 }
+
+// =============================================================================
+// ATTENTION LIST — collapse long lists behind a "View more" modal
+// =============================================================================
+
+const ATTENTION_VISIBLE_LIMIT = 4;
+
+function renderAttentionList(listEl, itemsHtml, options = {}) {
+    if (!listEl) return;
+    const limit = options.limit || ATTENTION_VISIBLE_LIMIT;
+    const title = options.title || 'All notifications';
+
+    if (!Array.isArray(itemsHtml) || itemsHtml.length === 0) {
+        listEl.innerHTML = '';
+        return;
+    }
+
+    if (itemsHtml.length <= limit) {
+        listEl.innerHTML = itemsHtml.join('');
+        return;
+    }
+
+    const visible = itemsHtml.slice(0, limit).join('');
+    const remaining = itemsHtml.length - limit;
+    listEl.innerHTML = `${visible}<button type="button" class="attention-see-more">View ${remaining} more…</button>`;
+
+    const btn = listEl.querySelector('.attention-see-more');
+    if (btn) {
+        btn.addEventListener('click', () => openAttentionModal(title, itemsHtml));
+    }
+}
+
+function openAttentionModal(title, itemsHtml) {
+    const existing = document.getElementById('attention-modal-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'attention-modal-overlay';
+    overlay.className = 'attention-modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'attention-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+
+    const header = document.createElement('div');
+    header.className = 'attention-modal-header';
+    const titleEl = document.createElement('h3');
+    titleEl.textContent = title;
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'attention-modal-close';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.innerHTML = '&times;';
+    header.appendChild(titleEl);
+    header.appendChild(closeBtn);
+
+    const body = document.createElement('div');
+    body.className = 'attention-modal-body';
+    body.innerHTML = itemsHtml.join('');
+
+    modal.appendChild(header);
+    modal.appendChild(body);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    const close = () => {
+        overlay.remove();
+        document.removeEventListener('keydown', onKey);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', onKey);
+}

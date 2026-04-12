@@ -63,12 +63,12 @@
         </div>
         <div class="cycle-config">
             <div class="input-group">
-                <label>Run Hours</label>
-                <input type="number" id="run-hours" value="4" min="1" max="24">
+                <label>Run (min)</label>
+                <input type="number" id="run-minutes" value="4" min="1" max="1440">
             </div>
             <div class="input-group">
-                <label>Rest Hours</label>
-                <input type="number" id="rest-hours" value="2" min="1" max="24">
+                <label>Rest (min)</label>
+                <input type="number" id="rest-minutes" value="3" min="1" max="1440">
             </div>
             <button id="btn-save-config" class="btn btn-secondary">
                 <i data-lucide="save"></i>
@@ -250,6 +250,7 @@
                 </div>
             </div>
             <div id="scraper-aggression-note" class="scraper-summary-note">Recommendation detail will appear here.</div>
+            <div id="scraper-autoscale-note" class="scraper-summary-note" style="display:none;margin-top:6px;font-style:italic;opacity:0.8;"></div>
         </section>
 
         <section class="panel scraper-sheet-panel">

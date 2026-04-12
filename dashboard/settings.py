@@ -62,9 +62,10 @@ WATCHER_SPECS = [
     },
 ]
 
-# === SCHEDULER DEFAULTS ===
-DEFAULT_RUN_HOURS = int(os.environ.get("CYCLE_RUN_HOURS", "4"))
-DEFAULT_REST_HOURS = int(os.environ.get("CYCLE_REST_HOURS", "2"))
+# === SCHEDULER DEFAULTS (in minutes) ===
+# Test values: 4 min run / 3 min rest. For production set CYCLE_RUN_MINUTES=240 CYCLE_REST_MINUTES=120
+DEFAULT_RUN_MINUTES = int(os.environ.get("CYCLE_RUN_MINUTES", "4"))
+DEFAULT_REST_MINUTES = int(os.environ.get("CYCLE_REST_MINUTES", "3"))
 
 # === STOP TIMEOUT ===
 GRACEFUL_STOP_TIMEOUT = 30  # seconds to wait before escalating to SIGKILL

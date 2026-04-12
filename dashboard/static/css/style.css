@@ -2826,9 +2826,14 @@ body {
 }
 
 .attention-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+        "dot source"
+        "msg msg"
+        "meta meta";
+    column-gap: 10px;
+    row-gap: 6px;
     padding: 10px 14px;
     border-radius: var(--radius-sm);
     font-size: 0.78rem;
@@ -2837,25 +2842,34 @@ body {
 }
 
 .attention-item .attn-dot {
+    grid-area: dot;
     width: 8px;
     height: 8px;
     border-radius: 50%;
+    align-self: center;
     flex-shrink: 0;
 }
 
 .attention-item .attn-source {
+    grid-area: source;
     font-family: 'Orbitron', sans-serif;
     font-size: 0.6rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--text-3);
-    min-width: 80px;
+    min-width: 0;
 }
 
 .attention-item .attn-msg {
+    grid-area: msg;
     color: var(--text-2);
-    flex: 1;
+    min-width: 0;
+}
+
+.attention-item .callout-meta {
+    grid-area: meta;
+    min-width: 0;
 }
 
 .attn-warning .attn-dot { background: var(--warning); box-shadow: 0 0 6px rgba(245,158,11,0.4); }
@@ -2865,6 +2879,104 @@ body {
 .attn-warning { border-color: rgba(245,158,11,0.1); background: rgba(245,158,11,0.03); }
 .attn-danger  { border-color: rgba(239,68,68,0.1); background: rgba(239,68,68,0.03); }
 .attn-info    { border-color: rgba(59,130,246,0.1); background: rgba(59,130,246,0.03); }
+
+.attention-see-more {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px dashed var(--border);
+    background: transparent;
+    color: var(--text-3);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.attention-see-more:hover {
+    background: rgba(255,255,255,0.03);
+    color: var(--text-1);
+    border-color: var(--text-4);
+}
+
+.attention-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    animation: attention-modal-fade 0.15s ease-out;
+}
+
+@keyframes attention-modal-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.attention-modal {
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 12px);
+    width: min(640px, 100%);
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    overflow: hidden;
+}
+
+.attention-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-inset);
+}
+
+.attention-modal-header h3 {
+    margin: 0;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-1);
+}
+
+.attention-modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-3);
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s, color 0.15s;
+}
+
+.attention-modal-close:hover {
+    background: rgba(255,255,255,0.05);
+    color: var(--text-1);
+}
+
+.attention-modal-body {
+    padding: 14px 18px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
 
 /* Shared Sheet Volume */
 .sheet-volume-grid {

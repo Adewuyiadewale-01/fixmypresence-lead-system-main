@@ -80,15 +80,25 @@ app.mount("/static", StaticFiles(directory=DASHBOARD_DIR / "static"), name="stat
 templates = Jinja2Templates(directory=DASHBOARD_DIR / "templates")
 
 
+try:
+    from auto_scaler import start_background_loop as _start_auto_scaler, stop_background_loop as _stop_auto_scaler, record_manual_change as _record_manual_change
+except ImportError:
+    def _start_auto_scaler(): pass
+    def _stop_auto_scaler(): pass
+    def _record_manual_change(): pass
+
+
 @app.on_event("startup")
 async def startup_event():
     get_sheet_rotation_manager().start()
     prewarm_status_caches()
+    _start_auto_scaler()
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     get_sheet_rotation_manager().stop()
+    _stop_auto_scaler()
 
 
 # =============================================================================
@@ -102,8 +112,8 @@ class CleanRequest(BaseModel):
     mode: str = "logs"  # "logs" | "progress" | "outputs" | "full"
 
 class ConfigRequest(BaseModel):
-    run_hours: Optional[int] = None
-    rest_hours: Optional[int] = None
+    run_minutes: Optional[int] = None
+    rest_minutes: Optional[int] = None
 
 
 class ScraperConfigRequest(BaseModel):
@@ -703,8 +713,8 @@ async def update_config(request: ConfigRequest):
     """
     scheduler = get_scheduler()
     scheduler.configure(
-        run_hours=request.run_hours,
-        rest_hours=request.rest_hours
+        run_minutes=request.run_minutes,
+        rest_minutes=request.rest_minutes
     )
     return {
         "success": True,
@@ -741,6 +751,7 @@ async def get_scraper_config_endpoint():
 async def update_scraper_config(request: ScraperConfigRequest):
     """Persist dashboard-managed scraper configuration overrides."""
     config = save_scraper_config(request.model_dump())
+    _record_manual_change()  # reset auto-scaler 30-min stability clock
     meta = config.get("meta") if isinstance(config.get("meta"), dict) else {}
     meta["service_account_email"] = _service_account_email()
     config["meta"] = meta

@@ -478,6 +478,41 @@ class ProcessManager:
                 "pid": None
             }
     
+    def stop_scraper_only(self, timeout: int = None) -> Dict[str, Any]:
+        """
+        Stop only the maps-scraper controller subprocess.
+        Watchers and enrichment pipeline children keep running.
+        Used by the scheduler during REST transitions so the enrichment
+        pipeline can continue draining while scraping pauses.
+        """
+        timeout = timeout or settings.GRACEFUL_STOP_TIMEOUT
+        pid = self.get_pid()
+        if not pid or not self._is_pid_alive(pid):
+            self._check_stale_pid()
+            return {"success": True, "message": "Controller not running", "method": "none"}
+
+        try:
+            os.kill(pid, signal.SIGINT)
+        except ProcessLookupError:
+            self._clear_pid_file()
+            return {"success": True, "message": "Controller already stopped", "method": "sigint"}
+
+        start_wait = time.time()
+        while time.time() - start_wait < timeout:
+            if not self._is_pid_alive(pid):
+                self._clear_pid_file()
+                self._cleanup()
+                return {"success": True, "message": "Scraper stopped (watchers kept alive)", "method": "sigint"}
+            time.sleep(0.5)
+
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        self._clear_pid_file()
+        self._cleanup()
+        return {"success": True, "message": "Scraper killed (watchers kept alive)", "method": "sigkill"}
+
     def stop(self, timeout: int = None) -> Dict[str, Any]:
         """
         Graceful stop with escalation to kill.

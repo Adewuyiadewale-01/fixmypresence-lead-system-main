@@ -108,6 +108,12 @@ except ImportError:
     def get_scraper_dashboard_config():
         return {}
 
+try:
+    from auto_scaler import get_auto_scale_status as _get_auto_scale_status
+except ImportError:
+    def _get_auto_scale_status():
+        return {}
+
 
 # ============================================================================
 # HELPERS
@@ -1359,8 +1365,11 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
         SCRAPER_V3_SUMMARY_DIR, "run_summary_*.json"
     ) or {}
 
-    # Derive subsystem states from available data
-    is_running = process_info.get("running", False)
+    # Derive subsystem states from available data.
+    # Maps scraper status tracks the controller subprocess, not the auxiliary
+    # watchers — a watcher staying alive after the controller exits must not
+    # be reported as "scraper running".
+    is_running = process_info.get("controller_running", process_info.get("running", False))
     scheduler_phase = scheduler_state.get("phase", "DISABLED")
 
     # Maps scraper status
@@ -1641,6 +1650,7 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
             "error_rate": all_time_error_rate,
         },
         "recent_callouts": scraper_callouts,
+        "auto_scale": _get_auto_scale_status(),
     }
 
     # Enrichment card

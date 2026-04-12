@@ -100,8 +100,8 @@ function updateSchedulerInfo(scheduler) {
     }
 
     if (scheduler.config) {
-        document.getElementById('run-hours').value = scheduler.config.run_hours || 4;
-        document.getElementById('rest-hours').value = scheduler.config.rest_hours || 2;
+        document.getElementById('run-minutes').value = scheduler.config.run_minutes || 4;
+        document.getElementById('rest-minutes').value = scheduler.config.rest_minutes || 3;
     }
 }
 
@@ -346,6 +346,38 @@ function updateAggression(scraper) {
         scraper.recommendation_tone || 'info'
     );
     document.getElementById('scraper-aggression-note').textContent = getAggressionReason(scraper);
+
+    // Auto-scale countdown
+    const asEl = document.getElementById('scraper-autoscale-note');
+    if (!asEl) return;
+    const as = scraper.auto_scale || {};
+    const action = as.action || 'none';
+
+    if (action === 'none' || !as.enabled) {
+        asEl.style.display = 'none';
+        return;
+    }
+
+    asEl.style.display = 'block';
+    const actionLabel = action === 'increase' ? 'increase workers ~20%' : 'reduce workers ~20%';
+
+    if (as.manual_blocking) {
+        asEl.textContent = `Auto-scale paused after manual change. Will resume checking in ~${Math.ceil(as.stable_threshold_minutes - ((Date.now() / 60000) % as.stable_threshold_minutes))} min.`;
+    } else if (as.minutes_left !== null && as.minutes_left !== undefined && as.minutes_left > 0) {
+        const mins = as.minutes_left < 1 ? '<1' : Math.ceil(as.minutes_left);
+        asEl.textContent = `Auto-scale: will ${actionLabel} in ~${mins} min if signal holds.`;
+    } else if (as.minutes_left === 0 || (as.stable_minutes !== null && as.stable_minutes >= as.stable_threshold_minutes)) {
+        asEl.textContent = `Auto-scale: applying ${actionLabel} on next check…`;
+    }
+
+    if (as.last_auto_apply_at && as.last_auto_action) {
+        const lastAction = as.last_auto_action === 'increase' ? 'increased' : 'reduced';
+        const fromW = as.last_auto_from_workers;
+        const toW = as.last_auto_applied_workers;
+        if (fromW && toW) {
+            asEl.textContent += ` (Last auto: ${lastAction} ${fromW}→${toW} workers)`;
+        }
+    }
 }
 
 function renderCallouts(scraper) {
@@ -368,7 +400,7 @@ function renderCallouts(scraper) {
         hasCritical ? 'danger' : hasWarning ? 'warning' : 'info'
     );
 
-    listEl.innerHTML = callouts.map((item) => {
+    const itemsHtml = callouts.map((item) => {
         const level = item.severity === 'critical' ? 'danger' : item.severity === 'warning' ? 'warning' : 'info';
         const batchText = item.batch_number ? `Batch ${escapeHtml(item.batch_number)}` : 'Run';
         const actionText = item.action ? escapeHtml(item.action.replaceAll('_', ' ')) : 'continue';
@@ -384,7 +416,8 @@ function renderCallouts(scraper) {
                 </div>
             </div>
         `;
-    }).join('');
+    });
+    renderAttentionList(listEl, itemsHtml, { title: 'Scraper callouts' });
 }
 
 // =============================================================================
@@ -426,9 +459,9 @@ async function handleStartManual() {
 }
 
 async function handleStartCycle() {
-    const runHours = document.getElementById('run-hours').value || 4;
-    const restHours = document.getElementById('rest-hours').value || 2;
-    if (!confirmAction(`Start auto-cycle?\n\n• Run for ${runHours} hours\n• Rest for ${restHours} hours\n• Repeat until manually stopped`)) return;
+    const runMins = document.getElementById('run-minutes').value || 4;
+    const restMins = document.getElementById('rest-minutes').value || 3;
+    if (!confirmAction(`Start auto-cycle?\n\n• Run for ${runMins} min\n• Rest for ${restMins} min\n• Repeat until manually stopped`)) return;
 
     try {
         const result = await api('/control/start', 'POST', { mode: 'cycle' });
@@ -488,10 +521,10 @@ async function handleClean() {
 }
 
 async function handleSaveConfig() {
-    const runHours = parseInt(document.getElementById('run-hours').value) || 4;
-    const restHours = parseInt(document.getElementById('rest-hours').value) || 2;
+    const runMins = parseInt(document.getElementById('run-minutes').value) || 4;
+    const restMins = parseInt(document.getElementById('rest-minutes').value) || 3;
     try {
-        await api('/config', 'POST', { run_hours: runHours, rest_hours: restHours });
+        await api('/config', 'POST', { run_minutes: runMins, rest_minutes: restMins });
         showToast('Configuration saved', 'success');
     } catch (error) {
         showToast(error.message, 'error');

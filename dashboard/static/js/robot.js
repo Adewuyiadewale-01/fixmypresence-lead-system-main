@@ -395,7 +395,7 @@ function renderRobotCallouts(scraper) {
         hasCritical ? 'danger' : hasWarning ? 'warning' : 'info'
     );
 
-    listEl.innerHTML = callouts.map((item) => {
+    const itemsHtml = callouts.map((item) => {
         const tone = item.severity === 'critical' ? 'danger' : item.severity === 'warning' ? 'warning' : 'info';
         const batchText = item.batch_number ? `Batch ${robotEscapeHtml(item.batch_number)}` : 'Run';
         const actionText = item.action ? humanizeSnake(item.action) : 'Continue';
@@ -412,7 +412,8 @@ function renderRobotCallouts(scraper) {
                 </div>
             </div>
         `;
-    }).join('');
+    });
+    renderAttentionList(listEl, itemsHtml, { title: 'Scraper decisions' });
 }
 
 function renderRobotAttention(pipeline) {
@@ -434,7 +435,7 @@ function renderRobotAttention(pipeline) {
         hasDanger ? 'danger' : hasWarning ? 'warning' : 'info'
     );
 
-    listEl.innerHTML = attention.map((item) => {
+    const itemsHtml = attention.map((item) => {
         const tone = item.level === 'danger' ? 'danger' : item.level === 'warning' ? 'warning' : 'info';
         return `
             <div class="attention-item attn-${tone}">
@@ -447,7 +448,8 @@ function renderRobotAttention(pipeline) {
                 </div>
             </div>
         `;
-    }).join('');
+    });
+    renderAttentionList(listEl, itemsHtml, { title: 'Robot attention' });
 }
 
 function renderAutomationMesh(data) {

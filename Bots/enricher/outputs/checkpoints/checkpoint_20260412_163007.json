@@ -1,0 +1,472 @@
+{
+  "alpha:36": {
+    "checkpoint_key": "alpha:36",
+    "website": "http://utilour.ng/",
+    "tab": "Alpha",
+    "row": 36,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:30:26.829190"
+  },
+  "alpha:38": {
+    "checkpoint_key": "alpha:38",
+    "website": "http://lawfuturepartners.com/",
+    "tab": "Alpha",
+    "row": 38,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:30:47.793047"
+  },
+  "alpha:37": {
+    "checkpoint_key": "alpha:37",
+    "website": "https://www.afirstlaw.com/",
+    "tab": "Alpha",
+    "row": 37,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:30:58.732722"
+  },
+  "alpha:40": {
+    "checkpoint_key": "alpha:40",
+    "website": "https://strictlylawbiz.com/",
+    "tab": "Alpha",
+    "row": 40,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:31:25.493566"
+  },
+  "alpha:41": {
+    "checkpoint_key": "alpha:41",
+    "website": "https://www.htlegal.com.ng/",
+    "tab": "Alpha",
+    "row": 41,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:31:25.513192"
+  },
+  "alpha:39": {
+    "checkpoint_key": "alpha:39",
+    "website": "http://tonbofa.com/",
+    "tab": "Alpha",
+    "row": 39,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:32:02.491353"
+  },
+  "alpha:42": {
+    "checkpoint_key": "alpha:42",
+    "website": "https://www.voc-advisors.com/",
+    "tab": "Alpha",
+    "row": 42,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:32:20.803720"
+  },
+  "alpha:43": {
+    "checkpoint_key": "alpha:43",
+    "website": "https://bridgedwallconsulting.com/",
+    "tab": "Alpha",
+    "row": 43,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:32:40.730400"
+  },
+  "alpha:45": {
+    "checkpoint_key": "alpha:45",
+    "website": "http://www.lbandcolaw.com/",
+    "tab": "Alpha",
+    "row": 45,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:32:44.364437"
+  },
+  "alpha:44": {
+    "checkpoint_key": "alpha:44",
+    "website": "https://www.aekleysolicitors.com/",
+    "tab": "Alpha",
+    "row": 44,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:33:07.405499"
+  },
+  "alpha:46": {
+    "checkpoint_key": "alpha:46",
+    "website": "https://www.kabbizlegal.com/",
+    "tab": "Alpha",
+    "row": 46,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:33:47.019433"
+  },
+  "alpha:47": {
+    "checkpoint_key": "alpha:47",
+    "website": "http://lelawlegal.com/",
+    "tab": "Alpha",
+    "row": 47,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:33:56.656818"
+  },
+  "alpha:48": {
+    "checkpoint_key": "alpha:48",
+    "website": "http://cardinalcounsel.co/",
+    "tab": "Alpha",
+    "row": 48,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:34:26.929646"
+  },
+  "alpha:51": {
+    "checkpoint_key": "alpha:51",
+    "website": "http://www.coinboxlimited.com.ng/",
+    "tab": "Alpha",
+    "row": 51,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:35:26.847564"
+  },
+  "alpha:50": {
+    "checkpoint_key": "alpha:50",
+    "website": "https://sessileconsulting.com/",
+    "tab": "Alpha",
+    "row": 50,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:35:37.776176"
+  },
+  "alpha:49": {
+    "checkpoint_key": "alpha:49",
+    "website": "http://taniquest.com/",
+    "tab": "Alpha",
+    "row": 49,
+    "scrape": "error",
+    "write": "skipped",
+    "marked": "error",
+    "timestamp": "2026-04-12T16:36:47.552937"
+  },
+  "alpha:52": {
+    "checkpoint_key": "alpha:52",
+    "website": "https://prestcomconsulting.carrd.co/",
+    "tab": "Alpha",
+    "row": 52,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:36:32.070418"
+  },
+  "alpha:53": {
+    "checkpoint_key": "alpha:53",
+    "website": "http://folegal.net/",
+    "tab": "Alpha",
+    "row": 53,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:36:52.385327"
+  },
+  "alpha:54": {
+    "checkpoint_key": "alpha:54",
+    "website": "https://risktechadvisory.com/",
+    "tab": "Alpha",
+    "row": 54,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:37:22.308710"
+  },
+  "alpha:55": {
+    "checkpoint_key": "alpha:55",
+    "website": "http://deeprisktech.com/",
+    "tab": "Alpha",
+    "row": 55,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:37:46.479606"
+  },
+  "alpha:56": {
+    "checkpoint_key": "alpha:56",
+    "website": "http://www.verveinsurancebrokers.net/",
+    "tab": "Alpha",
+    "row": 56,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:37:50.561386"
+  },
+  "alpha:57": {
+    "checkpoint_key": "alpha:57",
+    "website": "http://www.greenhood.com.ng/",
+    "tab": "Alpha",
+    "row": 57,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:38:06.305835"
+  },
+  "beta:27": {
+    "checkpoint_key": "beta:27",
+    "website": "http://capival.com/",
+    "tab": "Beta",
+    "row": 27,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:38:29.047487"
+  },
+  "alpha:58": {
+    "checkpoint_key": "alpha:58",
+    "website": "https://ziapropertiesltd.com/",
+    "tab": "Alpha",
+    "row": 58,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:38:33.749974"
+  },
+  "beta:29": {
+    "checkpoint_key": "beta:29",
+    "website": "http://www.classicuslp.com/",
+    "tab": "Beta",
+    "row": 29,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:39:11.825794"
+  },
+  "beta:30": {
+    "checkpoint_key": "beta:30",
+    "website": "https://otllaw.com/",
+    "tab": "Beta",
+    "row": 30,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:39:37.236876"
+  },
+  "beta:28": {
+    "checkpoint_key": "beta:28",
+    "website": "https://4stonecapital.com/",
+    "tab": "Beta",
+    "row": 28,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:39:37.326308"
+  },
+  "beta:32": {
+    "checkpoint_key": "beta:32",
+    "website": "http://www.pml.com.ng/",
+    "tab": "Beta",
+    "row": 32,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:40:37.765698"
+  },
+  "beta:31": {
+    "checkpoint_key": "beta:31",
+    "website": "https://regiismaestro.com/",
+    "tab": "Beta",
+    "row": 31,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:40:54.044516"
+  },
+  "beta:33": {
+    "checkpoint_key": "beta:33",
+    "website": "https://mikeigbokwe.com/",
+    "tab": "Beta",
+    "row": 33,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:40:54.044824"
+  },
+  "beta:34": {
+    "checkpoint_key": "beta:34",
+    "website": "http://www.mosaugconsulting.com/",
+    "tab": "Beta",
+    "row": 34,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:41:00.791792"
+  },
+  "beta:36": {
+    "checkpoint_key": "beta:36",
+    "website": "https://chhplc.com/",
+    "tab": "Beta",
+    "row": 36,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:41:25.716477"
+  },
+  "beta:37": {
+    "checkpoint_key": "beta:37",
+    "website": "http://www.mycovergenius.com/",
+    "tab": "Beta",
+    "row": 37,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:42:07.469730"
+  },
+  "beta:38": {
+    "checkpoint_key": "beta:38",
+    "website": "http://scspng.com/",
+    "tab": "Beta",
+    "row": 38,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:42:07.776248"
+  },
+  "beta:35": {
+    "checkpoint_key": "beta:35",
+    "website": "https://mkhproperties.com/",
+    "tab": "Beta",
+    "row": 35,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:42:57.389950"
+  },
+  "beta:39": {
+    "checkpoint_key": "beta:39",
+    "website": "https://hiddadvisory.com/",
+    "tab": "Beta",
+    "row": 39,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:43:07.760537"
+  },
+  "beta:40": {
+    "checkpoint_key": "beta:40",
+    "website": "https://kevrongroup.com/",
+    "tab": "Beta",
+    "row": 40,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:43:22.730889"
+  },
+  "beta:41": {
+    "checkpoint_key": "beta:41",
+    "website": "http://boffbrokers.com/",
+    "tab": "Beta",
+    "row": 41,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:44:04.111873"
+  },
+  "gamma:9": {
+    "checkpoint_key": "gamma:9",
+    "website": "https://punuka.com/",
+    "tab": "Gamma",
+    "row": 9,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:44:16.531466"
+  },
+  "beta:42": {
+    "checkpoint_key": "beta:42",
+    "website": "http://estateintel.com/",
+    "tab": "Beta",
+    "row": 42,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:44:48.377901"
+  },
+  "gamma:12": {
+    "checkpoint_key": "gamma:12",
+    "website": "http://www.pedabo.com/",
+    "tab": "Gamma",
+    "row": 12,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:45:21.084220"
+  },
+  "gamma:10": {
+    "checkpoint_key": "gamma:10",
+    "website": "https://jee.africa/",
+    "tab": "Gamma",
+    "row": 10,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:45:43.692287"
+  },
+  "gamma:11": {
+    "checkpoint_key": "gamma:11",
+    "website": "http://alliancelawfirm.ng/",
+    "tab": "Gamma",
+    "row": 11,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:45:56.559772"
+  },
+  "gamma:13": {
+    "checkpoint_key": "gamma:13",
+    "website": "https://stransact.com/",
+    "tab": "Gamma",
+    "row": 13,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:46:15.770007"
+  },
+  "gamma:16": {
+    "checkpoint_key": "gamma:16",
+    "website": "http://www.stiplc.com/",
+    "tab": "Gamma",
+    "row": 16,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:46:35.541613"
+  },
+  "gamma:14": {
+    "checkpoint_key": "gamma:14",
+    "website": "http://www.gidirealestateinvestment.com/",
+    "tab": "Gamma",
+    "row": 14,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:46:57.483187"
+  },
+  "gamma:15": {
+    "checkpoint_key": "gamma:15",
+    "website": "https://www.phillipsconsulting.net/",
+    "tab": "Gamma",
+    "row": 15,
+    "scrape": "ok",
+    "write": "ok",
+    "marked": "done",
+    "timestamp": "2026-04-12T16:47:26.506885"
+  }
+}

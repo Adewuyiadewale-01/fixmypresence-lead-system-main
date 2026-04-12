@@ -309,14 +309,15 @@
                 } else if (enrichment.trigger_state === 'timeout_ready') {
                     synthetic.push({ level: 'warning', source: 'Enrichment', message: 'Forced-drain timeout reached; the next watcher tick should launch enrichment.' });
                 }
-                const items = [...synthetic, ...relevantAttention].slice(0, 5);
-                attentionListEl.innerHTML = items.map((item) => `
+                const items = [...synthetic, ...relevantAttention];
+                const itemsHtml = items.map((item) => `
                     <div class="attention-item attn-${item.level === 'danger' ? 'danger' : item.level === 'warning' ? 'warning' : 'info'}">
                         <span class="attn-dot"></span>
                         <span class="attn-source">${escapeHtml(item.source || 'Enrichment')}</span>
                         <span class="attn-msg">${escapeHtml(item.message || '')}</span>
                     </div>
-                `).join('');
+                `);
+                renderAttentionList(attentionListEl, itemsHtml, { title: 'Enrichment attention' });
             }
         }
     }
@@ -447,7 +448,7 @@
         } else if (ready > 0) {
             synthetic.push({ level: 'info', source: 'Scoring', message: `${fmtNum(ready)} classified rows are ready to move and mark as MOVED.` });
         }
-        const items = [...synthetic, ...keywordAttention].slice(0, 5);
+        const items = [...synthetic, ...keywordAttention];
         if (!items.length) {
             setChip(attentionChip, 'No active issues', 'info');
             if (attentionEl) attentionEl.innerHTML = '<div class="attention-empty">No keyword/scoring attention yet.</div>';
@@ -456,15 +457,14 @@
         const hasDanger = items.some((item) => item.level === 'danger');
         const hasWarning = items.some((item) => item.level === 'warning');
         setChip(attentionChip, hasDanger ? 'Critical attention needed' : hasWarning ? 'Warnings to review' : 'Informational prompts', hasDanger ? 'danger' : hasWarning ? 'warning' : 'info');
-        if (attentionEl) {
-            attentionEl.innerHTML = items.map((item) => `
-                <div class="attention-item attn-${item.level === 'danger' ? 'danger' : item.level === 'warning' ? 'warning' : 'info'}">
-                    <span class="attn-dot"></span>
-                    <span class="attn-source">${escapeHtml(item.source || 'Keywords')}</span>
-                    <span class="attn-msg">${escapeHtml(item.message || '')}</span>
-                </div>
-            `).join('');
-        }
+        const itemsHtml = items.map((item) => `
+            <div class="attention-item attn-${item.level === 'danger' ? 'danger' : item.level === 'warning' ? 'warning' : 'info'}">
+                <span class="attn-dot"></span>
+                <span class="attn-source">${escapeHtml(item.source || 'Keywords')}</span>
+                <span class="attn-msg">${escapeHtml(item.message || '')}</span>
+            </div>
+        `);
+        renderAttentionList(attentionEl, itemsHtml, { title: 'Keyword & scoring attention' });
     }
 
     function renderScraperV3Status(data) {
@@ -633,7 +633,7 @@
         if (scraperV3.last_graceful_shutdown) {
             synthetic.push({ level: 'info', source: 'Scraper V3', message: 'Latest run exited via graceful shutdown after draining active sites.' });
         }
-        const items = [...synthetic, ...relevantAttention].slice(0, 5);
+        const items = [...synthetic, ...relevantAttention];
         if (!items.length) {
             setChip(attentionChip, 'No active issues', 'info');
             if (attentionEl) attentionEl.innerHTML = '<div class="attention-empty">No Scraper V3-specific attention yet.</div>';
@@ -642,15 +642,14 @@
         const hasDanger = items.some((item) => item.level === 'danger');
         const hasWarning = items.some((item) => item.level === 'warning');
         setChip(attentionChip, hasDanger ? 'Critical attention needed' : hasWarning ? 'Warnings to review' : 'Informational prompts', hasDanger ? 'danger' : hasWarning ? 'warning' : 'info');
-        if (attentionEl) {
-            attentionEl.innerHTML = items.map((item) => `
-                <div class="attention-item attn-${item.level === 'danger' ? 'danger' : item.level === 'warning' ? 'warning' : 'info'}">
-                    <span class="attn-dot"></span>
-                    <span class="attn-source">${escapeHtml(item.source || 'Scraper V3')}</span>
-                    <span class="attn-msg">${escapeHtml(item.message || '')}</span>
-                </div>
-            `).join('');
-        }
+        const itemsHtml = items.map((item) => `
+            <div class="attention-item attn-${item.level === 'danger' ? 'danger' : item.level === 'warning' ? 'warning' : 'info'}">
+                <span class="attn-dot"></span>
+                <span class="attn-source">${escapeHtml(item.source || 'Scraper V3')}</span>
+                <span class="attn-msg">${escapeHtml(item.message || '')}</span>
+            </div>
+        `);
+        renderAttentionList(attentionEl, itemsHtml, { title: 'Scraper V3 attention' });
     }
 
     async function refreshEnrichmentLogs() {

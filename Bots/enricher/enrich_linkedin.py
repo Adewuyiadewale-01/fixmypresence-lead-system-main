@@ -23,6 +23,27 @@ except Exception:
 # ------------------ config ------------------
 _SYSTEM_CONFIG_PATH = Path(__file__).resolve().parents[1] / "common" / "system_config.json"
 _ENRICHMENT_RUN_STATE_FILE = _PROJECT_ROOT / "controller" / "enrichment_run_state.json"
+_ENRICHMENT_LOCK_FILE = _PROJECT_ROOT / "controller" / "enrichment_lock.json"
+
+
+def _release_enrichment_lock_if_owned():
+    """
+    Clear controller/enrichment_lock.json when this process owns it.
+
+    The enrichment watcher writes the lock and updates it to hold this drain
+    subprocess's PID. If we exit without clearing it, the dashboard flags the
+    lock as stale until the watcher's next tick reaps it. This helper makes
+    the drain responsible for its own cleanup on every exit path.
+    """
+    try:
+        if not _ENRICHMENT_LOCK_FILE.exists():
+            return
+        data = json.loads(_ENRICHMENT_LOCK_FILE.read_text(encoding="utf-8"))
+        if isinstance(data, dict) and data.get("pid") == os.getpid():
+            with contextlib.suppress(OSError):
+                _ENRICHMENT_LOCK_FILE.unlink()
+    except Exception:
+        pass
 
 
 def _read_system_config():
@@ -1741,6 +1762,22 @@ if __name__ == "__main__":
                     tracker = None
             time.sleep(max(5, args.interval))
     elif args.drain:
+        # Ensure the watcher lock is cleared on every exit path (success,
+        # crash, SIGINT, SIGTERM) so the dashboard never shows a ghost
+        # "Stale lock" warning after a clean drain.
+        import atexit, signal
+        atexit.register(_release_enrichment_lock_if_owned)
+
+        def _drain_signal_handler(signum, _frame):
+            _release_enrichment_lock_if_owned()
+            sys.exit(128 + signum)
+
+        for _sig in (signal.SIGINT, signal.SIGTERM):
+            try:
+                signal.signal(_sig, _drain_signal_handler)
+            except (ValueError, OSError):
+                pass
+
         drain_tracker = None
         while True:
             interrupted = False

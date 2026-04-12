@@ -226,7 +226,7 @@
         "qualifier_min_matches": 2
       },
       "watcher": {
-        "trigger_threshold": 50,
+        "trigger_threshold": 10,
         "watcher_interval_minutes": 10,
         "lock_timeout_minutes": 30
       },
