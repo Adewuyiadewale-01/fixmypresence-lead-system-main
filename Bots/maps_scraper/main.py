@@ -35,6 +35,7 @@ def run(headless: bool = False):
 
     batch: List[Lead] = []
     batch_number = 0
+    seen_places = set()
     seen_domains = set()
     seen_names = set()
     master_path = MASTER_OUTPUT
@@ -55,7 +56,7 @@ def run(headless: bool = False):
                     continue
 
 
-                for lead in dedupe_leads(leads, seen_domains, seen_names):
+                for lead in dedupe_leads(leads, seen_places, seen_domains, seen_names):
                     # === PHASE 1 VALIDATION ===
                     # 1. Run the check
                     validation_status = get_website_status(lead.website)

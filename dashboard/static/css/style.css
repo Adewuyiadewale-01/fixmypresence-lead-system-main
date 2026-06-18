@@ -909,10 +909,12 @@ body {
 
 .scraper-detail-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+    grid-template-columns: 1fr;
     grid-template-areas:
-        "health side"
-        "callouts callouts";
+        "health"
+        "dedupe"
+        "side"
+        "callouts";
     gap: 18px;
     align-items: stretch;
 }
@@ -921,13 +923,21 @@ body {
     grid-area: health;
 }
 
+.scraper-dedupe-panel {
+    grid-area: dedupe;
+}
+
+.scraper-dedupe-panel .scraper-metric-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .scraper-side-stack {
     grid-area: side;
     display: grid;
-    grid-template-rows: minmax(0, 1fr) minmax(0, 0.8fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 18px;
-    height: 100%;
-    align-self: stretch;
+    height: auto;
+    align-items: stretch;
 }
 
 .scraper-callouts-panel {
@@ -935,6 +945,7 @@ body {
 }
 
 .scraper-aggression-panel,
+.scraper-efficiency-panel,
 .scraper-sheet-panel {
     height: 100%;
     display: flex;
@@ -943,6 +954,10 @@ body {
 
 .scraper-aggression-panel .scraper-metric-grid {
     flex: 1;
+    align-content: start;
+}
+
+.scraper-efficiency-panel .scraper-metric-grid {
     align-content: start;
 }
 
@@ -2110,6 +2125,84 @@ body {
 }
 
 /* =============================================================================
+   HOST PRESSURE READOUT — Load / CPU / RAM component labels under waveform
+   ============================================================================= */
+
+.hero-pressure {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.7rem;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.hero-pressure .pressure-cell {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.hero-pressure .pressure-label {
+    color: var(--text-3, rgba(255, 255, 255, 0.4));
+    font-weight: 500;
+}
+
+.hero-pressure .pressure-value {
+    color: var(--text-1);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.hero-pressure .pressure-binding {
+    padding: 3px 9px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    font-weight: 600;
+    color: var(--text-2);
+}
+
+.hero-pressure .pressure-binding-idle,
+.hero-pressure .pressure-binding-load {
+    color: rgba(190, 232, 46, 0.85);
+    border-color: rgba(190, 232, 46, 0.25);
+    background: rgba(190, 232, 46, 0.06);
+}
+
+.hero-pressure .pressure-binding-cpu {
+    color: rgba(255, 184, 46, 0.95);
+    border-color: rgba(255, 184, 46, 0.35);
+    background: rgba(255, 184, 46, 0.08);
+}
+
+.hero-pressure .pressure-binding-mem {
+    color: rgba(255, 82, 82, 0.95);
+    border-color: rgba(255, 82, 82, 0.35);
+    background: rgba(255, 82, 82, 0.1);
+}
+
+.hero-pressure-strip {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0;
+    pointer-events: none;
+    backdrop-filter: blur(3px);
+    background: rgba(10, 14, 20, 0.35);
+    padding: 3px 5px;
+    border-radius: 4px;
+}
+
+/* =============================================================================
    LEADS HERO CARD — reversed gradient with noise
    ============================================================================= */
 
@@ -2449,6 +2542,29 @@ body {
     margin-top: 14px;
 }
 
+/* Overview inline control grid (cleaning + auto-cycle config) */
+.overview-control-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+}
+
+.overview-control-block h3 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin: 0 0 12px 0;
+}
+
+@media (max-width: 900px) {
+    .overview-control-grid { grid-template-columns: 1fr; }
+}
+
 /* Overview stat (legacy compat) */
 .overview-stat {
     display: flex;
@@ -2551,6 +2667,10 @@ body {
 .pipeline-grid .pgrid-span-2 { grid-column: span 2; }
 .pipeline-grid .pgrid-full   { grid-column: 1 / -1; }
 .pipeline-grid .pgrid-span-half { /* natural 1-col */ }
+
+.overview-efficiency-panel .scraper-metric-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
 
 /* Pipeline card structure */
 .pipeline-card-header {
@@ -2831,7 +2951,9 @@ body {
     grid-template-areas:
         "dot source"
         "msg msg"
-        "meta meta";
+        "meta meta"
+        "actions actions"
+        "note note";
     column-gap: 10px;
     row-gap: 6px;
     padding: 10px 14px;
@@ -2869,6 +2991,25 @@ body {
 
 .attention-item .callout-meta {
     grid-area: meta;
+    min-width: 0;
+}
+
+.attention-item .callout-actions {
+    grid-area: actions;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 2px;
+}
+
+.attention-item .callout-actions .btn {
+    flex: 1 1 180px;
+}
+
+.attention-item .callout-action-note {
+    grid-area: note;
+    font-size: 0.72rem;
+    color: var(--text-3);
     min-width: 0;
 }
 
@@ -3112,16 +3253,19 @@ body {
         grid-template-columns: 1fr;
         grid-template-areas:
             "health"
+            "dedupe"
             "side"
             "callouts";
         align-items: start;
     }
     .scraper-side-stack {
+        grid-template-columns: 1fr;
         grid-template-rows: auto;
         height: auto;
     }
     .dual-health-grid { grid-template-columns: 1fr; }
     .scraper-metric-grid { grid-template-columns: 1fr; }
+    .scraper-dedupe-panel .scraper-metric-grid { grid-template-columns: 1fr; }
     .panel-header-inline { flex-direction: column; align-items: flex-start; }
     .config-shell-grid { grid-template-columns: 1fr; }
     .config-tab-bar,

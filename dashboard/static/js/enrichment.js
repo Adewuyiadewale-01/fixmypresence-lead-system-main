@@ -62,6 +62,19 @@
             .replaceAll("'", '&#39;');
     }
 
+    function formatReasonCounts(reasonMap) {
+        if (!reasonMap || typeof reasonMap !== 'object') return '--';
+        const entries = Object.entries(reasonMap)
+            .map(([reason, count]) => [String(reason), Number(count || 0)])
+            .filter(([, count]) => Number.isFinite(count) && count > 0)
+            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+        if (!entries.length) return '--';
+        return entries
+            .slice(0, 4)
+            .map(([reason, count]) => `${fmtNum(count)} ${escapeHtml(reason.replaceAll('_', ' '))}`)
+            .join(' · ');
+    }
+
     function setText(id, value) {
         const el = document.getElementById(id);
         if (el) el.textContent = value ?? '--';
@@ -579,6 +592,18 @@
             `<span class="pipeline-main">${fmtNum(scraperV3.last_scraped_ok)} ok · ${fmtNum(scraperV3.last_scraped_error)} error</span><span class="pipeline-sub">${fmtNum(scraperV3.last_timeout_count)} timeouts · ${fmtNum(scraperV3.last_blocked_count)} blocked</span>`
         );
         setHtml(
+            'scraperv3-error-reasons',
+            `<span class="pipeline-main">${formatReasonCounts(scraperV3.last_error_reasons)}</span><span class="pipeline-sub">${scraperV3.last_dominant_error_reason ? `dominant: ${escapeHtml(String(scraperV3.last_dominant_error_reason).replaceAll('_', ' '))}` : 'Latest run reason mix'}</span>`
+        );
+        setHtml(
+            'scraperv3-all-error-totals',
+            `<span class="pipeline-main">${fmtNum(scraperV3.all_time_scraped_error)} scraped error · ${fmtNum(scraperV3.all_time_marked_error)} marked error</span><span class="pipeline-sub">${fmtNum(scraperV3.all_time_timeout_count)} timeout · ${fmtNum(scraperV3.all_time_blocked_count)} blocked · ${fmtNum(scraperV3.all_time_runs)} runs</span>`
+        );
+        setHtml(
+            'scraperv3-all-error-reasons',
+            `<span class="pipeline-main">${formatReasonCounts(scraperV3.all_time_error_reasons)}</span><span class="pipeline-sub">${scraperV3.all_time_dominant_error_reason ? `dominant: ${escapeHtml(String(scraperV3.all_time_dominant_error_reason).replaceAll('_', ' '))}` : 'No historical error mix yet'}</span>`
+        );
+        setHtml(
             'scraperv3-extracts',
             `<span class="pipeline-main">${fmtNum(scraperV3.last_linkedin_urls)} LI · ${fmtNum(scraperV3.last_emails)} emails · ${fmtNum(scraperV3.last_persons_extracted)} persons</span><span class="pipeline-sub">Latest run summary</span>`
         );
@@ -603,6 +628,10 @@
         setText('scraperv3-beta-split', `${fmtNum(beta)} / ${fmtNum(betaHigh)}`);
         setText('scraperv3-gamma-split', `${fmtNum(gamma)} / ${fmtNum(gammaHigh)}`);
         setHtml(
+            'scraperv3-source-errors',
+            `<span class="pipeline-main">${fmtNum(scraperV3.source_error_total)} total</span><span class="pipeline-sub">Alpha ${fmtNum(scraperV3.source_error_alpha_family)} · Beta ${fmtNum(scraperV3.source_error_beta_family)} · Gamma ${fmtNum(scraperV3.source_error_gamma_family)} currently marked error in source tabs</span>`
+        );
+        setHtml(
             'scraperv3-mark-only',
             `<span class="pipeline-main">${fmtNum(scraperV3.last_resumed_mark_only)}</span><span class="pipeline-sub">Rows resumed directly into mark-processed flow on the latest run</span>`
         );
@@ -616,6 +645,13 @@
         const synthetic = [];
         if (scraperV3.source_webhook_ok === false) {
             synthetic.push({ level: 'danger', source: 'Scraper V3', message: `Source webhook unreachable — backlog counts are stale. Error: ${scraperV3.source_webhook_error || 'unknown'}` });
+        }
+        if (Number.isFinite(Number(scraperV3.source_error_total)) && Number(scraperV3.source_error_total) > 0) {
+            synthetic.push({
+                level: Number(scraperV3.source_error_total) >= 25 ? 'warning' : 'info',
+                source: 'Scraper V3',
+                message: `${fmtNum(scraperV3.source_error_total)} source rows are currently marked error across Alpha/Beta/Gamma.`
+            });
         }
         if (scraperV3.is_stale) {
             synthetic.push({ level: 'danger', source: 'Scraper V3', message: 'Watcher lock is stale and needs operator review.' });
@@ -673,11 +709,11 @@
         }
     }
 
-    async function runEnrichmentControl(endpoint, noteId, successMessage, confirmMessage = null) {
+    async function runEnrichmentControl(endpoint, noteId, successMessage, confirmMessage = null, pendingMessage = 'Running action...') {
         const note = document.getElementById(noteId);
         if (confirmMessage && !confirmAction(confirmMessage)) return;
         try {
-            if (note) note.textContent = 'Running LinkedIn enrichment action...';
+            if (note) note.textContent = pendingMessage;
             const result = await api(endpoint, 'POST');
             if (note) {
                 note.textContent = result.output
@@ -706,41 +742,79 @@
     document.getElementById('btn-enrich-watcher-check')?.addEventListener('click', () => runEnrichmentControl(
         '/control/enrichment/linkedin/watcher-check',
         'enrichment-linkedin-control-note',
-        'LinkedIn watcher check completed.'
+        'LinkedIn watcher check completed.',
+        null,
+        'Running LinkedIn watcher check...'
     ));
     document.getElementById('btn-enrich-force-drain')?.addEventListener('click', () => runEnrichmentControl(
         '/control/enrichment/linkedin/force-drain',
         'enrichment-linkedin-control-note',
-        'Force-drain check completed.'
+        'Force-drain check completed.',
+        null,
+        'Running LinkedIn force-drain check...'
     ));
     document.getElementById('btn-enrich-reset-pointer')?.addEventListener('click', () => runEnrichmentControl(
         '/control/enrichment/linkedin/reset-pointer',
         'enrichment-linkedin-control-note',
         'LinkedIn pointer reset.',
-        'Reset the LinkedIn enrichment pointer back to row 2?\n\nThis keeps existing enrichment results but changes where future drain runs resume from.'
+        'Reset the LinkedIn enrichment pointer back to row 2?\n\nThis keeps existing enrichment results but changes where future drain runs resume from.',
+        'Resetting the LinkedIn enrichment pointer...'
     ));
     document.getElementById('btn-enrich-hard-reset')?.addEventListener('click', () => runEnrichmentControl(
         '/control/enrichment/linkedin/reset-hard',
         'enrichment-linkedin-control-note',
         'LinkedIn hard reset completed.',
-        'HARD RESET LINKEDIN ENRICHMENT\n\nThis will reset the pointer and clear LinkedIn status, Last checked, and employee-related enrichment fields.\n\nProceed?'
+        'HARD RESET LINKEDIN ENRICHMENT\n\nThis will reset the pointer and clear LinkedIn status, Last checked, and employee-related enrichment fields.\n\nProceed?',
+        'Running LinkedIn hard reset...'
+    ));
+    document.getElementById('btn-keyword-watcher-check')?.addEventListener('click', () => runEnrichmentControl(
+        '/control/enrichment/keywords/watcher-check',
+        'enrichment-keyword-control-note',
+        'Keyword + scoring watcher check completed.',
+        null,
+        'Running keyword + scoring watcher check...'
+    ));
+    document.getElementById('btn-keyword-force-run')?.addEventListener('click', () => runEnrichmentControl(
+        '/control/enrichment/keywords/force-run',
+        'enrichment-keyword-control-note',
+        'Keyword + scoring force-run completed.',
+        'Force the keyword detector and scoring lane to run from any current Ultra backlog?\n\nThis temporarily bypasses the normal watcher threshold for this one check.',
+        'Running keyword + scoring force-run...'
+    ));
+    document.getElementById('btn-keyword-reset-pointer')?.addEventListener('click', () => runEnrichmentControl(
+        '/control/enrichment/keywords/reset-pointer',
+        'enrichment-keyword-control-note',
+        'Keyword detector pointer reset.',
+        'Reset the keyword detector pointer back to row 2?\n\nThis keeps existing Ultra results but changes where the next detector run resumes from.',
+        'Resetting the keyword detector pointer...'
+    ));
+    document.getElementById('btn-keyword-hard-reset')?.addEventListener('click', () => runEnrichmentControl(
+        '/control/enrichment/keywords/reset-hard',
+        'enrichment-keyword-control-note',
+        'Ultra keyword/scoring lane reset.',
+        'RESET ULTRA KEYWORD + SCORING LANE\n\nThis clears Ultra_validated data and resets the keyword pointer so the lane can start fresh.\n\nProceed?',
+        'Running Ultra lane reset...'
     ));
     document.getElementById('btn-scraperv3-watcher-check')?.addEventListener('click', () => runEnrichmentControl(
         '/control/enrichment/scraper-v3/watcher-check',
         'enrichment-scraperv3-control-note',
-        'Scraper V3 watcher check completed.'
+        'Scraper V3 watcher check completed.',
+        null,
+        'Running Scraper V3 watcher check...'
     ));
     document.getElementById('btn-scraperv3-force-run')?.addEventListener('click', () => runEnrichmentControl(
         '/control/enrichment/scraper-v3/force-run',
         'enrichment-scraperv3-control-note',
         'Scraper V3 force-run check completed.',
-        'Force Scraper V3 to launch from any current source backlog?\n\nThis temporarily bypasses the normal Alpha+Beta threshold for this one check.'
+        'Force Scraper V3 to launch from any current source backlog?\n\nThis temporarily bypasses the normal Alpha+Beta threshold for this one check.',
+        'Running Scraper V3 force-run check...'
     ));
     document.getElementById('btn-scraperv3-reset-checkpoint')?.addEventListener('click', () => runEnrichmentControl(
         '/control/enrichment/scraper-v3/reset-checkpoint',
         'enrichment-scraperv3-control-note',
         'Scraper V3 resume memory cleared.',
-        'Clear the latest Scraper V3 resume checkpoint?\n\nThis prevents the next run from inheriting stale completed-row memory.'
+        'Clear the latest Scraper V3 resume checkpoint?\n\nThis prevents the next run from inheriting stale completed-row memory.',
+        'Clearing Scraper V3 resume memory...'
     ));
 
     window.addEventListener('status-update', (e) => {

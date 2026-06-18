@@ -18,6 +18,12 @@
                 <span id="hero-status-text" class="hero-status-text">Stopped</span>
             </div>
             <div id="hero-meta" class="hero-meta">System idle</div>
+            <div id="hero-pressure" class="hero-pressure" aria-label="Host pressure readout">
+                <span class="pressure-cell"><span class="pressure-label">Load</span><span id="hero-pressure-load" class="pressure-value">--</span></span>
+                <span class="pressure-cell"><span class="pressure-label">CPU</span><span id="hero-pressure-cpu" class="pressure-value">--</span></span>
+                <span class="pressure-cell"><span class="pressure-label">RAM</span><span id="hero-pressure-mem" class="pressure-value">--</span></span>
+                <span id="hero-pressure-binding" class="pressure-binding pressure-binding-idle">idle</span>
+            </div>
         </div>
         <div class="waveform-wrap">
             <canvas id="waveform-hero"></canvas>
@@ -48,7 +54,75 @@
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         ROW 2: Quick Actions
+         ROW 2: Scraper Efficiency
+         ═══════════════════════════════════════════════════════════════ -->
+
+    <section class="panel pipeline-card pgrid-full overview-efficiency-panel">
+        <div class="pipeline-card-header">
+            <div class="pipeline-card-icon"><i data-lucide="gauge"></i></div>
+            <div>
+                <h2>Scraper Efficiency</h2>
+                <span class="pipeline-card-subtitle">Quality-adjusted Maps speed signals</span>
+            </div>
+        </div>
+        <div class="scraper-metric-grid">
+            <div class="metric-card">
+                <span class="metric-label">Website Lead Time</span>
+                <span id="ov-eff-website-time" class="metric-value">--</span>
+                <span class="metric-sub">average time per website-found lead</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Fallback Rate</span>
+                <span id="ov-eff-fallback-rate" class="metric-value">--</span>
+                <span id="ov-eff-fallback-sub" class="metric-sub">batch-read fallback usage</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Sidebar Rate</span>
+                <span id="ov-eff-sidebar-rate" class="metric-value">--</span>
+                <span id="ov-eff-sidebar-sub" class="metric-sub">click success/failure</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Search Time</span>
+                <span id="ov-eff-search-time" class="metric-value">--</span>
+                <span id="ov-eff-search-sub" class="metric-sub">average search duration</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel pipeline-card pgrid-full overview-efficiency-panel">
+        <div class="pipeline-card-header">
+            <div class="pipeline-card-icon"><i data-lucide="scan-search"></i></div>
+            <div>
+                <h2>Early Dedupe Savings</h2>
+                <span class="pipeline-card-subtitle">Browser work avoided before extraction</span>
+            </div>
+        </div>
+        <div class="scraper-metric-grid">
+            <div class="metric-card">
+                <span class="metric-label">Early Duplicate Rate</span>
+                <span id="ov-dedupe-rate" class="metric-value">--</span>
+                <span id="ov-dedupe-rate-sub" class="metric-sub">strong Place-key matches</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Cards Skipped</span>
+                <span id="ov-dedupe-skipped" class="metric-value">--</span>
+                <span id="ov-dedupe-skipped-sub" class="metric-sub">historical and live</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Sidebar Work Avoided</span>
+                <span id="ov-dedupe-sidebar" class="metric-value">--</span>
+                <span class="metric-sub">estimated fallback clicks avoided</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Coordinator Latency</span>
+                <span id="ov-dedupe-latency" class="metric-value">--</span>
+                <span id="ov-dedupe-latency-sub" class="metric-sub">timeouts and errors</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         ROW 3: Quick Actions
          ═══════════════════════════════════════════════════════════════ -->
 
     <section class="panel pgrid-full">
@@ -66,6 +140,10 @@
                 <i data-lucide="square"></i>
                 Stop
             </button>
+            <button id="ov-btn-kill" class="btn btn-danger">
+                <i data-lucide="zap-off"></i>
+                Force Kill
+            </button>
         </div>
         <div class="action-row overview-action-row overview-action-row-secondary">
             <button id="ov-btn-dashboard-restart" class="btn btn-secondary">
@@ -77,10 +155,47 @@
                 Shutdown Dashboard
             </button>
         </div>
+
+        <div class="overview-control-grid">
+            <div class="overview-control-block">
+                <h3>Cleaning</h3>
+                <div class="clean-options">
+                    <select id="ov-clean-mode">
+                        <option value="logs">Logs Only</option>
+                        <option value="progress">Progress Only</option>
+                        <option value="outputs">Outputs Only</option>
+                        <option value="full">Full Clean (Safe)</option>
+                        <option value="nuclear">Nuclear (Everything)</option>
+                    </select>
+                    <button id="ov-btn-clean" class="btn btn-secondary">
+                        <i data-lucide="trash-2"></i>
+                        Clean
+                    </button>
+                </div>
+            </div>
+
+            <div class="overview-control-block">
+                <h3>Auto-Cycle Config</h3>
+                <div class="cycle-config">
+                    <div class="input-group">
+                        <label>Run (min)</label>
+                        <input type="number" id="ov-run-minutes" value="240" min="1" max="1440">
+                    </div>
+                    <div class="input-group">
+                        <label>Rest (min)</label>
+                        <input type="number" id="ov-rest-minutes" value="120" min="1" max="1440">
+                    </div>
+                    <button id="ov-btn-save-config" class="btn btn-secondary">
+                        <i data-lucide="save"></i>
+                        Save
+                    </button>
+                </div>
+            </div>
+        </div>
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         ROW 3: Shared Sheet Volume Monitor
+         ROW 4: Shared Sheet Volume Monitor
          ═══════════════════════════════════════════════════════════════ -->
 
     <section class="panel pipeline-card pgrid-full" id="card-sheet-volume">
@@ -97,7 +212,7 @@
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         ROW 4: Pipeline — Maps Scraper + LinkedIn Enrichment + Keyword Detection
+         ROW 5: Pipeline — Maps Scraper + LinkedIn Enrichment + Keyword Detection
          ═══════════════════════════════════════════════════════════════ -->
 
     <section class="panel pipeline-card" id="card-scraper">
@@ -400,6 +515,54 @@
     let _prevSearches = null;
     let _prevCaptcha = 0;
 
+    const PRESSURE_ELS = {
+        load: document.getElementById('hero-pressure-load'),
+        cpu: document.getElementById('hero-pressure-cpu'),
+        mem: document.getElementById('hero-pressure-mem'),
+        binding: document.getElementById('hero-pressure-binding'),
+    };
+
+    function fmtPressure(val) {
+        if (val == null || Number.isNaN(Number(val))) return '--';
+        return `${Math.round(Number(val))}%`;
+    }
+
+    function updatePressureReadout(waveform, maps, running, phase) {
+        const load = maps && maps.compute_utilization_pct != null
+            ? Number(maps.compute_utilization_pct) : null;
+        const cpu = maps && maps.cpu_percent != null
+            ? Number(maps.cpu_percent) : null;
+        const mem = maps && (maps.memory_pressure_pct != null || maps.memory_percent != null)
+            ? Number(maps.memory_pressure_pct ?? maps.memory_percent) : null;
+
+        const hasAnySignal = load != null || cpu != null || mem != null;
+        const isActive = running && hasAnySignal;
+
+        if (PRESSURE_ELS.load) PRESSURE_ELS.load.textContent = isActive ? fmtPressure(load) : '--';
+        if (PRESSURE_ELS.cpu)  PRESSURE_ELS.cpu.textContent  = isActive ? fmtPressure(cpu) : '--';
+        if (PRESSURE_ELS.mem)  PRESSURE_ELS.mem.textContent  = isActive ? fmtPressure(mem) : '--';
+
+        if (!waveform) return;
+
+        if (isActive && hasAnySignal) {
+            waveform.feedPressure({ load, cpu, mem });
+            const binding = waveform.pressure ? waveform.pressure.binding : 'load';
+            if (PRESSURE_ELS.binding) {
+                PRESSURE_ELS.binding.textContent = `${binding} binding`;
+                PRESSURE_ELS.binding.className =
+                    `pressure-binding pressure-binding-${binding}`;
+            }
+        } else {
+            // Idle / REST / stopped: flatten wave to 0, clear threshold lines.
+            waveform.clearPressure();
+            waveform.setIntensity(phase === 'RESTING' ? 0.15 : 0.06);
+            if (PRESSURE_ELS.binding) {
+                PRESSURE_ELS.binding.textContent = phase === 'RESTING' ? 'resting' : 'idle';
+                PRESSURE_ELS.binding.className = 'pressure-binding pressure-binding-idle';
+            }
+        }
+    }
+
     // ── Helper: update a badge ──
     function setBadge(el, status) {
         if (!el) return;
@@ -443,6 +606,14 @@
     function fmtPct(value) {
         if (value == null || Number.isNaN(Number(value))) return '--';
         return `${Number(value).toFixed(1)}%`;
+    }
+
+    function fmtDurationMs(value) {
+        if (value == null || Number.isNaN(Number(value))) return '--';
+        const ms = Number(value);
+        if (ms < 1000) return `${Math.round(ms)}ms`;
+        if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+        return `${(ms / 60000).toFixed(1)}m`;
     }
 
     function fmtStaleness(isoStr) {
@@ -549,16 +720,13 @@
             heroDot.classList.add('running');
             heroText.textContent = s.enabled && s.phase === 'RUNNING' ? 'Running (Cycle)' : 'Running';
             heroMeta.textContent = p.uptime ? `Uptime: ${p.uptime}` : 'Process active';
-            if (wf) wf.setIntensity(0.7);
         } else if (s.phase === 'RESTING') {
             heroDot.classList.add('resting');
             heroText.textContent = 'Resting';
             heroMeta.textContent = 'Scheduler rest period';
-            if (wf) wf.setIntensity(0.25);
         } else {
             heroText.textContent = 'Stopped';
             heroMeta.textContent = 'System idle';
-            if (wf) wf.setIntensity(0.08);
         }
 
         // ════════════════════════════════════════
@@ -590,21 +758,64 @@
         document.getElementById('ov-leads-staleness').textContent =
             fmtStaleness(pl.snapshot_fetched_at);
 
+        const telemetry = ms.run?.telemetry || ms.telemetry || {};
+        document.getElementById('ov-eff-website-time').textContent =
+            fmtDurationMs(telemetry.avg_time_per_website_found_lead_ms);
+        document.getElementById('ov-eff-fallback-rate').textContent =
+            telemetry.fallback_rate != null ? fmtPct(telemetry.fallback_rate) : '--';
+        document.getElementById('ov-eff-fallback-sub').textContent =
+            telemetry.batch_read_complete_rate != null
+                ? `${fmtPct(telemetry.batch_read_complete_rate)} batch-complete`
+                : 'batch-read fallback usage';
+        document.getElementById('ov-eff-sidebar-rate').textContent =
+            telemetry.sidebar_click_rate != null ? fmtPct(telemetry.sidebar_click_rate) : '--';
+        document.getElementById('ov-eff-sidebar-sub').textContent =
+            telemetry.sidebar_success_rate != null
+                ? `${fmtPct(telemetry.sidebar_success_rate)} success · ${fmtPct(telemetry.sidebar_failure_rate || 0)} failure`
+                : 'click success/failure';
+        document.getElementById('ov-eff-search-time').textContent =
+            fmtDurationMs(telemetry.avg_search_duration_ms);
+        document.getElementById('ov-eff-search-sub').textContent =
+            telemetry.searches != null
+                ? `${fmtNum(telemetry.searches)} measured searches`
+                : 'average search duration';
+
+        document.getElementById('ov-dedupe-rate').textContent =
+            telemetry.early_duplicate_rate != null ? fmtPct(telemetry.early_duplicate_rate) : '--';
+        document.getElementById('ov-dedupe-rate-sub').textContent =
+            telemetry.strong_place_key_coverage != null
+                ? `${fmtPct(telemetry.strong_place_key_coverage)} strong-key coverage`
+                : 'strong Place-key matches';
+        document.getElementById('ov-dedupe-skipped').textContent =
+            telemetry.early_duplicates_skipped != null ? fmtNum(telemetry.early_duplicates_skipped) : '--';
+        document.getElementById('ov-dedupe-skipped-sub').textContent =
+            telemetry.early_duplicates_skipped != null
+                ? `${fmtNum(telemetry.historical_duplicates_skipped || 0)} historical · ${fmtNum((telemetry.inflight_duplicates_skipped || 0) + (telemetry.same_batch_duplicates_skipped || 0))} live`
+                : 'historical and live';
+        document.getElementById('ov-dedupe-sidebar').textContent =
+            telemetry.sidebar_fallbacks_avoided_estimate != null
+                ? fmtNum(telemetry.sidebar_fallbacks_avoided_estimate)
+                : '--';
+        document.getElementById('ov-dedupe-latency').textContent =
+            telemetry.average_coordinator_latency_ms != null
+                ? `${Number(telemetry.average_coordinator_latency_ms).toFixed(2)}ms`
+                : '--';
+        document.getElementById('ov-dedupe-latency-sub').textContent =
+            telemetry.coordinator_requests != null
+                ? `${fmtNum(telemetry.coordinator_timeouts || 0)} timeout · ${fmtNum(telemetry.coordinator_errors || 0)} error`
+                : 'timeouts and errors';
+
         // ════════════════════════════════════════
         // SHEET VOLUME
         // ════════════════════════════════════════
         renderSheetVolume(pl.sheet_volume || []);
 
-        // ── Feed waveform with real metric deltas ──
+        // ── Feed waveform with real host pressure ──
         if (wf) {
+            updatePressureReadout(wf, ms, p.running, s.phase);
+            // Keep search/captcha delta tracking for future use, but pressure
+            // now drives the wave amplitude + tint.
             const waveSearches = ms.run?.searches != null ? ms.run.searches : ms.searches;
-            if (_prevSearches != null && waveSearches != null) {
-                const searchDelta = Math.max(0, waveSearches - _prevSearches);
-                const captchaDelta = Math.max(0, (ms.captcha_count || 0) - _prevCaptcha);
-                let activity = Math.min(searchDelta / 3, 1);
-                if (captchaDelta > 0) activity = Math.min(activity + 0.35, 1);
-                wf.feedMetrics({ activity });
-            }
             _prevSearches = waveSearches != null ? waveSearches : _prevSearches;
             _prevCaptcha = ms.captcha_count || 0;
         }
@@ -871,7 +1082,19 @@
         }
         const cfg = sch.config || {};
         document.getElementById('ov-scheduler-config').textContent =
-            cfg.run_hours ? `${cfg.run_hours}h run / ${cfg.rest_hours}h rest` : '--';
+            cfg.run_minutes != null && cfg.rest_minutes != null
+                ? `${cfg.run_minutes}m run / ${cfg.rest_minutes}m rest`
+                : (cfg.run_hours ? `${cfg.run_hours}h run / ${cfg.rest_hours}h rest` : '--');
+
+        // Sync auto-cycle config inputs with live scheduler state (only when not focused)
+        const runInput = document.getElementById('ov-run-minutes');
+        const restInput = document.getElementById('ov-rest-minutes');
+        if (runInput && document.activeElement !== runInput && cfg.run_minutes != null) {
+            runInput.value = cfg.run_minutes;
+        }
+        if (restInput && document.activeElement !== restInput && cfg.rest_minutes != null) {
+            restInput.value = cfg.rest_minutes;
+        }
 
         // ════════════════════════════════════════
         // SYSTEM ATTENTION
@@ -897,9 +1120,13 @@
         document.getElementById('ov-btn-start').disabled = p.running;
         document.getElementById('ov-btn-cycle').disabled = p.running;
         document.getElementById('ov-btn-stop').disabled = !p.running;
+        document.getElementById('ov-btn-kill').disabled = !p.running;
+        document.getElementById('ov-btn-clean').disabled = p.running;
         document.getElementById('ov-btn-start').classList.toggle('btn-disabled', p.running);
         document.getElementById('ov-btn-cycle').classList.toggle('btn-disabled', p.running);
         document.getElementById('ov-btn-stop').classList.toggle('btn-disabled', !p.running);
+        document.getElementById('ov-btn-kill').classList.toggle('btn-disabled', !p.running);
+        document.getElementById('ov-btn-clean').classList.toggle('btn-disabled', p.running);
     });
 
     // ── Button handlers ──
@@ -934,10 +1161,51 @@
     });
 
     document.getElementById('ov-btn-dashboard-shutdown').addEventListener('click', async () => {
-        if (!confirmAction('Shutdown the dashboard backend now?\n\nThe page will stop responding until you start it again with the launcher script.')) return;
+        if (!confirmAction('Shutdown the dashboard backend now?\n\nOn deployed servers this stops the managed dashboard service, so the page will stay offline until you start it again.')) return;
         try {
             const result = await api('/control/dashboard/shutdown', 'POST');
             showToast(result.message, 'warning');
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+
+    document.getElementById('ov-btn-kill').addEventListener('click', async () => {
+        if (!confirmAction('FORCE KILL\n\nThis will immediately terminate the supervised system workers, including the scraper controller and active watchers, without saving state.\n\nAre you sure?')) return;
+        try {
+            const result = await api('/control/kill', 'POST');
+            showToast(result.message, 'warning');
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+
+    document.getElementById('ov-btn-clean').addEventListener('click', async () => {
+        const mode = document.getElementById('ov-clean-mode').value;
+        const confirmText = {
+            'logs': 'Clear all log files?',
+            'progress': 'WARNING: Reset scraper progress?\n\nThis will make the scraper start from the beginning.',
+            'outputs': 'Clear batch output files?',
+            'full': 'FULL CLEAN (Safe)\n\nThis will:\n- Clear all logs\n- Reset enricher/watcher progress\n- Delete batch outputs\n\nLeads data in Google Sheets will NOT be deleted.\nAre you sure?',
+            'nuclear': 'NUCLEAR CLEAN - DANGER!\n\nThis will PERMANENTLY DELETE:\n- ALL leads from Google Sheets\n- ALL destination tabs\n- ALL local progress and output files\n- ALL logs\n\nTHIS CANNOT BE UNDONE!\nAre you absolutely sure?'
+        };
+        if (!confirmAction(confirmText[mode] || 'Proceed with cleaning?')) return;
+        if (mode === 'full' && !confirmAction('Last chance! Type of clean: FULL (Safe)\n\nClick OK to proceed.')) return;
+        if (mode === 'nuclear') {
+            if (!confirmAction('SECOND WARNING!\n\nYou are about to delete ALL DATA.\n\nClick OK only if you want a completely fresh start.')) return;
+            if (!confirmAction('FINAL WARNING!\n\nThis is your last chance to cancel.')) return;
+        }
+        try {
+            showToast('Cleaning in progress...', 'info');
+            const result = await api('/control/clean', 'POST', { mode });
+            const cleaned = result.cleaned?.length > 0 ? result.cleaned.join(', ') : 'nothing to clean';
+            if (result.warning) showToast(result.warning, 'warning');
+            showToast(`Cleaned: ${cleaned}`, 'success');
+        } catch (e) { showToast(e.message, 'error'); }
+    });
+
+    document.getElementById('ov-btn-save-config').addEventListener('click', async () => {
+        const runMins = parseInt(document.getElementById('ov-run-minutes').value) || 4;
+        const restMins = parseInt(document.getElementById('ov-rest-minutes').value) || 3;
+        try {
+            await api('/config', 'POST', { run_minutes: runMins, rest_minutes: restMins });
+            showToast('Configuration saved', 'success');
         } catch (e) { showToast(e.message, 'error'); }
     });
 

@@ -1,0 +1,18 @@
+[Unit]
+Description=FixMyPresence Dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/fixmypresence
+EnvironmentFile=/etc/fixmypresence/dashboard.env
+ExecStart=/opt/fixmypresence/scripts/run_dashboard_server.sh
+Restart=always
+RestartSec=5
+TimeoutStopSec=45
+KillMode=control-group
+
+[Install]
+WantedBy=multi-user.target

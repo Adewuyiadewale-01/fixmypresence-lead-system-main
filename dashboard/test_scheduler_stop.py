@@ -194,6 +194,24 @@ class TestSchedulerRestTransition(unittest.TestCase):
         mock_pm.stop.assert_not_called()
         self.assertEqual(sched._phase, CyclePhase.RUNNING)
 
+    def test_request_emergency_cooldown_enters_resting_and_stops_scraper(self):
+        sched = Scheduler()
+        sched._enabled = True
+        sched._phase = CyclePhase.RUNNING
+
+        mock_pm = MagicMock()
+        mock_pm.stop_scraper_only.return_value = {"success": True, "method": "sigint"}
+
+        with patch("dashboard.scheduler.get_process_manager", return_value=mock_pm):
+            result = sched.request_emergency_cooldown(15, reason="ram_critical_confirmed")
+
+        self.assertTrue(result["success"])
+        self.assertTrue(result["scheduled"])
+        self.assertEqual(sched._phase, CyclePhase.RESTING)
+        self.assertEqual(sched._cooldown_reason, "ram_critical_confirmed")
+        mock_pm.stop_scraper_only.assert_called_once()
+        self.assertIsNotNone(sched._next_transition)
+
 
 if __name__ == "__main__":
     unittest.main()

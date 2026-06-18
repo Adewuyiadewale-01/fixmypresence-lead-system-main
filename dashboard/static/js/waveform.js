@@ -7,17 +7,38 @@
  *
  * Usage:
  *   const wf = new Waveform(canvas, { color: '190, 232, 46' });
- *   wf.setIntensity(0.7);              // master gain: 0 = flatline, 1 = max
- *   wf.feedMetrics({ activity: 0.8 }); // push real metric sample (0-1)
- *   wf.setProgress(0.35);              // scanline position (0-1), null hides
+ *   wf.setIntensity(0.7);                  // master gain: 0 = flatline, 1 = max
+ *   wf.feedMetrics({ activity: 0.8 });     // push real metric sample (0-1)
+ *   wf.feedPressure({ load: 54, cpu: 62, mem: 71 }); // host pressure (0-100 each)
  *   wf.destroy();
+ *
+ * Pressure mode renders threshold lines (green cruise / amber cap / red danger)
+ * across the canvas and tints the wave by the binding constraint (load/cpu/mem).
  */
+
+// Default thresholds (0-100). Callers can override per-call via feedPressure opts.
+const WAVEFORM_DEFAULT_THRESHOLDS = {
+    green: 88,  // comfortable CPU cruising ceiling
+    red: 95,    // hard CPU brake
+    memGreen: 85,
+    memRed: 93,
+    loadAdvisory: 300,
+};
+
+// Tint palette keyed by binding constraint.
+const WAVEFORM_CONSTRAINT_TINT = {
+    load: '190, 232, 46',    // cyan-green (default)
+    cpu: '255, 184, 46',     // amber
+    mem: '255, 82, 82',      // red
+    idle: '120, 140, 160',   // muted grey
+};
 
 class Waveform {
     constructor(canvas, options = {}) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
-        this.color = options.color || '190, 232, 46';
+        this.baseColor = options.color || '190, 232, 46';
+        this.color = this.baseColor;
 
         this.intensity = 0.05;
         this.targetIntensity = 0.05;
@@ -32,6 +53,11 @@ class Waveform {
         this.bufferSize = 128;
         this.buffer = new Float32Array(this.bufferSize);
         this.bufferHead = 0;
+
+        // Pressure state (populated by feedPressure)
+        this.pressure = null;
+        this.thresholds = { ...WAVEFORM_DEFAULT_THRESHOLDS };
+        this.showThresholds = false;
 
         // Value-noise permutation table
         this._perm = new Uint8Array(512);
@@ -92,6 +118,86 @@ class Waveform {
         this.bufferHead = (this.bufferHead + 1) % this.bufferSize;
     }
 
+    /**
+     * Feed real host pressure — load avg %, cpu %, mem % (all 0-100).
+     * Drives the wave amplitude by the *binding constraint* (max component),
+     * tints the wave by which component is binding, and enables threshold
+     * line rendering so users can see the safe/danger zones.
+     *
+     * Pass null or {} to clear pressure mode (reverts to idle grey).
+     */
+    feedPressure(sample, opts = {}) {
+        if (!sample || typeof sample !== 'object') {
+            this.pressure = null;
+            this.color = this.baseColor;
+            this.showThresholds = false;
+            return;
+        }
+        const load = Number.isFinite(sample.load) ? sample.load : null;
+        const cpu = Number.isFinite(sample.cpu) ? sample.cpu : null;
+        const mem = Number.isFinite(sample.mem) ? sample.mem : null;
+        if (load === null && cpu === null && mem === null) {
+            this.pressure = null;
+            this.color = this.baseColor;
+            this.showThresholds = false;
+            return;
+        }
+
+        // Memory is evaluated on its own scale, so normalize it against its
+        // own red threshold before comparing with CPU/load (whose red is 95).
+        const memRed = this.thresholds.memRed || 93;
+        const cpuRed = this.thresholds.red || 95;
+        const loadAdvisory = this.thresholds.loadAdvisory || 300;
+        const loadScore = load !== null ? load / loadAdvisory : null;
+        const cpuScore = cpu !== null ? cpu / cpuRed : null;
+        const memScore = mem !== null ? mem / memRed : null;
+
+        let binding = 'idle';
+        let bindingScore = -Infinity;
+        if (cpuScore !== null && cpuScore > bindingScore) {
+            binding = 'cpu';
+            bindingScore = cpuScore;
+        }
+        if (memScore !== null && memScore > bindingScore) {
+            binding = 'mem';
+            bindingScore = memScore;
+        }
+        if (loadScore !== null && loadScore > bindingScore) {
+            binding = 'load';
+            bindingScore = loadScore;
+        }
+
+        const bindingActual = binding === 'load' ? load : binding === 'cpu' ? cpu : binding === 'mem' ? mem : 0;
+
+        this.pressure = {
+            load, cpu, mem,
+            binding,
+            bindingValue: bindingActual,
+            // Amplitude follows whichever signal is closest to its own caution ceiling.
+            amplitude: Math.max(0, Math.min(1, bindingScore > 0 ? bindingScore : 0)),
+        };
+
+        // Buffer is still used for shape variation, feed the binding as activity.
+        this.buffer[this.bufferHead] = this.pressure.amplitude;
+        this.bufferHead = (this.bufferHead + 1) % this.bufferSize;
+
+        // Tint by binding constraint.
+        this.color = WAVEFORM_CONSTRAINT_TINT[binding] || this.baseColor;
+        // Master gain follows the pressure too so idle hosts flatline visually.
+        this.targetIntensity = Math.max(0.08, this.pressure.amplitude);
+        this.showThresholds = opts.showThresholds !== false;
+    }
+
+    setPressureThresholds(overrides = {}) {
+        this.thresholds = { ...this.thresholds, ...overrides };
+    }
+
+    clearPressure() {
+        this.pressure = null;
+        this.color = this.baseColor;
+        this.showThresholds = false;
+    }
+
     /* ── Buffer interpolation ── */
 
     _sampleBuffer(t) {
@@ -103,6 +209,71 @@ class Waveform {
         const v0 = this.buffer[(this.bufferHead + i0) % this.bufferSize];
         const v1 = this.buffer[(this.bufferHead + i1) % this.bufferSize];
         return v0 + f * (v1 - v0);
+    }
+
+    /* ── Thresholds ── */
+
+    _renderThresholds(ctx, w, h, midY, maxAmp) {
+        // Map a 0-100 pressure value to a y-offset above/below midY. We mirror
+        // the wave (goes up *and* down from center) so a 50% value draws lines
+        // at ±50% of maxAmp. A value of 100 covers the full amplitude band.
+        const redPct = this.thresholds.red || 95;
+        const greenPct = this.thresholds.green || 88;
+        const pctToOffset = (pct) => (Math.max(0, Math.min(100, pct)) / 100) * maxAmp;
+        const redOff = pctToOffset(redPct);
+        const greenOff = pctToOffset(greenPct);
+
+        // Green safe zone: mirrored band from midY ± greenOff
+        ctx.fillStyle = 'rgba(64, 220, 120, 0.06)';
+        ctx.fillRect(0, midY - greenOff, w, greenOff * 2);
+
+        // Red danger zone: top strip above +redOff and bottom strip below -redOff
+        ctx.fillStyle = 'rgba(255, 82, 82, 0.08)';
+        ctx.fillRect(0, 0, w, Math.max(0, midY - redOff));
+        ctx.fillRect(0, midY + redOff, w, Math.max(0, h - (midY + redOff)));
+
+        // Threshold lines (dashed, muted)
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 1;
+
+        // Green line (top + bottom mirrored)
+        ctx.strokeStyle = 'rgba(120, 220, 140, 0.55)';
+        ctx.beginPath();
+        ctx.moveTo(0, midY - greenOff);
+        ctx.lineTo(w, midY - greenOff);
+        ctx.moveTo(0, midY + greenOff);
+        ctx.lineTo(w, midY + greenOff);
+        ctx.stroke();
+
+        // Red line (top + bottom mirrored)
+        ctx.strokeStyle = 'rgba(255, 120, 120, 0.7)';
+        ctx.beginPath();
+        ctx.moveTo(0, midY - redOff);
+        ctx.lineTo(w, midY - redOff);
+        ctx.moveTo(0, midY + redOff);
+        ctx.lineTo(w, midY + redOff);
+        ctx.stroke();
+        ctx.restore();
+
+        // Baseline (midline)
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, midY);
+        ctx.lineTo(w, midY);
+        ctx.stroke();
+
+        // Threshold labels (right edge)
+        ctx.save();
+        ctx.font = '10px "JetBrains Mono", monospace';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'rgba(120, 220, 140, 0.7)';
+        ctx.fillText(`${greenPct}%`, w - 6, midY - greenOff - 2);
+        ctx.fillStyle = 'rgba(255, 120, 120, 0.8)';
+        ctx.fillText(`${redPct}%`, w - 6, midY - redOff - 2);
+        ctx.restore();
     }
 
     /* ── Render loop ── */
@@ -122,6 +293,11 @@ class Waveform {
 
         const midY = h * 0.5;
         const maxAmp = h * 0.43;
+
+        // ── Threshold zones + lines (pressure mode only) ──
+        if (this.showThresholds) {
+            this._renderThresholds(ctx, w, h, midY, maxAmp);
+        }
 
         // ── Build points: carrier × noise envelope × buffer × intensity ──
         const points = new Float32Array(w + 1);

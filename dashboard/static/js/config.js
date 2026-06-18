@@ -161,6 +161,7 @@
         });
         const inlinePanel = document.getElementById('scraper-location-inline-panel');
         const sheetPanel = document.getElementById('scraper-location-sheet-panel');
+        const treePanel = document.getElementById('scraper-location-tree-panel');
         if (inlinePanel) {
             const active = mode === 'inline';
             inlinePanel.hidden = !active;
@@ -171,6 +172,11 @@
             sheetPanel.hidden = !active;
             sheetPanel.classList.toggle('is-active', active);
         }
+        if (treePanel) {
+            const active = mode === 'local_tree';
+            treePanel.hidden = !active;
+            treePanel.classList.toggle('is-active', active);
+        }
     }
 
     function updateScraperMeta(config) {
@@ -179,6 +185,7 @@
         const inlineLocations = Array.isArray(config.locations) ? config.locations : [];
         const effectiveLocations = Array.isArray(config.effective_locations) ? config.effective_locations : inlineLocations;
         const source = config.location_source || {};
+        const tree = config.location_tree || {};
         const keywordCategories = Array.isArray(config.keyword_categories) ? config.keyword_categories : [];
         const keywordCounts = keywordCategories.map((group) => Array.isArray(group) ? group.length : 0);
         const keywordTotal = keywordCounts.reduce((sum, count) => sum + count, 0);
@@ -191,7 +198,9 @@
             'scraper-config-summary-locations',
             source.mode === 'sheet_csv'
                 ? `${effectiveLocations.length} active · ${Math.max((source.tab_names || []).length, source.tab_name ? 1 : 0)} tabs · ${source.active_tab_name || source.tab_name || 'no active tab'}`
-                : `${effectiveLocations.length} active · inline list`
+                : source.mode === 'local_tree'
+                    ? `${effectiveLocations.length} active · ${tree.files_completed || 0}/${tree.files_total || 0} files complete · ${tree.current_country || 'no country'}`
+                    : `${effectiveLocations.length} active · inline list`
         );
         setText(
             'scraper-config-summary-keywords',
@@ -209,6 +218,10 @@
                 ? `${effectiveLocations.length} resolved locations${source.last_synced_at ? ` · last sync ${new Date(source.last_synced_at).toLocaleString()}` : ''}${source.active_tab_name ? ` · active ${source.active_tab_name}` : ''}`
                 : `${effectiveLocations.length} active locations from inline mode`
         );
+        setText(
+            'scraper-location-tree-meta',
+            `${tree.files_completed || 0}/${tree.files_total || 0} files complete${tree.next_file ? ` · next ${tree.next_file}` : ''}`
+        );
         for (let i = 0; i < 4; i += 1) {
             setText(`scraper-keywords-${i + 1}-meta`, `${keywordCounts[i] || 0} keywords`);
         }
@@ -219,6 +232,7 @@
         const guardrails = config.guardrails || {};
         const keywordCategories = Array.isArray(config.keyword_categories) ? config.keyword_categories : [];
         const source = config.location_source || {};
+        const tree = config.location_tree || {};
         const meta = config.meta || {};
 
         setValue('scraper-num-workers', runtime.num_workers);
@@ -230,6 +244,24 @@
         setValue('scraper-stagger-min', runtime.worker_stagger_delay_min);
         setValue('scraper-stagger-max', runtime.worker_stagger_delay_max);
         setValue('scraper-category-timeout', runtime.category_advance_timeout_minutes);
+        setValue('scraper-delivery-retry-cooldown', runtime.delivery_retry_cooldown_minutes);
+        setValue('scraper-sidebar-adaptive-max', runtime.sidebar_adaptive_max_wait_ms);
+        setValue('scraper-early-dedupe-timeout', runtime.maps_early_dedupe_request_timeout_ms);
+        setValue('scraper-early-dedupe-ttl', runtime.maps_early_dedupe_reservation_ttl_seconds);
+        setValue('scraper-maps-max-workers', runtime.maps_max_workers);
+        setValue('scraper-maps-min-workers', runtime.maps_min_workers);
+        setValue('scraper-worker-ramp-check', runtime.maps_worker_ramp_check_interval_seconds);
+        setValue('scraper-worker-scale-down-check', runtime.maps_worker_scale_down_check_interval_seconds);
+        setValue('scraper-worker-ramp-step', runtime.maps_worker_ramp_step);
+        setValue('scraper-worker-cpu-ceiling', runtime.maps_worker_cpu_ceiling_percent);
+        setValue('scraper-worker-memory-ceiling', runtime.maps_worker_memory_pressure_ceiling_percent);
+        setValue('scraper-worker-pressure-checks', runtime.maps_worker_pressure_confirmation_checks);
+        setValue('scraper-worker-error-rate', runtime.maps_max_error_rate_for_ramp);
+        setChecked('scraper-telemetry-enabled', runtime.maps_telemetry_enabled);
+        setChecked('scraper-batch-card-read-enabled', runtime.maps_batch_card_read_enabled);
+        setChecked('scraper-adaptive-sidebar-wait-enabled', runtime.maps_adaptive_sidebar_wait_enabled);
+        setChecked('scraper-early-dedupe-enabled', runtime.maps_early_dedupe_enabled);
+        setChecked('scraper-adaptive-worker-scaling-enabled', runtime.maps_adaptive_worker_scaling_enabled);
 
         setValue('scraper-warn-error-rate', guardrails.batch_warning_error_rate);
         setValue('scraper-critical-error-rate', guardrails.batch_critical_error_rate);
@@ -249,6 +281,12 @@
         setValue('scraper-location-advance-delay', source.auto_advance_delay_minutes);
         setValue('scraper-location-csv-url', source.csv_export_url);
         setValue('scraper-location-resolved-preview', listToTextarea(config.effective_locations || config.location_resolved_locations || []));
+        setValue('scraper-location-tree-root', source.tree_root);
+        setValue('scraper-location-terminal-file', source.terminal_filename);
+        setValue('scraper-location-country-order', listToTextarea(source.country_order || []));
+        setValue('scraper-location-initial-file', source.initial_file);
+        setValue('scraper-location-active-file', tree.current_file || source.active_file || '');
+        setValue('scraper-location-tree-preview', listToTextarea(config.effective_locations || config.location_resolved_locations || []));
 
         for (let i = 0; i < 4; i += 1) {
             setValue(`scraper-keywords-${i + 1}`, listToTextarea(keywordCategories[i] || []));
@@ -273,6 +311,11 @@
             auto_advance_delay_minutes: Number(document.getElementById('scraper-location-advance-delay')?.value || 30),
             column_name: document.getElementById('scraper-location-column-name')?.value || '',
             csv_export_url: document.getElementById('scraper-location-csv-url')?.value || '',
+            tree_root: document.getElementById('scraper-location-tree-root')?.value || snapshotSource.tree_root || '',
+            terminal_filename: document.getElementById('scraper-location-terminal-file')?.value || snapshotSource.terminal_filename || 'LOCATIONS.js',
+            country_order: textareaToList('scraper-location-country-order'),
+            initial_file: document.getElementById('scraper-location-initial-file')?.value || snapshotSource.initial_file || '',
+            active_file: snapshotSource.active_file || '',
         };
     }
 
@@ -288,6 +331,24 @@
                 worker_stagger_delay_min: Number(document.getElementById('scraper-stagger-min')?.value || 0),
                 worker_stagger_delay_max: Number(document.getElementById('scraper-stagger-max')?.value || 0),
                 category_advance_timeout_minutes: Number(document.getElementById('scraper-category-timeout')?.value || 0),
+                delivery_retry_cooldown_minutes: Number(document.getElementById('scraper-delivery-retry-cooldown')?.value || 0),
+                sidebar_adaptive_max_wait_ms: Number(document.getElementById('scraper-sidebar-adaptive-max')?.value || 0),
+                maps_telemetry_enabled: Boolean(document.getElementById('scraper-telemetry-enabled')?.checked),
+                maps_batch_card_read_enabled: Boolean(document.getElementById('scraper-batch-card-read-enabled')?.checked),
+                maps_adaptive_sidebar_wait_enabled: Boolean(document.getElementById('scraper-adaptive-sidebar-wait-enabled')?.checked),
+                maps_early_dedupe_enabled: Boolean(document.getElementById('scraper-early-dedupe-enabled')?.checked),
+                maps_early_dedupe_request_timeout_ms: Number(document.getElementById('scraper-early-dedupe-timeout')?.value || 0),
+                maps_early_dedupe_reservation_ttl_seconds: Number(document.getElementById('scraper-early-dedupe-ttl')?.value || 0),
+                maps_adaptive_worker_scaling_enabled: Boolean(document.getElementById('scraper-adaptive-worker-scaling-enabled')?.checked),
+                maps_max_workers: Number(document.getElementById('scraper-maps-max-workers')?.value || 0),
+                maps_min_workers: Number(document.getElementById('scraper-maps-min-workers')?.value || 0),
+                maps_worker_ramp_step: Number(document.getElementById('scraper-worker-ramp-step')?.value || 0),
+                maps_worker_ramp_check_interval_seconds: Number(document.getElementById('scraper-worker-ramp-check')?.value || 0),
+                maps_worker_scale_down_check_interval_seconds: Number(document.getElementById('scraper-worker-scale-down-check')?.value || 0),
+                maps_worker_cpu_ceiling_percent: Number(document.getElementById('scraper-worker-cpu-ceiling')?.value || 0),
+                maps_worker_memory_pressure_ceiling_percent: Number(document.getElementById('scraper-worker-memory-ceiling')?.value || 0),
+                maps_worker_pressure_confirmation_checks: Number(document.getElementById('scraper-worker-pressure-checks')?.value || 0),
+                maps_max_error_rate_for_ramp: Number(document.getElementById('scraper-worker-error-rate')?.value || 0),
             },
             guardrails: {
                 batch_warning_error_rate: Number(document.getElementById('scraper-warn-error-rate')?.value || 0),
@@ -305,7 +366,7 @@
                 textareaToList('scraper-keywords-3'),
                 textareaToList('scraper-keywords-4'),
             ],
-            effective_locations: getLocationSourceMode() === 'sheet_csv'
+            effective_locations: ['sheet_csv', 'local_tree'].includes(getLocationSourceMode())
                 ? textareaToList('scraper-location-resolved-preview')
                 : textareaToList('scraper-locations-list'),
         };
@@ -1200,6 +1261,7 @@
         'scraper-stagger-min',
         'scraper-stagger-max',
         'scraper-category-timeout',
+        'scraper-delivery-retry-cooldown',
         'scraper-warn-error-rate',
         'scraper-critical-error-rate',
         'scraper-warn-website-rate',

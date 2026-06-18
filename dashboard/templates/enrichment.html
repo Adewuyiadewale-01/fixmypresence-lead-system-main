@@ -267,6 +267,33 @@
                     </div>
                 </section>
 
+                <section class="enrichment-section-card enrichment-controls-card">
+                    <div class="panel-header-inline">
+                        <h3>Controls</h3>
+                        <span class="pipeline-attention attn-warning">Keyword + Scoring Operations</span>
+                    </div>
+                    <div class="enrichment-controls-copy">Kick the Ultra watcher immediately, force the keyword/scoring lane to run from the current backlog, or reset the lane when you need a clean restart.</div>
+                    <div class="enrichment-controls-grid">
+                        <button id="btn-keyword-watcher-check" class="btn btn-primary btn-block" type="button">
+                            <i data-lucide="activity"></i>
+                            Run Watcher Check
+                        </button>
+                        <button id="btn-keyword-force-run" class="btn btn-warning btn-block" type="button">
+                            <i data-lucide="play"></i>
+                            Force Pipeline Now
+                        </button>
+                        <button id="btn-keyword-reset-pointer" class="btn btn-success btn-block" type="button">
+                            <i data-lucide="rewind"></i>
+                            Reset Keyword Pointer
+                        </button>
+                        <button id="btn-keyword-hard-reset" class="btn btn-danger btn-block" type="button">
+                            <i data-lucide="rotate-ccw"></i>
+                            Reset Ultra Lane
+                        </button>
+                    </div>
+                    <div id="enrichment-keyword-control-note" class="scraper-summary-note">Operate the keyword detector and scoring lane directly here without leaving the enrichment workspace.</div>
+                </section>
+
                 <section class="enrichment-section-card">
                     <div class="panel-header-inline">
                         <h3>Scoring & Settlement</h3>
@@ -415,9 +442,9 @@
                         <i data-lucide="database-zap"></i>
                         Clear Resume Memory
                     </button>
-                </div>
-                <div id="enrichment-scraperv3-control-note" class="scraper-summary-note">Operate the Scraper V3 backlog watcher directly here without editing files by hand.</div>
-            </section>
+                    </div>
+                    <div id="enrichment-scraperv3-control-note" class="scraper-summary-note">Operate the Scraper V3 backlog watcher directly here without editing files by hand.</div>
+                </section>
 
             <div class="enrichment-live-grid">
                 <section class="enrichment-section-card">
@@ -471,6 +498,18 @@
                         <span id="scraperv3-scraped-outcome" class="pipeline-val pipeline-val-stack">--</span>
                     </div>
                     <div class="pipeline-row">
+                        <span class="pipeline-label">Latest Error Reasons</span>
+                        <span id="scraperv3-error-reasons" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">All-Time Error Totals</span>
+                        <span id="scraperv3-all-error-totals" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">All-Time Reasons</span>
+                        <span id="scraperv3-all-error-reasons" class="pipeline-val pipeline-val-stack">--</span>
+                    </div>
+                    <div class="pipeline-row">
                         <span class="pipeline-label">LinkedIn / Emails / Persons</span>
                         <span id="scraperv3-extracts" class="pipeline-val pipeline-val-stack">--</span>
                     </div>
@@ -515,6 +554,10 @@
                     <div class="pipeline-row">
                         <span class="pipeline-label">Gamma / Gamma High</span>
                         <span id="scraperv3-gamma-split" class="pipeline-val">--</span>
+                    </div>
+                    <div class="pipeline-row">
+                        <span class="pipeline-label">Current Error Backlog</span>
+                        <span id="scraperv3-source-errors" class="pipeline-val pipeline-val-stack">--</span>
                     </div>
                     <div class="pipeline-row">
                         <span class="pipeline-label">Mark-only Resumes</span>

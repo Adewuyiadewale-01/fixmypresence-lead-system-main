@@ -97,6 +97,93 @@
                             <span class="config-field-label">Category Advance Timeout (minutes)</span>
                             <input id="scraper-category-timeout" type="number" min="1">
                         </label>
+                        <label class="config-field config-field-wide">
+                            <span class="config-field-label">Delivery Retry Cooldown (minutes)</span>
+                            <input id="scraper-delivery-retry-cooldown" type="number" min="1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Adaptive Sidebar Max (ms)</span>
+                            <input id="scraper-sidebar-adaptive-max" type="number" min="100">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Dedupe Timeout (ms)</span>
+                            <input id="scraper-early-dedupe-timeout" type="number" min="100">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Reservation TTL (s)</span>
+                            <input id="scraper-early-dedupe-ttl" type="number" min="60">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Max Workers</span>
+                            <input id="scraper-maps-max-workers" type="number" min="1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Min Workers</span>
+                            <input id="scraper-maps-min-workers" type="number" min="1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Ramp Check (s)</span>
+                            <input id="scraper-worker-ramp-check" type="number" min="30">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Scale-Down Check (s)</span>
+                            <input id="scraper-worker-scale-down-check" type="number" min="30">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Ramp Step</span>
+                            <input id="scraper-worker-ramp-step" type="number" min="1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">CPU Ceiling (%)</span>
+                            <input id="scraper-worker-cpu-ceiling" type="number" min="1" step="0.1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">RAM Ceiling (%)</span>
+                            <input id="scraper-worker-memory-ceiling" type="number" min="1" step="0.1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Pressure Checks</span>
+                            <input id="scraper-worker-pressure-checks" type="number" min="1" step="1">
+                        </label>
+                        <label class="config-field">
+                            <span class="config-field-label">Error Max (%)</span>
+                            <input id="scraper-worker-error-rate" type="number" min="0" step="0.1">
+                        </label>
+                        <label class="config-checkbox-card" for="scraper-telemetry-enabled">
+                            <span class="config-checkbox-copy">
+                                <span class="config-checkbox-title">Collect quality-aware telemetry</span>
+                                <span class="config-checkbox-description">Track speed, fallback, sidebar, and website-found efficiency.</span>
+                            </span>
+                            <input id="scraper-telemetry-enabled" type="checkbox">
+                        </label>
+                        <label class="config-checkbox-card" for="scraper-batch-card-read-enabled">
+                            <span class="config-checkbox-copy">
+                                <span class="config-checkbox-title">Use batch card read</span>
+                                <span class="config-checkbox-description">Read visible card data in one browser call, falling back to the proven extractor.</span>
+                            </span>
+                            <input id="scraper-batch-card-read-enabled" type="checkbox">
+                        </label>
+                        <label class="config-checkbox-card" for="scraper-adaptive-sidebar-wait-enabled">
+                            <span class="config-checkbox-copy">
+                                <span class="config-checkbox-title">Use adaptive sidebar wait</span>
+                                <span class="config-checkbox-description">Wait for sidebar readiness instead of always sleeping a fixed duration.</span>
+                            </span>
+                            <input id="scraper-adaptive-sidebar-wait-enabled" type="checkbox">
+                        </label>
+                        <label class="config-checkbox-card" for="scraper-early-dedupe-enabled">
+                            <span class="config-checkbox-copy">
+                                <span class="config-checkbox-title">Enable early shared deduplication</span>
+                                <span class="config-checkbox-description">Reserve strong Google Place identities before workers perform expensive extraction.</span>
+                            </span>
+                            <input id="scraper-early-dedupe-enabled" type="checkbox">
+                        </label>
+                        <label class="config-checkbox-card" for="scraper-adaptive-worker-scaling-enabled">
+                            <span class="config-checkbox-copy">
+                                <span class="config-checkbox-title">Enable adaptive worker ramp-up</span>
+                                <span class="config-checkbox-description">Add workers during healthy VM runs. Keep off until baseline quality is captured.</span>
+                            </span>
+                            <input id="scraper-adaptive-worker-scaling-enabled" type="checkbox">
+                        </label>
                     </div>
                 </section>
 
@@ -141,7 +228,7 @@
                     <h3>Locations</h3>
                     <span class="config-section-kicker">Input Pool</span>
                 </div>
-                <p class="config-section-copy">Choose whether scraper locations come from the inline list or from a sheet-backed sync that resolves a clean list for future scraper runs.</p>
+                <p class="config-section-copy">Choose an inline list, a sheet-backed sync, or a recursively discovered Address Bot location tree.</p>
                 <div class="config-source-mode">
                     <label class="config-toggle">
                         <input type="radio" name="scraper-location-source-mode" value="inline" checked>
@@ -150,6 +237,10 @@
                     <label class="config-toggle">
                         <input type="radio" name="scraper-location-source-mode" value="sheet_csv">
                         <span>Sheet-backed CSV</span>
+                    </label>
+                    <label class="config-toggle">
+                        <input type="radio" name="scraper-location-source-mode" value="local_tree">
+                        <span>Address Bot Tree</span>
                     </label>
                 </div>
                 <div class="config-source-panels">
@@ -226,6 +317,39 @@
                             <span class="config-field-label">Resolved Preview</span>
                             <textarea id="scraper-location-resolved-preview" class="config-textarea" spellcheck="false" readonly></textarea>
                             <span id="scraper-location-resolved-meta" class="config-field-meta">--</span>
+                        </label>
+                    </section>
+
+                    <section id="scraper-location-tree-panel" class="config-source-panel" hidden>
+                        <div class="config-form-grid">
+                            <label class="config-field config-field-wide">
+                                <span class="config-field-label">Tree Root</span>
+                                <input id="scraper-location-tree-root" type="text" placeholder="Bots/address-bot/out/locations">
+                                <span class="config-field-meta">Country folders are discovered directly below this root. Intermediate folder depth can vary by country.</span>
+                            </label>
+                            <label class="config-field">
+                                <span class="config-field-label">Terminal Filename</span>
+                                <input id="scraper-location-terminal-file" type="text" placeholder="LOCATIONS.js">
+                            </label>
+                            <label class="config-field">
+                                <span class="config-field-label">Initial File</span>
+                                <input id="scraper-location-initial-file" type="text" placeholder="netherlands/north-holland/amsterdam/LOCATIONS.js">
+                            </label>
+                            <label class="config-field config-field-wide">
+                                <span class="config-field-label">Country Order</span>
+                                <textarea id="scraper-location-country-order" class="config-textarea" spellcheck="false" placeholder="netherlands&#10;united-kingdom"></textarea>
+                                <span class="config-field-meta">One country folder per line. Unlisted countries follow alphabetically.</span>
+                            </label>
+                            <label class="config-field config-field-wide">
+                                <span class="config-field-label">Active File</span>
+                                <input id="scraper-location-active-file" type="text" readonly>
+                                <span id="scraper-location-tree-meta" class="config-field-meta">--</span>
+                            </label>
+                        </div>
+                        <label class="config-field">
+                            <span class="config-field-label">Resolved Preview</span>
+                            <textarea id="scraper-location-tree-preview" class="config-textarea" spellcheck="false" readonly></textarea>
+                            <span class="config-field-meta">The next file is loaded only after every keyword category for the active file is complete.</span>
                         </label>
                     </section>
                 </div>

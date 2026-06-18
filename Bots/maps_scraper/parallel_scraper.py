@@ -6,13 +6,17 @@ Uses multiprocessing to avoid Playwright sync/async conflicts.
 from __future__ import annotations
 
 import multiprocessing as mp
+import contextlib
 import json
 import os
 import random
 import sys
 import time
 import queue
+import threading
+import uuid
 from datetime import datetime, timezone
+from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, List, Set, Tuple, Optional, Dict
@@ -31,6 +35,19 @@ from config import (
     INTER_REQUEST_DELAY_MIN,
     INTER_REQUEST_DELAY_MAX,
     KEYWORDS,
+    MAPS_ADAPTIVE_WORKER_SCALING_ENABLED,
+    MAPS_EARLY_DEDUPE_ENABLED,
+    MAPS_EARLY_DEDUPE_REQUEST_TIMEOUT_MS,
+    MAPS_EARLY_DEDUPE_RESERVATION_TTL_SECONDS,
+    MAPS_MAX_ERROR_RATE_FOR_RAMP,
+    MAPS_MAX_WORKERS,
+    MAPS_MIN_WORKERS,
+    MAPS_WORKER_CPU_CEILING_PERCENT,
+    MAPS_WORKER_MEMORY_PRESSURE_CEILING_PERCENT,
+    MAPS_WORKER_PRESSURE_CONFIRMATION_CHECKS,
+    MAPS_WORKER_RAMP_CHECK_INTERVAL_SECONDS,
+    MAPS_WORKER_RAMP_STEP,
+    MAPS_WORKER_SCALE_DOWN_CHECK_INTERVAL_SECONDS,
     MASTER_OUTPUT,
     NUM_WORKERS,
     OUTPUT_DIR,
@@ -51,7 +68,7 @@ from config import (
     sync_location_source_now,
     WEBSITE_STATUS_WORKERS,
 )
-from utils import normalize_domain
+from utils import extract_place_key, extract_strong_place_key, normalize_domain
 
 
 CALLOUTS_RETAIN_COUNT = 200
@@ -62,6 +79,14 @@ PHASE_HEALTHY = "healthy"
 PHASE_WARNING = "warning"
 PHASE_CONFIRMING = "confirming"
 PHASE_PAUSED_CRITICAL = "paused_critical"
+RUN_OUTCOME_COMPLETED = "completed"
+RUN_OUTCOME_DELIVERY_FAILED = "delivery_failed"
+RUN_OUTCOME_SHEET_BLOCKED = "sheet_blocked"
+RUN_OUTCOME_RESOURCE_PRESSURE = "resource_pressure"
+DELIVERY_FAILED_EXIT_CODE = 75
+RESOURCE_PRESSURE_EXIT_CODE = 76
+RESULT_POLL_TIMEOUT_S = 30
+RESULT_STALL_TIMEOUT_S = 180
 
 
 # ============================================================================
@@ -83,6 +108,116 @@ def _pid_is_alive(pid: int) -> bool:
         return True
     except OSError:
         return False
+
+
+try:
+    import psutil as _psutil
+except ImportError:
+    _psutil = None
+
+
+class _HostCpuSampler:
+    """Continuously sample host CPU so snapshot reads stay stable."""
+
+    def __init__(self) -> None:
+        self._samples: deque[float] = deque(maxlen=8)
+        self._lock = threading.Lock()
+        self._started = False
+        self._stop = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+
+    def start(self) -> None:
+        if _psutil is None or self._started:
+            return
+        self._started = True
+        self._thread = threading.Thread(
+            target=self._loop,
+            daemon=True,
+            name="maps-host-cpu-sampler",
+        )
+        self._thread.start()
+
+    def _loop(self) -> None:
+        try:
+            _psutil.cpu_percent(interval=None)
+        except Exception:
+            return
+
+        while not self._stop.is_set():
+            try:
+                sample = float(_psutil.cpu_percent(interval=1.0))
+            except Exception:
+                break
+            with self._lock:
+                self._samples.append(sample)
+
+    def average(self) -> Optional[float]:
+        if _psutil is None:
+            return None
+        self.start()
+        with self._lock:
+            if not self._samples:
+                return None
+            return round(sum(self._samples) / len(self._samples), 1)
+
+
+_HOST_CPU_SAMPLER = _HostCpuSampler()
+
+
+def _host_compute_snapshot() -> Dict[str, Any]:
+    """Return a lightweight host load snapshot for scaler decisions.
+
+    Combines three complementary signals:
+      - load_avg_1m / cpu_count → queue pressure (captures I/O-blocked procs)
+      - cpu_percent             → smoothed CPU busy time
+      - memory_pressure_pct     → true RAM pressure from available headroom
+    """
+    cpu_count = os.cpu_count() or 0
+    snapshot: Dict[str, Any] = {
+        "host_cpu_count": cpu_count or None,
+        "load_avg_1m": None,
+        "load_avg_5m": None,
+        "load_avg_15m": None,
+        "compute_utilization_pct": None,
+        "cpu_percent": None,
+        "memory_pressure_pct": None,
+        "memory_available_pct": None,
+        "memory_percent": None,
+        "memory_available_gb": None,
+        "memory_used_gb": None,
+        "memory_total_gb": None,
+    }
+
+    if cpu_count > 0:
+        try:
+            load_1m, load_5m, load_15m = os.getloadavg()
+            snapshot["load_avg_1m"] = round(load_1m, 2)
+            snapshot["load_avg_5m"] = round(load_5m, 2)
+            snapshot["load_avg_15m"] = round(load_15m, 2)
+            snapshot["compute_utilization_pct"] = round((load_1m / cpu_count) * 100, 1)
+        except (AttributeError, OSError):
+            pass
+
+    if _psutil is not None:
+        try:
+            snapshot["cpu_percent"] = _HOST_CPU_SAMPLER.average()
+        except Exception:
+            pass
+        try:
+            vm = _psutil.virtual_memory()
+            memory_available_pct = round((vm.available / vm.total) * 100, 1)
+            memory_pressure_pct = round(100.0 - memory_available_pct, 1)
+            snapshot["memory_pressure_pct"] = memory_pressure_pct
+            snapshot["memory_available_pct"] = memory_available_pct
+            # Legacy alias retained for existing dashboard consumers.
+            snapshot["memory_percent"] = memory_pressure_pct
+            snapshot["memory_available_gb"] = round(vm.available / (1024 ** 3), 2)
+            snapshot["memory_used_gb"] = round((vm.total - vm.available) / (1024 ** 3), 2)
+            snapshot["memory_total_gb"] = round(vm.total / (1024 ** 3), 2)
+        except Exception:
+            pass
+
+    return snapshot
 
 
 def _append_jsonl(path: Path, payload: dict):
@@ -167,6 +302,236 @@ class WorkerResult:
     leads: List[dict] = field(default_factory=list)  # Dicts for multiprocessing serialization
     error: Optional[str] = None
     captcha_detected: bool = False
+    telemetry: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class _PlaceReservation:
+    place_key: str
+    worker_id: int
+    token: str
+    reserved_at: float
+
+
+class EarlyDedupeCoordinator:
+    """Serialize strong Place-key reservations for all browser workers."""
+
+    def __init__(
+        self,
+        request_queue,
+        response_queues: Dict[int, Any],
+        response_queues_lock: threading.Lock,
+        historical_keys: Set[str],
+        reservation_ttl_seconds: int,
+    ):
+        self.request_queue = request_queue
+        self.response_queues = response_queues
+        self.response_queues_lock = response_queues_lock
+        self.historical_keys = set(historical_keys)
+        self.committed_keys: Set[str] = set()
+        self.reservations: Dict[str, _PlaceReservation] = {}
+        self.tokens: Dict[str, str] = {}
+        self.reservation_ttl_seconds = max(60, int(reservation_ttl_seconds))
+        self._stop_event = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+        self._lock = threading.Lock()
+        self._running = False
+        self._metrics: Dict[str, float] = {
+            "requests": 0,
+            "lookup_duration_ms": 0.0,
+            "max_lookup_duration_ms": 0.0,
+            "reservation_commits": 0,
+            "reservation_releases": 0,
+            "reservation_expirations": 0,
+            "errors": 0,
+        }
+
+    def start(self):
+        if self._thread and self._thread.is_alive():
+            return
+        self._stop_event.clear()
+        self._thread = threading.Thread(
+            target=self._run,
+            name="maps-early-dedupe-coordinator",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def stop(self):
+        self._stop_event.set()
+        with contextlib.suppress(Exception):
+            self.request_queue.put({"type": "stop"})
+        if self._thread:
+            self._thread.join(timeout=5)
+        self._running = False
+
+    def add_known(self, place_key: Optional[str]):
+        if not place_key:
+            return
+        with self._lock:
+            self.committed_keys.add(place_key)
+
+    def snapshot(self) -> Dict[str, Any]:
+        with self._lock:
+            requests = int(self._metrics["requests"])
+            return {
+                "coordinator_running": self._running,
+                "known_place_keys": len(self.historical_keys | self.committed_keys),
+                "active_reservations": len(self.reservations),
+                "coordinator_requests": requests,
+                "coordinator_lookup_duration_ms": round(self._metrics["lookup_duration_ms"], 3),
+                "coordinator_max_lookup_duration_ms": round(self._metrics["max_lookup_duration_ms"], 3),
+                "average_coordinator_latency_ms": (
+                    round(self._metrics["lookup_duration_ms"] / requests, 3)
+                    if requests
+                    else None
+                ),
+                "reservation_commits": int(self._metrics["reservation_commits"]),
+                "reservation_releases": int(self._metrics["reservation_releases"]),
+                "reservation_expirations": int(self._metrics["reservation_expirations"]),
+                "coordinator_errors": int(self._metrics["errors"]),
+            }
+
+    def _expire_reservations(self, now: Optional[float] = None) -> int:
+        now = now if now is not None else time.monotonic()
+        expired = [
+            key
+            for key, reservation in self.reservations.items()
+            if now - reservation.reserved_at >= self.reservation_ttl_seconds
+        ]
+        for key in expired:
+            reservation = self.reservations.pop(key)
+            self.tokens.pop(reservation.token, None)
+        if expired:
+            self._metrics["reservation_expirations"] += len(expired)
+        return len(expired)
+
+    def _reserve_batch(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        started = time.perf_counter()
+        worker_id = int(message.get("worker_id", -1))
+        seen_in_request: Set[str] = set()
+        decisions = []
+        with self._lock:
+            expired = self._expire_reservations()
+            for candidate in message.get("candidates") or []:
+                index = int(candidate.get("candidate_index", -1))
+                place_key = str(candidate.get("place_key") or "").strip()
+                response = {"candidate_index": index, "reservation_token": None}
+                if not place_key:
+                    response["decision"] = "EXTRACT_UNIDENTIFIED"
+                elif place_key in seen_in_request:
+                    response["decision"] = "SKIP_SAME_BATCH"
+                elif place_key in self.historical_keys:
+                    response["decision"] = "SKIP_HISTORICAL"
+                elif place_key in self.committed_keys or place_key in self.reservations:
+                    response["decision"] = "SKIP_IN_FLIGHT"
+                else:
+                    token = uuid.uuid4().hex
+                    reservation = _PlaceReservation(
+                        place_key=place_key,
+                        worker_id=worker_id,
+                        token=token,
+                        reserved_at=time.monotonic(),
+                    )
+                    self.reservations[place_key] = reservation
+                    self.tokens[token] = place_key
+                    response["decision"] = "EXTRACT_NEW"
+                    response["reservation_token"] = token
+                if place_key:
+                    seen_in_request.add(place_key)
+                decisions.append(response)
+
+            elapsed_ms = (time.perf_counter() - started) * 1000
+            self._metrics["requests"] += 1
+            self._metrics["lookup_duration_ms"] += elapsed_ms
+            self._metrics["max_lookup_duration_ms"] = max(
+                self._metrics["max_lookup_duration_ms"],
+                elapsed_ms,
+            )
+        return {
+            "type": "reserve_response",
+            "request_id": message.get("request_id"),
+            "decisions": decisions,
+            "lookup_duration_ms": elapsed_ms,
+            "reservation_expirations": expired,
+        }
+
+    def _finalize(self, message: Dict[str, Any]):
+        token = str(message.get("reservation_token") or "")
+        success = bool(message.get("success"))
+        if not token:
+            return
+        with self._lock:
+            place_key = self.tokens.pop(token, None)
+            if not place_key:
+                return
+            reservation = self.reservations.get(place_key)
+            if not reservation or reservation.token != token:
+                return
+            self.reservations.pop(place_key, None)
+            if success:
+                self.committed_keys.add(place_key)
+                self._metrics["reservation_commits"] += 1
+            else:
+                self._metrics["reservation_releases"] += 1
+
+    def _release_worker(self, worker_id: int):
+        with self._lock:
+            tokens = [
+                reservation.token
+                for reservation in self.reservations.values()
+                if reservation.worker_id == worker_id
+            ]
+            for token in tokens:
+                place_key = self.tokens.pop(token, None)
+                if place_key:
+                    self.reservations.pop(place_key, None)
+                    self._metrics["reservation_releases"] += 1
+
+    def _send_response(self, worker_id: int, response: Dict[str, Any]):
+        with self.response_queues_lock:
+            response_queue = self.response_queues.get(worker_id)
+        if response_queue is not None:
+            response_queue.put(response)
+
+    def _run(self):
+        self._running = True
+        try:
+            while not self._stop_event.is_set():
+                try:
+                    message = self.request_queue.get(timeout=1)
+                except queue.Empty:
+                    with self._lock:
+                        self._expire_reservations()
+                    continue
+                if not isinstance(message, dict):
+                    continue
+                message_type = message.get("type")
+                if message_type == "stop":
+                    break
+                try:
+                    if message_type == "reserve":
+                        response = self._reserve_batch(message)
+                        self._send_response(int(message.get("worker_id", -1)), response)
+                    elif message_type == "finalize":
+                        self._finalize(message)
+                    elif message_type == "release_worker":
+                        self._release_worker(int(message.get("worker_id", -1)))
+                except Exception:
+                    with self._lock:
+                        self._metrics["errors"] += 1
+                    if message_type == "reserve":
+                        self._send_response(
+                            int(message.get("worker_id", -1)),
+                            {
+                                "type": "reserve_response",
+                                "request_id": message.get("request_id"),
+                                "decisions": [],
+                                "error": True,
+                            },
+                        )
+        finally:
+            self._running = False
 
 
 def worker_process(
@@ -177,7 +542,11 @@ def worker_process(
     headless: bool,
     delay_min: int,
     delay_max: int,
-    profile_path: str
+    profile_path: str,
+    dedupe_request_queue=None,
+    dedupe_response_queue=None,
+    early_dedupe_enabled: bool = False,
+    early_dedupe_timeout_ms: int = 1500,
 ):
     """
     Worker process that runs its own browser instance.
@@ -203,6 +572,37 @@ def worker_process(
     scraper.start()
     print(f"   [W{worker_id + 1}] ✅ Browser ready")
 
+    def identity_gate(candidates: List[Dict[str, Any]]) -> Dict[str, Any]:
+        if not early_dedupe_enabled or dedupe_request_queue is None or dedupe_response_queue is None:
+            return {"decisions": []}
+        request_id = f"{worker_id}:{uuid.uuid4().hex}"
+        dedupe_request_queue.put({
+            "type": "reserve",
+            "request_id": request_id,
+            "worker_id": worker_id,
+            "candidates": candidates,
+        })
+        deadline = time.monotonic() + (max(100, early_dedupe_timeout_ms) / 1000.0)
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return {"decisions": [], "timeout": True}
+            try:
+                response = dedupe_response_queue.get(timeout=remaining)
+            except queue.Empty:
+                return {"decisions": [], "timeout": True}
+            if isinstance(response, dict) and response.get("request_id") == request_id:
+                return response
+
+    def reservation_outcome(reservation_token: str, success: bool):
+        if dedupe_request_queue is not None and reservation_token:
+            dedupe_request_queue.put({
+                "type": "finalize",
+                "worker_id": worker_id,
+                "reservation_token": reservation_token,
+                "success": bool(success),
+            })
+
     def cooperative_sleep(delay_seconds: float):
         remaining = max(0.0, delay_seconds)
         step = 0.25
@@ -225,7 +625,13 @@ def worker_process(
                 
                 try:
                     print(f"   [W{worker_id + 1}] Searching '{keyword}' in '{location}'...")
-                    leads = scraper.search(keyword, location)
+                    leads = scraper.search(
+                        keyword,
+                        location,
+                        identity_gate=identity_gate if early_dedupe_enabled else None,
+                        reservation_outcome=reservation_outcome if early_dedupe_enabled else None,
+                    )
+                    result.telemetry = getattr(scraper, "last_telemetry", {}) or {}
                     
                     # Convert Lead objects to dicts for serialization
                     result.leads = [
@@ -260,6 +666,9 @@ def worker_process(
                 continue
                 
     finally:
+        if dedupe_request_queue is not None:
+            with contextlib.suppress(Exception):
+                dedupe_request_queue.put({"type": "release_worker", "worker_id": worker_id})
         print(f"   [W{worker_id + 1}] Stopping browser...")
         scraper.stop()
 
@@ -279,8 +688,14 @@ class ParallelOrchestrator:
         self._run_lock_acquired = False
         
         # Deduplication (main process only)
+        self._seen_places: Set[str] = set()
+        self._strong_seen_places: Set[str] = set()
         self._seen_domains: Set[str] = set()
         self._seen_names: Set[str] = set()
+        self._dedupe_request_queue = None
+        self._dedupe_response_queues: Dict[int, Any] = {}
+        self._dedupe_response_queues_lock = threading.Lock()
+        self._dedupe_coordinator: Optional[EarlyDedupeCoordinator] = None
         
         # Task Tracking
         self._completed_tasks_set: Set[str] = set()
@@ -307,6 +722,15 @@ class ParallelOrchestrator:
         self._current_batch_number = 0
         self._pending_critical_signals: Dict[str, Dict[str, Any]] = {}
         self._last_callout_severity: Optional[str] = None
+        self._telemetry_totals = self._new_telemetry_totals()
+        self._last_worker_ramp_at = 0.0
+        self._last_worker_scale_down_at = 0.0
+        self._pressure_started_at = 0.0
+        self._last_pressure_log_at = 0.0
+        self._pressure_confirmation_count = 0
+        self._retired_worker_count = 0
+        self._resource_pressure_stop_requested = False
+        self._initial_worker_count = num_workers
         self._all_time_stats = self._load_all_time_stats()
         
         # Load existing leads to prevent duplicates across runs
@@ -325,6 +749,182 @@ class ParallelOrchestrator:
             "unique_leads": 0,
         }
 
+    @staticmethod
+    def _new_telemetry_totals() -> Dict[str, float]:
+        return {
+            "searches": 0,
+            "search_duration_ms": 0.0,
+            "cards_seen": 0,
+            "leads_returned": 0,
+            "leads_with_website": 0,
+            "batch_read_complete": 0,
+            "fallback_to_existing_extract_card": 0,
+            "cards_completed_without_sidebar": 0,
+            "sidebar_click_attempts": 0,
+            "sidebar_click_successes": 0,
+            "sidebar_extraction_failures": 0,
+            "card_extract_duration_ms": 0.0,
+            "sidebar_wait_duration_ms": 0.0,
+            "identity_cards_submitted": 0,
+            "cards_with_strong_place_key": 0,
+            "early_dedupe_approved": 0,
+            "early_duplicates_skipped": 0,
+            "historical_duplicates_skipped": 0,
+            "inflight_duplicates_skipped": 0,
+            "same_batch_duplicates_skipped": 0,
+            "unidentified_cards_extracted": 0,
+            "coordinator_requests": 0,
+            "coordinator_lookup_duration_ms": 0.0,
+            "coordinator_max_lookup_duration_ms": 0.0,
+            "coordinator_timeouts": 0,
+            "coordinator_errors": 0,
+            "reservation_commits": 0,
+            "reservation_releases": 0,
+            "reservation_expirations": 0,
+            "sidebar_fallbacks_avoided_estimate": 0,
+        }
+
+    @staticmethod
+    def _safe_rate(part: float, whole: float) -> Optional[float]:
+        return round((float(part) / float(whole)) * 100, 1) if whole else None
+
+    @staticmethod
+    def _safe_avg(total: float, count: float) -> Optional[float]:
+        return round(float(total) / float(count), 1) if count else None
+
+    def _telemetry_summary(self) -> Dict[str, Any]:
+        t = self._telemetry_totals
+        searches = t.get("searches", 0)
+        cards_seen = t.get("cards_seen", 0)
+        leads_returned = t.get("leads_returned", 0)
+        leads_with_website = t.get("leads_with_website", 0)
+        sidebar_clicks = t.get("sidebar_click_attempts", 0)
+        strong_keys = t.get("cards_with_strong_place_key", 0)
+        submitted = t.get("identity_cards_submitted", 0)
+        early_skips = t.get("early_duplicates_skipped", 0)
+        coordinator_requests = t.get("coordinator_requests", 0)
+        coordinator_failures = t.get("coordinator_timeouts", 0) + t.get("coordinator_errors", 0)
+        return {
+            "searches": int(searches),
+            "avg_search_duration_ms": self._safe_avg(t.get("search_duration_ms", 0.0), searches),
+            "cards_seen": int(cards_seen),
+            "leads_returned": int(leads_returned),
+            "leads_with_website": int(leads_with_website),
+            "website_found_rate": self._safe_rate(leads_with_website, leads_returned),
+            "avg_time_per_lead_ms": self._safe_avg(t.get("search_duration_ms", 0.0), leads_returned),
+            "avg_time_per_website_found_lead_ms": self._safe_avg(t.get("search_duration_ms", 0.0), leads_with_website),
+            "avg_card_extract_duration_ms": self._safe_avg(t.get("card_extract_duration_ms", 0.0), cards_seen),
+            "avg_sidebar_wait_duration_ms": self._safe_avg(t.get("sidebar_wait_duration_ms", 0.0), sidebar_clicks),
+            "batch_read_complete": int(t.get("batch_read_complete", 0)),
+            "fallback_to_existing_extract_card": int(t.get("fallback_to_existing_extract_card", 0)),
+            "cards_completed_without_sidebar": int(t.get("cards_completed_without_sidebar", 0)),
+            "sidebar_click_attempts": int(sidebar_clicks),
+            "sidebar_click_successes": int(t.get("sidebar_click_successes", 0)),
+            "sidebar_extraction_failures": int(t.get("sidebar_extraction_failures", 0)),
+            "batch_read_complete_rate": self._safe_rate(t.get("batch_read_complete", 0), cards_seen),
+            "fallback_rate": self._safe_rate(t.get("fallback_to_existing_extract_card", 0), cards_seen),
+            "sidebar_click_rate": self._safe_rate(sidebar_clicks, cards_seen),
+            "sidebar_success_rate": self._safe_rate(t.get("sidebar_click_successes", 0), sidebar_clicks),
+            "sidebar_failure_rate": self._safe_rate(t.get("sidebar_extraction_failures", 0), sidebar_clicks),
+            "no_sidebar_completion_rate": self._safe_rate(t.get("cards_completed_without_sidebar", 0), cards_seen),
+            "identity_cards_submitted": int(submitted),
+            "cards_with_strong_place_key": int(strong_keys),
+            "early_dedupe_approved": int(t.get("early_dedupe_approved", 0)),
+            "early_duplicates_skipped": int(early_skips),
+            "historical_duplicates_skipped": int(t.get("historical_duplicates_skipped", 0)),
+            "inflight_duplicates_skipped": int(t.get("inflight_duplicates_skipped", 0)),
+            "same_batch_duplicates_skipped": int(t.get("same_batch_duplicates_skipped", 0)),
+            "unidentified_cards_extracted": int(t.get("unidentified_cards_extracted", 0)),
+            "coordinator_requests": int(coordinator_requests),
+            "coordinator_lookup_duration_ms": round(t.get("coordinator_lookup_duration_ms", 0.0), 3),
+            "coordinator_max_lookup_duration_ms": round(t.get("coordinator_max_lookup_duration_ms", 0.0), 3),
+            "coordinator_timeouts": int(t.get("coordinator_timeouts", 0)),
+            "coordinator_errors": int(t.get("coordinator_errors", 0)),
+            "reservation_commits": int(t.get("reservation_commits", 0)),
+            "reservation_releases": int(t.get("reservation_releases", 0)),
+            "reservation_expirations": int(t.get("reservation_expirations", 0)),
+            "sidebar_fallbacks_avoided_estimate": int(t.get("sidebar_fallbacks_avoided_estimate", 0)),
+            "strong_place_key_coverage": self._safe_rate(strong_keys, submitted),
+            "early_duplicate_rate": self._safe_rate(early_skips, strong_keys),
+            "historical_duplicate_rate": self._safe_rate(t.get("historical_duplicates_skipped", 0), strong_keys),
+            "inflight_duplicate_rate": self._safe_rate(t.get("inflight_duplicates_skipped", 0), strong_keys),
+            "extraction_avoidance_rate": self._safe_rate(early_skips, submitted),
+            "average_coordinator_latency_ms": self._safe_avg(
+                t.get("coordinator_lookup_duration_ms", 0.0),
+                coordinator_requests,
+            ),
+            "coordinator_fail_open_rate": self._safe_rate(coordinator_failures, coordinator_requests),
+        }
+
+    def _record_search_telemetry(self, telemetry: Dict[str, Any]):
+        if not isinstance(telemetry, dict) or not telemetry:
+            return
+        self._telemetry_totals["searches"] += 1
+        numeric_keys = [
+            "search_duration_ms",
+            "cards_seen",
+            "leads_returned",
+            "leads_with_website",
+            "batch_read_complete",
+            "fallback_to_existing_extract_card",
+            "cards_completed_without_sidebar",
+            "sidebar_click_attempts",
+            "sidebar_click_successes",
+            "sidebar_extraction_failures",
+            "card_extract_duration_ms",
+            "sidebar_wait_duration_ms",
+            "identity_cards_submitted",
+            "cards_with_strong_place_key",
+            "early_dedupe_approved",
+            "early_duplicates_skipped",
+            "historical_duplicates_skipped",
+            "inflight_duplicates_skipped",
+            "same_batch_duplicates_skipped",
+            "unidentified_cards_extracted",
+            "coordinator_requests",
+            "coordinator_lookup_duration_ms",
+            "coordinator_timeouts",
+            "coordinator_errors",
+            "reservation_commits",
+            "reservation_releases",
+            "reservation_expirations",
+            "sidebar_fallbacks_avoided_estimate",
+        ]
+        for key in numeric_keys:
+            try:
+                self._telemetry_totals[key] += float(telemetry.get(key) or 0)
+            except (TypeError, ValueError):
+                continue
+        try:
+            self._telemetry_totals["coordinator_max_lookup_duration_ms"] = max(
+                self._telemetry_totals["coordinator_max_lookup_duration_ms"],
+                float(telemetry.get("coordinator_max_lookup_duration_ms") or 0),
+            )
+        except (TypeError, ValueError):
+            pass
+        self._increment_all_time_stat(
+            "total_early_duplicates_skipped",
+            int(telemetry.get("early_duplicates_skipped") or 0),
+        )
+        self._increment_all_time_stat(
+            "total_historical_duplicates_skipped",
+            int(telemetry.get("historical_duplicates_skipped") or 0),
+        )
+        self._increment_all_time_stat(
+            "total_live_duplicates_skipped",
+            int(telemetry.get("inflight_duplicates_skipped") or 0)
+            + int(telemetry.get("same_batch_duplicates_skipped") or 0),
+        )
+        self._increment_all_time_stat(
+            "total_coordinator_failures",
+            int(telemetry.get("coordinator_timeouts") or 0)
+            + int(telemetry.get("coordinator_errors") or 0),
+        )
+        self._increment_all_time_stat(
+            "total_sidebar_fallbacks_avoided_estimate",
+            int(telemetry.get("sidebar_fallbacks_avoided_estimate") or 0),
+        )
+
     def _default_all_time_stats(self) -> Dict[str, Optional[int]]:
         return {
             "total_searches": None,
@@ -334,6 +934,11 @@ class ParallelOrchestrator:
             "total_website_total": None,
             "total_captchas": None,
             "total_errors": None,
+            "total_early_duplicates_skipped": 0,
+            "total_historical_duplicates_skipped": 0,
+            "total_live_duplicates_skipped": 0,
+            "total_coordinator_failures": 0,
+            "total_sidebar_fallbacks_avoided_estimate": 0,
         }
 
     def _derive_existing_all_time_stats(self) -> Dict[str, Optional[int]]:
@@ -457,6 +1062,16 @@ class ParallelOrchestrator:
         self._mark_activity()
 
     def _write_health(self):
+        compute_snapshot = _host_compute_snapshot()
+        coordinator_snapshot = (
+            self._dedupe_coordinator.snapshot()
+            if self._dedupe_coordinator
+            else {
+                "coordinator_running": False,
+                "known_place_keys": len(self._strong_seen_places),
+                "active_reservations": 0,
+            }
+        )
         payload = {
             "pid": os.getpid(),
             "started_at": self._health_started_at,
@@ -471,6 +1086,19 @@ class ParallelOrchestrator:
             "run_website_found": self._run_website_found,
             "run_website_total": self._run_website_total,
             "current_batch_number": self._current_batch_number,
+            "run_worker_count": self.num_workers,
+            "configured_worker_count": self._initial_worker_count,
+            "adaptive_worker_scaling_enabled": MAPS_ADAPTIVE_WORKER_SCALING_ENABLED,
+            "maps_max_workers": MAPS_MAX_WORKERS,
+            "maps_min_workers": MAPS_MIN_WORKERS,
+            "maps_worker_scale_down_check_interval_seconds": MAPS_WORKER_SCALE_DOWN_CHECK_INTERVAL_SECONDS,
+            "retired_worker_count": self._retired_worker_count,
+            "resource_pressure_stop_requested": self._resource_pressure_stop_requested,
+            "early_dedupe_enabled": MAPS_EARLY_DEDUPE_ENABLED,
+            **coordinator_snapshot,
+            "telemetry": self._telemetry_summary(),
+            "run_website_status_workers": WEBSITE_STATUS_WORKERS,
+            **compute_snapshot,
         }
         try:
             _atomic_write_json(self.health_path, payload)
@@ -498,6 +1126,13 @@ class ParallelOrchestrator:
         self._current_batch_number = self.batch_number
         self._pending_critical_signals = {}
         self._last_callout_severity = None
+        self._last_worker_ramp_at = 0.0
+        self._last_worker_scale_down_at = 0.0
+        self._pressure_started_at = 0.0
+        self._last_pressure_log_at = 0.0
+        self._pressure_confirmation_count = 0
+        self._retired_worker_count = 0
+        self._resource_pressure_stop_requested = False
         self._write_health()
         self._write_all_time_stats()
 
@@ -586,6 +1221,12 @@ class ParallelOrchestrator:
 
     def _register_buffered_lead(self, lead_dict: dict):
         """Ensure dedupe state includes a lead already buffered in memory/on disk."""
+        place_key = extract_place_key(lead_dict.get('place_url'))
+        if place_key:
+            self._seen_places.add(place_key)
+        strong_place_key = extract_strong_place_key(lead_dict.get('place_url'))
+        if strong_place_key:
+            self._strong_seen_places.add(strong_place_key)
         website = lead_dict.get('website')
         if website:
             domain = normalize_domain(website)
@@ -611,6 +1252,13 @@ class ParallelOrchestrator:
             with open(master_path, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
+                    place_key = extract_place_key(row.get('place_url', ''))
+                    if place_key:
+                        self._seen_places.add(place_key)
+                    strong_place_key = extract_strong_place_key(row.get('place_url', ''))
+                    if strong_place_key:
+                        self._strong_seen_places.add(strong_place_key)
+
                     # Add domain to seen set
                     website = row.get('website', '')
                     if website:
@@ -624,7 +1272,11 @@ class ParallelOrchestrator:
                         name_key = self._build_name_key(name, row.get('location', ''))
                         self._seen_names.add(name_key)
             
-            print(f"📋 Loaded {len(self._seen_domains)} existing domains and {len(self._seen_names)} names for deduplication.")
+            print(
+                f"📋 Loaded {len(self._seen_places)} existing places, "
+                f"{len(self._seen_domains)} existing domains and "
+                f"{len(self._seen_names)} names for deduplication."
+            )
         except Exception as e:
             print(f"⚠️ Could not load existing leads: {e}")
 
@@ -688,6 +1340,16 @@ class ParallelOrchestrator:
         self.task_queue = mp.Queue()
         self.result_queue = mp.Queue()
         self.stop_event = mp.Event()
+        if MAPS_EARLY_DEDUPE_ENABLED:
+            self._dedupe_request_queue = mp.Queue()
+            self._dedupe_coordinator = EarlyDedupeCoordinator(
+                self._dedupe_request_queue,
+                self._dedupe_response_queues,
+                self._dedupe_response_queues_lock,
+                self._strong_seen_places,
+                MAPS_EARLY_DEDUPE_RESERVATION_TTL_SECONDS,
+            )
+            self._dedupe_coordinator.start()
         
         for i in range(self.num_workers):
             if i > 0:
@@ -695,21 +1357,167 @@ class ParallelOrchestrator:
                 stagger = random.uniform(WORKER_STAGGER_DELAY_MIN, WORKER_STAGGER_DELAY_MAX)
                 print(f"   ⏳ Waiting {stagger:.1f}s before starting worker {i + 1}...")
                 time.sleep(stagger)
-            
-            # Each worker gets its own profile directory to avoid race conditions
-            worker_profile = str(PLAYWRIGHT_USER_DATA.parent / f".playwright-profile-worker-{i + 1}")
-            
-            p = Process(
-                target=worker_process,
-                args=(i, self.task_queue, self.result_queue, self.stop_event, self.headless, 
-                      INTER_REQUEST_DELAY_MIN, INTER_REQUEST_DELAY_MAX, worker_profile)
-            )
-            p.start()
-            self.workers.append(p)
+            self._start_worker_process(i)
         
         # Wait a bit for workers to initialize
         time.sleep(3)
         print(f"\n✅ All {self.num_workers} workers started.\n")
+
+    def _start_worker_process(self, worker_id: int):
+        """Start one worker with its own persistent profile directory."""
+        worker_profile = str(PLAYWRIGHT_USER_DATA.parent / f".playwright-profile-worker-{worker_id + 1}")
+        dedupe_response_queue = None
+        if MAPS_EARLY_DEDUPE_ENABLED and self._dedupe_request_queue is not None:
+            dedupe_response_queue = mp.Queue()
+            with self._dedupe_response_queues_lock:
+                self._dedupe_response_queues[worker_id] = dedupe_response_queue
+        p = Process(
+            target=worker_process,
+            args=(worker_id, self.task_queue, self.result_queue, self.stop_event, self.headless,
+                  INTER_REQUEST_DELAY_MIN, INTER_REQUEST_DELAY_MAX, worker_profile,
+                  self._dedupe_request_queue, dedupe_response_queue,
+                  MAPS_EARLY_DEDUPE_ENABLED, MAPS_EARLY_DEDUPE_REQUEST_TIMEOUT_MS)
+        )
+        p.start()
+        self.workers.append(p)
+
+    def _compute_pressure_reason(self, compute: Dict[str, Any]) -> Optional[str]:
+        cpu = compute.get("cpu_percent")
+        memory_pressure = compute.get("memory_pressure_pct")
+        reasons: List[str] = []
+        if cpu is not None and float(cpu) > MAPS_WORKER_CPU_CEILING_PERCENT:
+            reasons.append(f"CPU {float(cpu):.1f}% > {MAPS_WORKER_CPU_CEILING_PERCENT:.1f}%")
+        if memory_pressure is not None and float(memory_pressure) > MAPS_WORKER_MEMORY_PRESSURE_CEILING_PERCENT:
+            reasons.append(
+                f"RAM pressure {float(memory_pressure):.1f}% > "
+                f"{MAPS_WORKER_MEMORY_PRESSURE_CEILING_PERCENT:.1f}%"
+            )
+        return "; ".join(reasons) if reasons else None
+
+    def _retire_worker_after_current_task(self, reason: str) -> bool:
+        if not self.task_queue or self.num_workers <= 0:
+            return False
+        self.num_workers -= 1
+        self._retired_worker_count += 1
+        self.task_queue.put(None)
+        print(
+            f"   📉 Adaptive scaling: retiring one worker after its current task "
+            f"({self.num_workers} desired active). Reason: {reason}"
+        )
+        self._mark_activity()
+        return True
+
+    def _maybe_adjust_workers(self, tasks_sent: int, total_tasks: int) -> str:
+        if not MAPS_ADAPTIVE_WORKER_SCALING_ENABLED:
+            return "none"
+        pressure_action = self._maybe_scale_down_workers()
+        if pressure_action != "none":
+            return pressure_action
+        if self._maybe_ramp_workers(tasks_sent, total_tasks):
+            return "up"
+        return "none"
+
+    def _maybe_scale_down_workers(self) -> str:
+        if not self.task_queue:
+            return "none"
+
+        compute = _host_compute_snapshot()
+        pressure_reason = self._compute_pressure_reason(compute)
+        if not pressure_reason:
+            self._pressure_confirmation_count = 0
+            self._pressure_started_at = 0.0
+            self._last_pressure_log_at = 0.0
+            return "none"
+
+        now = time.monotonic()
+        if not self._pressure_started_at:
+            self._pressure_started_at = now
+        self._pressure_confirmation_count += 1
+        needed = MAPS_WORKER_PRESSURE_CONFIRMATION_CHECKS
+        if self._pressure_confirmation_count < needed:
+            print(
+                f"   ⚠️ Resource pressure observed ({self._pressure_confirmation_count}/{needed}): "
+                f"{pressure_reason}"
+            )
+            return "none"
+
+        pressure_duration = now - self._pressure_started_at
+        if pressure_duration < MAPS_WORKER_SCALE_DOWN_CHECK_INTERVAL_SECONDS:
+            if (
+                not self._last_pressure_log_at
+                or now - self._last_pressure_log_at >= min(30, MAPS_WORKER_SCALE_DOWN_CHECK_INTERVAL_SECONDS)
+            ):
+                remaining = max(0, MAPS_WORKER_SCALE_DOWN_CHECK_INTERVAL_SECONDS - pressure_duration)
+                print(
+                    f"   ⚠️ Sustained pressure timer: {pressure_duration:.0f}s/"
+                    f"{MAPS_WORKER_SCALE_DOWN_CHECK_INTERVAL_SECONDS}s; "
+                    f"retire check in ~{remaining:.0f}s. Reason: {pressure_reason}"
+                )
+                self._last_pressure_log_at = now
+            return "none"
+
+        if self._last_worker_scale_down_at and (
+            now - self._last_worker_scale_down_at
+        ) < MAPS_WORKER_SCALE_DOWN_CHECK_INTERVAL_SECONDS:
+            return "none"
+
+        min_workers = max(1, MAPS_MIN_WORKERS)
+        if self.num_workers > min_workers:
+            self._last_worker_scale_down_at = now
+            self._pressure_started_at = now
+            self._last_pressure_log_at = now
+            self._pressure_confirmation_count = 0
+            return "down" if self._retire_worker_after_current_task(pressure_reason) else "none"
+
+        self._resource_pressure_stop_requested = True
+        self._mark_activity()
+        print(
+            f"🛑 Resource pressure remains high at the minimum worker count "
+            f"({min_workers}). Gracefully stopping this run. Reason: {pressure_reason}"
+        )
+        return "stop"
+
+    def _maybe_ramp_workers(self, tasks_sent: int, total_tasks: int) -> bool:
+        if not MAPS_ADAPTIVE_WORKER_SCALING_ENABLED:
+            return False
+        if not self.task_queue or not self.result_queue or not self.stop_event:
+            return False
+        if tasks_sent >= total_tasks:
+            return False
+        if self.num_workers >= MAPS_MAX_WORKERS:
+            return False
+        now = time.monotonic()
+        if self._last_worker_ramp_at and (now - self._last_worker_ramp_at) < MAPS_WORKER_RAMP_CHECK_INTERVAL_SECONDS:
+            return False
+
+        summary = self._telemetry_summary()
+        searches = int(summary.get("searches") or 0)
+        if searches < max(10, self.num_workers * 2):
+            return False
+        if self._captcha_count > 0:
+            return False
+
+        error_rate = (self._error_count / searches * 100.0) if searches else 0.0
+        if error_rate > MAPS_MAX_ERROR_RATE_FOR_RAMP:
+            return False
+
+        compute = _host_compute_snapshot()
+        if self._compute_pressure_reason(compute):
+            return False
+
+        added = 0
+        while added < MAPS_WORKER_RAMP_STEP and self.num_workers < MAPS_MAX_WORKERS:
+            worker_id = len(self.workers)
+            print(f"   📈 Adaptive scaling: adding worker {worker_id + 1}/{MAPS_MAX_WORKERS}")
+            self._start_worker_process(worker_id)
+            self.num_workers += 1
+            added += 1
+
+        if added:
+            self._last_worker_ramp_at = now
+            self._mark_activity()
+            return True
+        return False
     
     def stop_workers(self):
         """Send poison pills and wait for workers to stop."""
@@ -743,6 +1551,23 @@ class ParallelOrchestrator:
                     print(f"   ✅ Worker {i + 1} terminated")
             else:
                 print(f"   ✅ Worker {i + 1} stopped")
+
+        request_queue = self._dedupe_request_queue
+        with self._dedupe_response_queues_lock:
+            response_queues = list(self._dedupe_response_queues.values())
+        if self._dedupe_coordinator:
+            self._dedupe_coordinator.stop()
+        self._dedupe_coordinator = None
+        self._dedupe_request_queue = None
+        with self._dedupe_response_queues_lock:
+            self._dedupe_response_queues.clear()
+        for dedupe_queue in [*response_queues, request_queue]:
+            if dedupe_queue is None:
+                continue
+            with contextlib.suppress(Exception):
+                dedupe_queue.close()
+            with contextlib.suppress(Exception):
+                dedupe_queue.join_thread()
         
         self.workers.clear()
 
@@ -774,12 +1599,15 @@ class ParallelOrchestrator:
             tasks_completed += 1
             if result.captcha_detected:
                 self._record_result_observation(batch_obs, captcha=True)
+                self._record_search_telemetry(result.telemetry)
                 continue
             if result.error and not result.captcha_detected:
                 self._record_result_observation(batch_obs, errored=True)
+                self._record_search_telemetry(result.telemetry)
                 continue
 
             self._record_result_observation(batch_obs)
+            self._record_search_telemetry(result.telemetry)
             unique_leads = []
             for lead_dict in result.leads:
                 if self._dedupe_lead(lead_dict):
@@ -797,6 +1625,17 @@ class ParallelOrchestrator:
     
     def _dedupe_lead(self, lead_dict: dict) -> bool:
         """Check if lead is unique. Returns True if unique, False if duplicate."""
+        place_key = extract_place_key(lead_dict.get('place_url'))
+        if place_key:
+            if place_key in self._seen_places:
+                return False
+            self._seen_places.add(place_key)
+            strong_place_key = extract_strong_place_key(lead_dict.get('place_url'))
+            if strong_place_key:
+                self._strong_seen_places.add(strong_place_key)
+                if self._dedupe_coordinator:
+                    self._dedupe_coordinator.add_known(strong_place_key)
+
         # Check domain using the same robust normalization as single-threaded mode
         website = lead_dict.get('website')
         if website:
@@ -837,8 +1676,6 @@ class ParallelOrchestrator:
 
     def _save_completed_task(self, keyword: str, location: str):
         """Save a task as completed."""
-        from datetime import datetime
-        
         TASKS_PROGRESS_FILE.parent.mkdir(parents=True, exist_ok=True)
         key = f"{keyword}|{location}"
         self._completed_tasks_set.add(key)
@@ -846,7 +1683,7 @@ class ParallelOrchestrator:
         data = {
             "keyword": keyword,
             "location": location,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
         try:
@@ -907,10 +1744,19 @@ class ParallelOrchestrator:
                 signals["website_rate"] = {"severity": CALLOUT_SIGNAL_WARNING, "details": {"website_found": website_found, "website_total": website_total, "website_rate": round(website_rate, 1)}}
 
         if yield_rate is not None:
-            if yield_rate < BATCH_WARNING_YIELD:
-                signals["yield"] = {"severity": CALLOUT_SIGNAL_CRITICAL, "details": {"leads": leads, "searches": searches, "yield_per_100": round(yield_rate, 1)}}
-            elif yield_rate <= BATCH_NORMAL_YIELD:
-                signals["yield"] = {"severity": CALLOUT_SIGNAL_WARNING, "details": {"leads": leads, "searches": searches, "yield_per_100": round(yield_rate, 1)}}
+            # Yield remains worth surfacing for throughput visibility, but in
+            # our current market profile it is not a reliable danger signal on
+            # its own. Keep it as warning-only so Robot does not escalate low
+            # yield into red confirming / auto-pause states by itself.
+            if yield_rate <= BATCH_NORMAL_YIELD:
+                signals["yield"] = {
+                    "severity": CALLOUT_SIGNAL_WARNING,
+                    "details": {
+                        "leads": leads,
+                        "searches": searches,
+                        "yield_per_100": round(yield_rate, 1),
+                    },
+                }
 
         return signals
 
@@ -1179,14 +2025,17 @@ class ParallelOrchestrator:
     def run(self):
         """Main execution loop with parallel task distribution."""
         self._acquire_run_lock()
-        if not self.workers:
-            self.start_workers()
+        current_batch: List[dict] = self._load_pending_batch()
+        self._register_pending_batch(current_batch)
         tasks = self._generate_tasks()
         total_tasks = len(tasks)
         
         if total_tasks == 0:
             print("No tasks to execute. Check active locations and keywords in config.")
+            self._release_run_lock()
             return
+        if not self.workers:
+            self.start_workers()
 
         self._start_health_tracking()
         
@@ -1196,14 +2045,15 @@ class ParallelOrchestrator:
         # DO NOT DELETE master file - it's needed for persistent deduplication
         
         target_batch_size = BATCH_SIZE
-        current_batch: List[dict] = self._load_pending_batch()
-        self._register_pending_batch(current_batch)
         tasks_sent = 0
         tasks_completed = 0
         stop_requested = False
         workers_paused = False
         batch_obs = self._new_batch_observation()
+        last_result_at = time.monotonic()
         
+        outcome = RUN_OUTCOME_COMPLETED
+
         try:
             while len(current_batch) >= target_batch_size:
                 batch_to_process = current_batch[:target_batch_size]
@@ -1219,9 +2069,11 @@ class ParallelOrchestrator:
                     self._save_pending_batch(current_batch)
                     if force_stop:
                         print("🛑 Delivery sheet cap reached. Stopping cleanly until a new sheet is configured.")
+                        outcome = RUN_OUTCOME_SHEET_BLOCKED
                     else:
                         print("❌ Could not deliver restored pending batch. Stopping to avoid data loss.")
-                    return
+                        outcome = RUN_OUTCOME_DELIVERY_FAILED
+                    return outcome
                 if stop_requested:
                     break
 
@@ -1247,8 +2099,10 @@ class ParallelOrchestrator:
                         self._save_pending_batch(current_batch)
                         if force_stop:
                             print("🛑 Delivery sheet cap reached. Pausing the scraper until a new delivery sheet is configured.")
+                            outcome = RUN_OUTCOME_SHEET_BLOCKED
                         else:
                             print("❌ Delivery failed. Stopping to preserve buffered leads.")
+                            outcome = RUN_OUTCOME_DELIVERY_FAILED
                         stop_requested = True
                         break
 
@@ -1287,19 +2141,23 @@ class ParallelOrchestrator:
                     workers_paused = False
 
                 try:
-                    result = self.result_queue.get(timeout=180)  # 3 min timeout for slow networks
+                    result = self.result_queue.get(timeout=RESULT_POLL_TIMEOUT_S)
+                    last_result_at = time.monotonic()
                     tasks_completed += 1
                     
                     if result.captcha_detected:
                         self._record_result_observation(batch_obs, captcha=True)
+                        self._record_search_telemetry(result.telemetry)
                         print(f"   [W{result.worker_id + 1}] CAPTCHA detected; recording for batch evaluation.")
                         continue
                     
                     if result.error and not result.captcha_detected:
                         self._record_result_observation(batch_obs, errored=True)
+                        self._record_search_telemetry(result.telemetry)
                         print(f"   [W{result.worker_id + 1}] Skipping due to error")
                     else:
                         self._record_result_observation(batch_obs)
+                        self._record_search_telemetry(result.telemetry)
                         # Process leads with deduplication
                         unique_leads = []
                         for lead_dict in result.leads:
@@ -1316,10 +2174,31 @@ class ParallelOrchestrator:
                         self._mark_activity()
 
                     # Send next task if available and we still have room in the active batch.
+                    scale_action = self._maybe_adjust_workers(tasks_sent, total_tasks)
+                    if scale_action == "up":
+                        print(f"   📈 Adaptive scaling now running {self.num_workers} workers.")
+                    elif scale_action == "down":
+                        print(f"   📉 Adaptive scaling target now {self.num_workers} workers.")
+                    elif scale_action == "stop":
+                        outcome = RUN_OUTCOME_RESOURCE_PRESSURE
+                        stop_requested = True
+                        break
                     if tasks_sent < total_tasks and len(current_batch) < target_batch_size:
                         tasks_sent = self._seed_tasks(tasks, tasks_sent, tasks_completed)
                         
                 except queue.Empty:
+                    scale_action = self._maybe_adjust_workers(tasks_sent, total_tasks)
+                    if scale_action == "up":
+                        print(f"   📈 Adaptive scaling now running {self.num_workers} workers.")
+                    elif scale_action == "down":
+                        print(f"   📉 Adaptive scaling target now {self.num_workers} workers.")
+                    elif scale_action == "stop":
+                        outcome = RUN_OUTCOME_RESOURCE_PRESSURE
+                        stop_requested = True
+                        break
+                    if time.monotonic() - last_result_at < RESULT_STALL_TIMEOUT_S:
+                        continue
+                    last_result_at = time.monotonic()
                     self._error_count += 1
                     self._increment_all_time_stat("total_errors", 1)
                     batch_obs["errors"] += 1
@@ -1342,8 +2221,10 @@ class ParallelOrchestrator:
                     self._save_pending_batch(current_batch)
                     if force_stop:
                         print("🛑 Delivery sheet cap reached during final flush. Buffered leads were preserved for retry after sheet rotation.")
+                        outcome = RUN_OUTCOME_SHEET_BLOCKED
                     else:
                         print("❌ Final batch delivery failed. Buffered leads were preserved for retry.")
+                        outcome = RUN_OUTCOME_DELIVERY_FAILED
             else:
                 self._save_pending_batch(current_batch)
                 
@@ -1351,6 +2232,7 @@ class ParallelOrchestrator:
             self.stop_workers()
             self._finish_health_tracking()
             self._release_run_lock()
+        return outcome
 
 
 def run_parallel(headless: bool = False, next_category: bool = False, continuous: bool = False):
@@ -1385,21 +2267,27 @@ def run_parallel(headless: bool = False, next_category: bool = False, continuous
     orchestrator = ParallelOrchestrator(headless=headless, continuous=continuous)
     
     try:
-        orchestrator.run()
+        outcome = orchestrator.run()
     except KeyboardInterrupt:
         print("\n\n⚠️ Interrupted by user. Cleaning up...")
         orchestrator.stop_workers()
         orchestrator._release_run_lock()
+        return 130
     except Exception:
         orchestrator.stop_workers()
         orchestrator._release_run_lock()
         raise
     
     print("\n✅ Parallel scraping session complete.")
+    if outcome == RUN_OUTCOME_DELIVERY_FAILED:
+        return DELIVERY_FAILED_EXIT_CODE
+    if outcome == RUN_OUTCOME_RESOURCE_PRESSURE:
+        return RESOURCE_PRESSURE_EXIT_CODE
+    return 0
 
 
 if __name__ == "__main__":
     headless_arg = "--headless" in sys.argv
     next_category_arg = "--next-category" in sys.argv
     continuous_arg = "--continuous" in sys.argv
-    run_parallel(headless=headless_arg, next_category=next_category_arg, continuous=continuous_arg)
+    sys.exit(run_parallel(headless=headless_arg, next_category=next_category_arg, continuous=continuous_arg))

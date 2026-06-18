@@ -7,6 +7,12 @@
 <!-- Activity waveform -->
 <div class="waveform-strip">
     <canvas id="waveform-scraper"></canvas>
+    <div id="scraper-pressure" class="hero-pressure hero-pressure-strip" aria-label="Host pressure readout">
+        <span class="pressure-cell"><span class="pressure-label">Load</span><span id="scraper-pressure-load" class="pressure-value">--</span></span>
+        <span class="pressure-cell"><span class="pressure-label">CPU</span><span id="scraper-pressure-cpu" class="pressure-value">--</span></span>
+        <span class="pressure-cell"><span class="pressure-label">RAM</span><span id="scraper-pressure-mem" class="pressure-value">--</span></span>
+        <span id="scraper-pressure-binding" class="pressure-binding pressure-binding-idle">idle</span>
+    </div>
 </div>
 
 <main class="main-grid">
@@ -64,11 +70,11 @@
         <div class="cycle-config">
             <div class="input-group">
                 <label>Run (min)</label>
-                <input type="number" id="run-minutes" value="4" min="1" max="1440">
+                <input type="number" id="run-minutes" value="240" min="1" max="1440">
             </div>
             <div class="input-group">
                 <label>Rest (min)</label>
-                <input type="number" id="rest-minutes" value="3" min="1" max="1440">
+                <input type="number" id="rest-minutes" value="120" min="1" max="1440">
             </div>
             <button id="btn-save-config" class="btn btn-secondary">
                 <i data-lucide="save"></i>
@@ -221,6 +227,55 @@
         <div id="scraper-health-note" class="scraper-summary-note">Health checks will appear here as the scraper runs.</div>
     </section>
 
+    <section class="panel scraper-efficiency-panel scraper-dedupe-panel">
+        <div class="panel-header-inline">
+            <h2>Early Dedupe Coordinator</h2>
+            <span id="scraper-dedupe-status" class="pipeline-attention attn-info">Waiting</span>
+        </div>
+        <div class="scraper-metric-grid">
+            <div class="metric-card">
+                <span class="metric-label">Strong-Key Coverage</span>
+                <span id="scraper-dedupe-key-coverage" class="metric-value">--</span>
+                <span id="scraper-dedupe-registry" class="metric-sub">registry unavailable</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Approved Extractions</span>
+                <span id="scraper-dedupe-approved" class="metric-value">--</span>
+                <span id="scraper-dedupe-unidentified" class="metric-sub">unidentified extracted safely</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Historical Skips</span>
+                <span id="scraper-dedupe-historical" class="metric-value">--</span>
+                <span class="metric-sub">already saved or buffered</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Live Skips</span>
+                <span id="scraper-dedupe-live" class="metric-value">--</span>
+                <span id="scraper-dedupe-live-sub" class="metric-sub">in-flight and same-batch</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Coordinator Latency</span>
+                <span id="scraper-dedupe-latency" class="metric-value">--</span>
+                <span id="scraper-dedupe-latency-sub" class="metric-sub">average and maximum</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Reservation Outcomes</span>
+                <span id="scraper-dedupe-outcomes" class="metric-value">--</span>
+                <span id="scraper-dedupe-outcomes-sub" class="metric-sub">commits, releases, expirations</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Fail-Open Events</span>
+                <span id="scraper-dedupe-fail-open" class="metric-value">--</span>
+                <span class="metric-sub">timeouts and coordinator errors</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Sidebar Work Avoided</span>
+                <span id="scraper-dedupe-sidebar-avoided" class="metric-value">--</span>
+                <span class="metric-sub">estimated fallback clicks</span>
+            </div>
+        </div>
+    </section>
+
     <div class="scraper-side-stack">
         <section class="panel scraper-aggression-panel">
             <div class="panel-header-inline">
@@ -251,6 +306,35 @@
             </div>
             <div id="scraper-aggression-note" class="scraper-summary-note">Recommendation detail will appear here.</div>
             <div id="scraper-autoscale-note" class="scraper-summary-note" style="display:none;margin-top:6px;font-style:italic;opacity:0.8;"></div>
+        </section>
+
+        <section class="panel scraper-efficiency-panel">
+            <div class="panel-header-inline">
+                <h2>Efficiency</h2>
+                <span class="pipeline-attention attn-info">Quality-adjusted</span>
+            </div>
+            <div class="scraper-metric-grid">
+                <div class="metric-card">
+                    <span class="metric-label">Website Lead Time</span>
+                    <span id="scraper-eff-website-time" class="metric-value">--</span>
+                    <span class="metric-sub">average time per website-found lead</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Fallback Rate</span>
+                    <span id="scraper-eff-fallback-rate" class="metric-value">--</span>
+                    <span id="scraper-eff-fallback-sub" class="metric-sub">batch-read fallback usage</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Sidebar Rate</span>
+                    <span id="scraper-eff-sidebar-rate" class="metric-value">--</span>
+                    <span id="scraper-eff-sidebar-sub" class="metric-sub">click success/failure</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Search Time</span>
+                    <span id="scraper-eff-search-time" class="metric-value">--</span>
+                    <span id="scraper-eff-search-sub" class="metric-sub">average search duration</span>
+                </div>
+            </div>
         </section>
 
         <section class="panel scraper-sheet-panel">
@@ -318,12 +402,45 @@
     if (!canvas) return;
     const wf = new Waveform(canvas);
 
+    const els = {
+        load: document.getElementById('scraper-pressure-load'),
+        cpu: document.getElementById('scraper-pressure-cpu'),
+        mem: document.getElementById('scraper-pressure-mem'),
+        binding: document.getElementById('scraper-pressure-binding'),
+    };
+
+    const fmt = (v) => (v == null || Number.isNaN(Number(v))) ? '--' : `${Math.round(Number(v))}%`;
+
     window.addEventListener('status-update', (e) => {
         const running = e.detail.process.running;
         const phase = e.detail.scheduler.phase;
-        if (running) wf.setIntensity(0.6);
-        else if (phase === 'RESTING') wf.setIntensity(0.2);
-        else wf.setIntensity(0.06);
+        const ms = (e.detail.pipeline || {}).maps_scraper || {};
+        const load = ms.compute_utilization_pct != null ? Number(ms.compute_utilization_pct) : null;
+        const cpu = ms.cpu_percent != null ? Number(ms.cpu_percent) : null;
+        const mem = (ms.memory_pressure_pct != null || ms.memory_percent != null)
+            ? Number(ms.memory_pressure_pct ?? ms.memory_percent) : null;
+        const hasSignal = load != null || cpu != null || mem != null;
+        const showLivePressure = running && hasSignal;
+
+        if (els.load) els.load.textContent = showLivePressure ? fmt(load) : '--';
+        if (els.cpu) els.cpu.textContent = showLivePressure ? fmt(cpu) : '--';
+        if (els.mem) els.mem.textContent = showLivePressure ? fmt(mem) : '--';
+
+        if (showLivePressure) {
+            wf.feedPressure({ load, cpu, mem });
+            const binding = wf.pressure ? wf.pressure.binding : 'load';
+            if (els.binding) {
+                els.binding.textContent = `${binding} binding`;
+                els.binding.className = `pressure-binding pressure-binding-${binding}`;
+            }
+        } else {
+            wf.clearPressure();
+            wf.setIntensity(phase === 'RESTING' ? 0.15 : 0.06);
+            if (els.binding) {
+                els.binding.textContent = phase === 'RESTING' ? 'resting' : 'idle';
+                els.binding.className = 'pressure-binding pressure-binding-idle';
+            }
+        }
     });
 })();
 </script>

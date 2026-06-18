@@ -20,6 +20,7 @@ DASHBOARD_SERVER_LOG = LOGS_DIR / "dashboard_server.log"
 DASHBOARD_HOST = os.environ.get("DASHBOARD_HOST", "127.0.0.1")
 DASHBOARD_PORT = int(os.environ.get("DASHBOARD_PORT", "8000"))
 DASHBOARD_RELOAD = os.environ.get("DASHBOARD_RELOAD", "").strip().lower() in {"1", "true", "yes", "on"}
+DASHBOARD_SYSTEMD_UNIT = os.environ.get("DASHBOARD_SYSTEMD_UNIT", "fixmypresence-dashboard.service").strip()
 
 # === CONTROLLER COMMAND ===
 # The exact command to run the master controller.
@@ -63,9 +64,9 @@ WATCHER_SPECS = [
 ]
 
 # === SCHEDULER DEFAULTS (in minutes) ===
-# Test values: 4 min run / 3 min rest. For production set CYCLE_RUN_MINUTES=240 CYCLE_REST_MINUTES=120
-DEFAULT_RUN_MINUTES = int(os.environ.get("CYCLE_RUN_MINUTES", "4"))
-DEFAULT_REST_MINUTES = int(os.environ.get("CYCLE_REST_MINUTES", "3"))
+# Production: 240 min run (4h) / 120 min rest (2h). Override with env vars for testing.
+DEFAULT_RUN_MINUTES = int(os.environ.get("CYCLE_RUN_MINUTES", "240"))
+DEFAULT_REST_MINUTES = int(os.environ.get("CYCLE_REST_MINUTES", "120"))
 
 # === STOP TIMEOUT ===
 GRACEFUL_STOP_TIMEOUT = 30  # seconds to wait before escalating to SIGKILL

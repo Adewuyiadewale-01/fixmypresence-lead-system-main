@@ -84,9 +84,17 @@ function robotFmtRemaining(isoString) {
     return `${hours}h ${mins % 60}m`;
 }
 
+function isActiveCriticalCallout(item, currentPhase) {
+    if (!item || item.severity !== 'critical') return false;
+    if (currentPhase === 'paused_critical') return item.action === 'auto_paused';
+    if (currentPhase === 'confirming') return item.action === 'confirming';
+    return false;
+}
+
 let robotCategoryApprovalInFlight = false;
 let robotCategoryAutoApprovedDeadline = null;
 let robotCategoryCountdownTimer = null;
+let robotPauseReviewActionInFlight = false;
 let robotCategoryUiState = {
     awaitingApproval: false,
     processRunning: false,
@@ -173,11 +181,11 @@ function summarizeRobotState(process, scheduler, scraper, attention, callouts, e
 
     if (criticalCount > 0) {
         return {
-            state: 'Review Advised',
-            action: 'Inspect critical history',
-            source: scraper.recommendation || 'Recent critical callouts',
-            summary: 'Robot sees critical events on record. The scraper may be running again, but the recent history still deserves attention.',
-            next: 'Open the callout feed and logs to decide whether the system is safe to leave alone.',
+            state: 'Recent Critical History',
+            action: 'Review cleared criticals',
+            source: scraper.recommendation || 'Recent critical history',
+            summary: 'Robot sees cleared critical events in recent history. The scraper is not currently in a live critical state, but the pattern still deserves a review.',
+            next: 'Use the feed and logs to decide whether the recent criticals were batch-specific or point to a broader trend.',
             tone: 'warning',
         };
     }
@@ -387,19 +395,79 @@ function renderRobotCallouts(scraper) {
         return;
     }
 
+    const currentPhase = scraper?.current_phase || '';
     const hasCritical = callouts.some((item) => item.severity === 'critical');
     const hasWarning = callouts.some((item) => item.severity === 'warning');
     robotSetChip(
         chipEl,
-        hasCritical ? 'Critical decisions recorded' : hasWarning ? 'Warning decisions active' : 'Healthy decision notes',
-        hasCritical ? 'danger' : hasWarning ? 'warning' : 'info'
+        currentPhase === 'paused_critical'
+            ? 'Critical decision active'
+            : currentPhase === 'confirming'
+                ? 'Confirming signal'
+                : hasCritical
+                    ? 'Recent critical history'
+                    : hasWarning
+                        ? 'Warning decisions active'
+                        : 'Healthy decision notes',
+        currentPhase === 'paused_critical'
+            ? 'danger'
+            : (currentPhase === 'confirming' || hasCritical || hasWarning)
+                ? 'warning'
+                : 'info'
     );
 
-    const itemsHtml = callouts.map((item) => {
-        const tone = item.severity === 'critical' ? 'danger' : item.severity === 'warning' ? 'warning' : 'info';
+    let renderedDecisionActionCard = false;
+    const itemsHtml = callouts.map((item, index) => {
+        const activeCritical = isActiveCriticalCallout(item, currentPhase);
+        const historicalCritical = item.severity === 'critical' && !activeCritical;
+        const tone = activeCritical ? 'danger' : item.severity === 'warning' || historicalCritical ? 'warning' : 'info';
         const batchText = item.batch_number ? `Batch ${robotEscapeHtml(item.batch_number)}` : 'Run';
-        const actionText = item.action ? humanizeSnake(item.action) : 'Continue';
+        const actionText = historicalCritical
+            ? 'History'
+            : item.action
+                ? humanizeSnake(item.action)
+                : 'Continue';
         const source = `${humanizeSnake(item.signal_type || 'system')} · ${humanizeSnake(item.window || 'run')}`;
+        const isCritical = item.severity === 'critical';
+        let reviewActionMode = null;
+        if (!renderedDecisionActionCard && isCritical) {
+            if (activeCritical && currentPhase === 'paused_critical') {
+                reviewActionMode = 'paused';
+            } else if (activeCritical && currentPhase === 'confirming' && (item.action === 'confirming' || item.action === 'auto_paused')) {
+                reviewActionMode = 'confirming';
+            }
+        }
+        if (reviewActionMode) renderedDecisionActionCard = true;
+        const actionNoteId = `robot-callout-review-note-${index}`;
+        const actionControls = reviewActionMode === 'paused'
+            ? `
+                    <div class="callout-actions">
+                        <button class="btn btn-success btn-small" type="button" data-review-action="resume" data-review-note-id="${actionNoteId}">
+                            Resume Scraper
+                        </button>
+                        <button class="btn btn-secondary btn-small" type="button" data-review-action="hold" data-review-note-id="${actionNoteId}">
+                            Keep Paused
+                        </button>
+                    </div>
+                    <div id="${actionNoteId}" class="callout-action-note">
+                        Resume continues from the saved scraper position. Keep Paused disables cycle auto-restart until you manually start the system again.
+                    </div>
+                `
+            : reviewActionMode === 'confirming'
+                ? `
+                    <div class="callout-actions">
+                        <button class="btn btn-success btn-small" type="button" data-review-action="continue" data-review-note-id="${actionNoteId}">
+                            Let It Continue
+                        </button>
+                        <button class="btn btn-secondary btn-small" type="button" data-review-action="pause_now" data-review-note-id="${actionNoteId}">
+                            Pause Now
+                        </button>
+                    </div>
+                    <div id="${actionNoteId}" class="callout-action-note">
+                        Continue leaves the scraper running while Robot watches the next batch. Pause Now stops the scraper for review and disables cycle auto-restart.
+                    </div>
+                `
+                : '';
         return `
             <div class="attention-item attn-${tone}">
                 <span class="attn-dot"></span>
@@ -410,6 +478,8 @@ function renderRobotCallouts(scraper) {
                     <span class="callout-badge">${robotEscapeHtml(actionText)}</span>
                     <span class="callout-age">${robotEscapeHtml(robotFmtAgo(item.timestamp))}</span>
                 </div>
+                ${historicalCritical ? `<div class="callout-action-note">This critical alert is historical. The current scraper phase is no longer in a live critical stop.</div>` : ''}
+                ${actionControls}
             </div>
         `;
     });
@@ -537,6 +607,7 @@ function renderRobotCategoryProgression(data) {
     const deadline = progression.auto_progress_deadline;
     const timeoutMinutes = progression.timeout_minutes;
     const overdue = Boolean(progression.auto_progress_overdue);
+    const controllerRunning = Boolean(process.controller_running);
 
     if (awaitingApproval) {
         stateEl.textContent = overdue ? 'Auto-progress due' : 'Waiting for approval';
@@ -554,13 +625,13 @@ function renderRobotCategoryProgression(data) {
         deadlineEl.textContent = '--';
     }
 
-    const enabled = awaitingApproval && !process.running;
+    const enabled = awaitingApproval && !controllerRunning;
     button.disabled = !enabled;
     button.classList.toggle('btn-disabled', !enabled);
 
     robotCategoryUiState = {
         awaitingApproval,
-        processRunning: Boolean(process.running),
+        processRunning: controllerRunning,
         nextCategory,
         deadline,
         timeoutMinutes,
@@ -636,11 +707,60 @@ async function robotApproveNextCategory(autoTriggered = false, autoDeadline = nu
     }
 }
 
+async function robotHandlePauseReviewAction(action, noteId) {
+    if (robotPauseReviewActionInFlight) return;
+    const noteEl = noteId ? document.getElementById(noteId) : null;
+    const confirmMessage = action === 'hold'
+        ? 'Keep the scraper paused for review and disable cycle auto-restart until you start it again?'
+        : action === 'resume'
+            ? 'Resume the scraper from its saved position now?'
+            : action === 'pause_now'
+                ? 'Pause the scraper now for review and disable cycle auto-restart until you start it again?'
+                : 'Let the scraper continue while Robot keeps monitoring the next batch?';
+    if (!confirm(confirmMessage)) return;
+
+    robotPauseReviewActionInFlight = true;
+    try {
+        if (action === 'continue') {
+            const message = 'Robot will keep monitoring the current confirmation window. No stop command was sent.';
+            if (noteEl) noteEl.textContent = message;
+            showToast(message, 'success');
+            return;
+        }
+
+        if (noteEl) {
+            noteEl.textContent = action === 'hold'
+                ? 'Holding the pause and disabling cycle auto-restart...'
+                : action === 'pause_now'
+                    ? 'Stopping the scraper for review and disabling cycle auto-restart...'
+                    : 'Resuming the scraper from its saved position...';
+        }
+        const endpoint = action === 'hold'
+            ? '/control/scraper/review-hold'
+            : action === 'pause_now'
+                ? '/control/scraper/review-pause-now'
+                : '/control/scraper/review-resume';
+        const result = await api(endpoint, 'POST');
+        const fallbackMessage = action === 'hold'
+            ? 'Pause held.'
+            : action === 'pause_now'
+                ? 'Scraper stop requested for review.'
+                : 'Scraper resumed.';
+        if (noteEl) noteEl.textContent = result.message || fallbackMessage;
+        showToast(result.message || fallbackMessage, 'success');
+    } catch (error) {
+        if (noteEl) noteEl.textContent = `Action failed: ${error.message}`;
+        showToast(error.message, 'error');
+    } finally {
+        robotPauseReviewActionInFlight = false;
+    }
+}
+
 function maybeAutoApproveCategory(data) {
     const process = data.process || {};
     const progression = data.pipeline?.maps_scraper?.category_progression || {};
     const deadline = progression.auto_progress_deadline || null;
-    if (process.running || !progression.awaiting_approval || !progression.auto_progress_overdue || !deadline) {
+    if (process.controller_running || !progression.awaiting_approval || !progression.auto_progress_overdue || !deadline) {
         return;
     }
     if (robotCategoryAutoApprovedDeadline === deadline) {
@@ -663,6 +783,18 @@ window.addEventListener('status-update', (e) => {
 const robotApproveButton = document.getElementById('btn-robot-approve-category');
 if (robotApproveButton) {
     robotApproveButton.addEventListener('click', () => robotApproveNextCategory(false));
+}
+
+const robotCalloutsList = document.getElementById('robot-callouts-list');
+if (robotCalloutsList) {
+    robotCalloutsList.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-review-action]');
+        if (!button) return;
+        robotHandlePauseReviewAction(
+            button.getAttribute('data-review-action'),
+            button.getAttribute('data-review-note-id')
+        );
+    });
 }
 
 if (!robotCategoryCountdownTimer) {

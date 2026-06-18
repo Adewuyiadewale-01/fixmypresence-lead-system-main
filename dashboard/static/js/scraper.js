@@ -41,6 +41,14 @@ function fmtOneDecimal(value, suffix = '') {
     return `${parsed.toFixed(1)}${suffix}`;
 }
 
+function fmtDurationMs(value) {
+    if (value === null || value === undefined || value === '') return '--';
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return '--';
+    if (parsed >= 1000) return `${(parsed / 1000).toFixed(1)}s`;
+    return `${Math.round(parsed)}ms`;
+}
+
 function fmtAgo(isoString) {
     if (!isoString) return '--';
     const diffMs = Date.now() - new Date(isoString).getTime();
@@ -72,6 +80,13 @@ function setChip(el, text, tone = 'info') {
         tone === 'warning' ? 'attn-warning' :
         'attn-info'
     );
+}
+
+function isActiveCriticalCallout(item, currentPhase) {
+    if (!item || item.severity !== 'critical') return false;
+    if (currentPhase === 'paused_critical') return item.action === 'auto_paused';
+    if (currentPhase === 'confirming') return item.action === 'confirming';
+    return false;
 }
 
 function updateSchedulerInfo(scheduler) {
@@ -203,14 +218,20 @@ function getAggressionReason(scraper) {
     const errors = Number(run.error_count || 0);
     const websiteRate = Number(run.website_found_rate || 0);
     const yieldRate = Number(run.leads_per_100_searches || 0);
+    const computeUtil = Number(run.compute_utilization_pct || 0);
+    const cpuPercent = Number(run.cpu_percent || 0);
+    const memoryPressure = Number(run.memory_pressure_pct ?? run.memory_percent ?? 0);
 
     if (captcha > 0) return 'Captcha pressure is showing up in the current run, so it is safer to back off before increasing load.';
     if (errors >= 5) return 'Worker instability is rising enough to inspect the scraper before pushing harder.';
     if (scraper.current_phase === 'paused_critical') return 'A critical signal was confirmed across batches, so the scraper paused itself for review.';
-    if (websiteRate >= 75 && yieldRate >= 220) return 'Yield and website quality are both strong, so the current profile looks safe to push modestly if needed.';
+    if (memoryPressure >= 93) return 'Host RAM pressure is staying dangerously high, so the next scraper launch should run fewer workers.';
+    if (cpuPercent >= 95) return 'CPU pressure is staying very high, so the next scraper launch should run fewer workers.';
     if (websiteRate > 0 && websiteRate < 55) return 'Too many scraped rows are landing without a usable website, which usually means the search mix is getting noisy.';
-    if (yieldRate > 0 && yieldRate < 120) return 'The current keyword/location mix is underproducing, so higher aggression is unlikely to help right now.';
-    return 'The current run profile looks healthy enough to leave alone unless you need more throughput urgently.';
+    if (cpuPercent > 0 && cpuPercent <= 88 && memoryPressure > 0 && memoryPressure <= 85 && websiteRate >= 75) return 'Website quality is strong and both CPU and RAM still have usable headroom, so a modest worker increase should be safe.';
+    if (yieldRate >= 220 && cpuPercent > 0 && cpuPercent <= 88 && memoryPressure > 0 && memoryPressure <= 85) return 'Yield is strong and the host still has CPU and RAM headroom, so pushing a bit harder should still be safe.';
+    if (computeUtil >= 300) return 'Host load is unusually high, but it is treated as an advisory signal unless CPU or RAM also look stressed.';
+    return '';
 }
 
 function updateScrapeHealth(scraper) {
@@ -218,6 +239,7 @@ function updateScrapeHealth(scraper) {
     const run = scraper.run || {};
     const allTime = scraper.all_time || {};
     const deliverySheet = scraper.delivery_sheet || {};
+    const telemetry = run.telemetry || scraper.telemetry || {};
 
     document.getElementById('scraper-run-yield').textContent =
         run.leads_per_100_searches !== null && run.leads_per_100_searches !== undefined
@@ -273,6 +295,88 @@ function updateScrapeHealth(scraper) {
             ? `${fmtOneDecimal(allTime.captcha_rate || 0, '%')} captcha · ${fmtOneDecimal(allTime.error_rate || 0, '%')} error`
             : 'historical risk since instrumentation';
 
+    const websiteLeadTime = telemetry.avg_time_per_website_found_lead_ms;
+    document.getElementById('scraper-eff-website-time').textContent = fmtDurationMs(websiteLeadTime);
+    document.getElementById('scraper-eff-fallback-rate').textContent =
+        telemetry.fallback_rate !== null && telemetry.fallback_rate !== undefined
+            ? fmtOneDecimal(telemetry.fallback_rate, '%')
+            : '--';
+    document.getElementById('scraper-eff-fallback-sub').textContent =
+        telemetry.cards_seen !== null && telemetry.cards_seen !== undefined
+            ? `${fmtNum(telemetry.fallback_to_existing_extract_card || 0)} fallback of ${fmtNum(telemetry.cards_seen || 0)} cards`
+            : 'batch-read fallback usage';
+    document.getElementById('scraper-eff-sidebar-rate').textContent =
+        telemetry.sidebar_click_rate !== null && telemetry.sidebar_click_rate !== undefined
+            ? fmtOneDecimal(telemetry.sidebar_click_rate, '%')
+            : '--';
+    document.getElementById('scraper-eff-sidebar-sub').textContent =
+        telemetry.sidebar_click_attempts !== null && telemetry.sidebar_click_attempts !== undefined
+            ? `${fmtOneDecimal(telemetry.sidebar_success_rate || 0, '%')} success · ${fmtOneDecimal(telemetry.sidebar_failure_rate || 0, '%')} fail`
+            : 'click success/failure';
+    document.getElementById('scraper-eff-search-time').textContent = fmtDurationMs(telemetry.avg_search_duration_ms);
+    document.getElementById('scraper-eff-search-sub').textContent =
+        telemetry.searches !== null && telemetry.searches !== undefined
+            ? `${fmtNum(telemetry.searches)} instrumented searches · ${fmtDurationMs(telemetry.avg_card_extract_duration_ms)} per card`
+            : 'average search duration';
+
+    const dedupeEnabled = Boolean(scraper.early_dedupe_enabled);
+    const coordinatorRunning = Boolean(scraper.coordinator_running);
+    const dedupeStatus = document.getElementById('scraper-dedupe-status');
+    setChip(
+        dedupeStatus,
+        !dedupeEnabled ? 'Disabled' : (coordinatorRunning ? 'Running' : 'Idle'),
+        !dedupeEnabled ? 'warning' : (coordinatorRunning ? 'info' : 'normal')
+    );
+    document.getElementById('scraper-dedupe-key-coverage').textContent =
+        telemetry.strong_place_key_coverage != null
+            ? fmtOneDecimal(telemetry.strong_place_key_coverage, '%')
+            : '--';
+    document.getElementById('scraper-dedupe-registry').textContent =
+        scraper.known_place_keys != null
+            ? `${fmtNum(scraper.known_place_keys)} known · ${fmtNum(scraper.active_reservations || 0)} active reservations`
+            : 'registry unavailable';
+    document.getElementById('scraper-dedupe-approved').textContent =
+        telemetry.early_dedupe_approved != null ? fmtNum(telemetry.early_dedupe_approved) : '--';
+    document.getElementById('scraper-dedupe-unidentified').textContent =
+        telemetry.unidentified_cards_extracted != null
+            ? `${fmtNum(telemetry.unidentified_cards_extracted)} unidentified extracted safely`
+            : 'unidentified extracted safely';
+    document.getElementById('scraper-dedupe-historical').textContent =
+        telemetry.historical_duplicates_skipped != null
+            ? fmtNum(telemetry.historical_duplicates_skipped)
+            : '--';
+    const liveSkips = (telemetry.inflight_duplicates_skipped || 0) + (telemetry.same_batch_duplicates_skipped || 0);
+    document.getElementById('scraper-dedupe-live').textContent =
+        telemetry.inflight_duplicates_skipped != null ? fmtNum(liveSkips) : '--';
+    document.getElementById('scraper-dedupe-live-sub').textContent =
+        telemetry.inflight_duplicates_skipped != null
+            ? `${fmtNum(telemetry.inflight_duplicates_skipped || 0)} in-flight · ${fmtNum(telemetry.same_batch_duplicates_skipped || 0)} same-batch`
+            : 'in-flight and same-batch';
+    document.getElementById('scraper-dedupe-latency').textContent =
+        telemetry.average_coordinator_latency_ms != null
+            ? `${Number(telemetry.average_coordinator_latency_ms).toFixed(2)}ms`
+            : '--';
+    document.getElementById('scraper-dedupe-latency-sub').textContent =
+        telemetry.coordinator_max_lookup_duration_ms != null
+            ? `${Number(telemetry.coordinator_max_lookup_duration_ms).toFixed(2)}ms max · ${fmtNum(telemetry.coordinator_requests || 0)} batches`
+            : 'average and maximum';
+    document.getElementById('scraper-dedupe-outcomes').textContent =
+        telemetry.reservation_commits != null
+            ? `${fmtNum(telemetry.reservation_commits)} / ${fmtNum(telemetry.reservation_releases || 0)}`
+            : '--';
+    document.getElementById('scraper-dedupe-outcomes-sub').textContent =
+        telemetry.reservation_commits != null
+            ? `commits / releases · ${fmtNum(telemetry.reservation_expirations || 0)} expired`
+            : 'commits, releases, expirations';
+    document.getElementById('scraper-dedupe-fail-open').textContent =
+        telemetry.coordinator_requests != null
+            ? fmtNum((telemetry.coordinator_timeouts || 0) + (telemetry.coordinator_errors || 0))
+            : '--';
+    document.getElementById('scraper-dedupe-sidebar-avoided').textContent =
+        telemetry.sidebar_fallbacks_avoided_estimate != null
+            ? fmtNum(telemetry.sidebar_fallbacks_avoided_estimate)
+            : '--';
+
     const healthTone = scraper.current_phase === 'paused_critical'
         ? 'danger'
         : (runCaptchas > 0 || runErrors >= 5 ? 'warning' : 'info');
@@ -284,6 +388,12 @@ function updateScrapeHealth(scraper) {
     }
     if (run.leads_per_batch !== null && run.leads_per_batch !== undefined) {
         healthNotes.push(`This run average batch yield is ${fmtOneDecimal(run.leads_per_batch)} leads`);
+    }
+    if (run.compute_utilization_pct !== null && run.compute_utilization_pct !== undefined) {
+        healthNotes.push(`Host compute load is ${fmtOneDecimal(run.compute_utilization_pct, '%')} of CPU capacity`);
+    }
+    if (websiteLeadTime !== null && websiteLeadTime !== undefined) {
+        healthNotes.push(`Website-found leads average ${fmtDurationMs(websiteLeadTime)} each`);
     }
     if (runCaptchas > 0 || runErrors > 0) {
         healthNotes.push(`${fmtNum(runCaptchas)} captchas and ${fmtNum(runErrors)} worker errors seen this run`);
@@ -345,37 +455,77 @@ function updateAggression(scraper) {
         scraper.recommendation || 'Learning baseline',
         scraper.recommendation_tone || 'info'
     );
-    document.getElementById('scraper-aggression-note').textContent = getAggressionReason(scraper);
+    const activeWorkers = scraper.active_worker_count;
+    const configuredWorkers = scraper.configured_worker_count;
+    const activeWebsiteWorkers = scraper.active_website_status_workers;
+    const configuredWebsiteWorkers = scraper.configured_website_status_workers;
+    const noteParts = [getAggressionReason(scraper)].filter(Boolean);
+
+    if (
+        activeWorkers !== null && activeWorkers !== undefined
+        && configuredWorkers !== null && configuredWorkers !== undefined
+        && Number(activeWorkers) !== Number(configuredWorkers)
+    ) {
+        noteParts.push(`Current run is using ${fmtNum(activeWorkers)} scraper workers. Saved config starts at ${fmtNum(configuredWorkers)} workers.`);
+    }
+
+    if (scraper.adaptive_worker_scaling_enabled) {
+        const minWorkers = scraper.maps_min_workers;
+        const maxWorkers = scraper.maps_max_workers;
+        const retiredWorkers = scraper.retired_worker_count;
+        const scaleDownSeconds = scraper.maps_worker_scale_down_check_interval_seconds;
+        const range = minWorkers != null && maxWorkers != null
+            ? `range ${fmtNum(minWorkers)}-${fmtNum(maxWorkers)}`
+            : 'adaptive range active';
+        const scaleDownNote = scaleDownSeconds != null
+            ? `after ${fmtNum(scaleDownSeconds)}s sustained pressure`
+            : 'after sustained pressure';
+        noteParts.push(`Adaptive workers enabled (${range}); scale-down retires workers ${scaleDownNote} and only after their current task.`);
+        if (retiredWorkers) {
+            noteParts.push(`${fmtNum(retiredWorkers)} worker retirements requested this run.`);
+        }
+        if (scraper.resource_pressure_stop_requested) {
+            noteParts.push('Resource pressure stop requested; buffered leads are preserved.');
+        }
+    }
+
+    if (
+        activeWebsiteWorkers !== null && activeWebsiteWorkers !== undefined
+        && configuredWebsiteWorkers !== null && configuredWebsiteWorkers !== undefined
+        && Number(activeWebsiteWorkers) !== Number(configuredWebsiteWorkers)
+    ) {
+        noteParts.push(`Website-check workers are ${fmtNum(activeWebsiteWorkers)} in this run and ${fmtNum(configuredWebsiteWorkers)} on the next start.`);
+    }
+
+    const aggressionNote = document.getElementById('scraper-aggression-note');
+    aggressionNote.textContent = noteParts.join(' ');
+    aggressionNote.style.display = noteParts.length ? '' : 'none';
 
     // Auto-scale countdown
     const asEl = document.getElementById('scraper-autoscale-note');
     if (!asEl) return;
     const as = scraper.auto_scale || {};
     const action = as.action || 'none';
+    const hasLastAuto = Boolean(as.last_auto_apply_at && as.last_auto_action);
+    const baseNote = as.note || '';
 
-    if (action === 'none' || !as.enabled) {
+    if ((!baseNote && action === 'none' && !hasLastAuto) || !as.enabled) {
         asEl.style.display = 'none';
         return;
     }
 
     asEl.style.display = 'block';
-    const actionLabel = action === 'increase' ? 'increase workers ~20%' : 'reduce workers ~20%';
-
-    if (as.manual_blocking) {
-        asEl.textContent = `Auto-scale paused after manual change. Will resume checking in ~${Math.ceil(as.stable_threshold_minutes - ((Date.now() / 60000) % as.stable_threshold_minutes))} min.`;
-    } else if (as.minutes_left !== null && as.minutes_left !== undefined && as.minutes_left > 0) {
-        const mins = as.minutes_left < 1 ? '<1' : Math.ceil(as.minutes_left);
-        asEl.textContent = `Auto-scale: will ${actionLabel} in ~${mins} min if signal holds.`;
-    } else if (as.minutes_left === 0 || (as.stable_minutes !== null && as.stable_minutes >= as.stable_threshold_minutes)) {
-        asEl.textContent = `Auto-scale: applying ${actionLabel} on next check…`;
-    }
+    asEl.textContent = baseNote;
 
     if (as.last_auto_apply_at && as.last_auto_action) {
         const lastAction = as.last_auto_action === 'increase' ? 'increased' : 'reduced';
         const fromW = as.last_auto_from_workers;
         const toW = as.last_auto_applied_workers;
+        const prefix = asEl.textContent ? ' ' : '';
         if (fromW && toW) {
-            asEl.textContent += ` (Last auto: ${lastAction} ${fromW}→${toW} workers)`;
+            asEl.textContent += `${prefix}(Last auto: ${lastAction} ${fromW}→${toW} workers)`;
+        } else {
+            asEl.textContent += `${prefix}(Last auto: ${lastAction} workers)`;
         }
     }
 }
@@ -392,18 +542,37 @@ function renderCallouts(scraper) {
         return;
     }
 
+    const currentPhase = scraper?.current_phase || '';
     const hasCritical = callouts.some((item) => item.severity === 'critical');
     const hasWarning = callouts.some((item) => item.severity === 'warning');
     setChip(
         chipEl,
-        hasCritical ? 'Critical signal on record' : hasWarning ? 'Warnings active' : 'Healthy signals recorded',
-        hasCritical ? 'danger' : hasWarning ? 'warning' : 'info'
+        currentPhase === 'paused_critical'
+            ? 'Critical signal active'
+            : currentPhase === 'confirming'
+                ? 'Confirming signal'
+                : hasCritical
+                    ? 'Recent critical history'
+                    : hasWarning
+                        ? 'Warnings active'
+                        : 'Healthy signals recorded',
+        currentPhase === 'paused_critical'
+            ? 'danger'
+            : (currentPhase === 'confirming' || hasCritical || hasWarning)
+                ? 'warning'
+                : 'info'
     );
 
     const itemsHtml = callouts.map((item) => {
-        const level = item.severity === 'critical' ? 'danger' : item.severity === 'warning' ? 'warning' : 'info';
+        const activeCritical = isActiveCriticalCallout(item, currentPhase);
+        const historicalCritical = item.severity === 'critical' && !activeCritical;
+        const level = activeCritical ? 'danger' : item.severity === 'warning' || historicalCritical ? 'warning' : 'info';
         const batchText = item.batch_number ? `Batch ${escapeHtml(item.batch_number)}` : 'Run';
-        const actionText = item.action ? escapeHtml(item.action.replaceAll('_', ' ')) : 'continue';
+        const actionText = historicalCritical
+            ? 'history'
+            : item.action
+                ? escapeHtml(item.action.replaceAll('_', ' '))
+                : 'continue';
         return `
             <div class="attention-item attn-${level}">
                 <span class="attn-dot"></span>
@@ -414,6 +583,7 @@ function renderCallouts(scraper) {
                     <span class="callout-badge">${actionText}</span>
                     <span class="callout-age">${escapeHtml(fmtAgo(item.timestamp))}</span>
                 </div>
+                ${historicalCritical ? '<div class="callout-action-note">Historical critical only. The scraper is not currently in a live critical stop.</div>' : ''}
             </div>
         `;
     });

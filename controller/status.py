@@ -24,6 +24,7 @@ from progress_status import (
     needs_next_category,
     is_all_complete,
 )
+from config import get_location_tree_status
 
 
 def get_next_action() -> str:
@@ -34,7 +35,8 @@ def get_next_action() -> str:
         "start"         - No progress, start fresh
         "resume"        - In progress, resume scraper
         "next_category" - Category complete, need to advance
-        "done"          - All categories complete
+        "next_location_file" - All categories complete; load the next file
+        "done"          - All categories and location files complete
     """
     status = get_progress_status()
     
@@ -42,6 +44,13 @@ def get_next_action() -> str:
         return "start"
     
     if status["status"] == "all_complete":
+        tree_status = get_location_tree_status()
+        if (
+            tree_status.get("enabled")
+            and tree_status.get("current_file")
+            and not tree_status.get("current_file_completed")
+        ):
+            return "next_location_file"
         return "done"
     
     if status["status"] == "category_complete":

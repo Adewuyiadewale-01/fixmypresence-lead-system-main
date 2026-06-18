@@ -23,24 +23,32 @@ from pathlib import Path
 from typing import Optional, Set, Dict, List, Tuple
 
 from config import (
-    ALL_KEYWORD_CATEGORIES,
-    LOCATIONS,
     TASKS_PROGRESS_FILE,
     MASTER_OUTPUT,
-    TOTAL_CATEGORIES,
-    KEYWORD_CATEGORY_1,
-    KEYWORD_CATEGORY_2,
-    KEYWORD_CATEGORY_3,
-    KEYWORD_CATEGORY_4,
+    CATEGORY_STATE_FILE,
+    get_dashboard_config,
+    get_location_tree_status,
 )
 
-# Map category index to keywords
-CATEGORY_KEYWORDS = {
-    0: KEYWORD_CATEGORY_1,
-    1: KEYWORD_CATEGORY_2,
-    2: KEYWORD_CATEGORY_3,
-    3: KEYWORD_CATEGORY_4,
-}
+
+def _current_scraper_shape() -> tuple[list[str], dict[int, list[str]], int]:
+    config = get_dashboard_config()
+    locations = config.get("effective_locations") or config.get("locations") or []
+    keyword_categories = config.get("keyword_categories") or []
+
+    if not isinstance(locations, list):
+        locations = []
+    if not isinstance(keyword_categories, list):
+        keyword_categories = []
+
+    cleaned_locations = [str(item).strip() for item in locations if str(item).strip()]
+    category_keywords = {
+        idx: [str(keyword).strip() for keyword in group if str(keyword).strip()]
+        for idx, group in enumerate(keyword_categories)
+        if isinstance(group, list)
+    }
+    total_categories = max(len(category_keywords), 1)
+    return cleaned_locations, category_keywords, total_categories
 
 
 def _parse_completed_tasks() -> Tuple[Set[str], Dict[str, List[str]], str]:
@@ -82,22 +90,53 @@ def _parse_completed_tasks() -> Tuple[Set[str], Dict[str, List[str]], str]:
     return completed_keys, dict(location_keywords), last_timestamp
 
 
-def _detect_active_category(completed_keys: Set[str]) -> int:
+def _read_category_state_file() -> Optional[int]:
+    """Read the active category index from category_state.json.
+
+    This is the same file parallel_scraper.py uses at runtime, so it is the
+    authoritative source. Returns None if the file is missing/unreadable so
+    callers can fall back to keyword detection.
+    """
+    if not CATEGORY_STATE_FILE.exists():
+        return None
+    try:
+        with open(CATEGORY_STATE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        idx = data.get("category_index")
+        return int(idx) if idx is not None else None
+    except (json.JSONDecodeError, IOError, TypeError, ValueError):
+        return None
+
+
+def _detect_active_category(completed_keys: Set[str], category_keywords_map: Dict[int, List[str]]) -> int:
     """
     Detect which category is currently being processed based on completed tasks.
     Returns category index (0-4).
     """
+    # Authoritative source: category_state.json (what parallel_scraper.py uses).
+    # This avoids ambiguity when completed_tasks.jsonl contains entries from
+    # multiple categories (e.g. after a manual recovery).
+    state_idx = _read_category_state_file()
+    if state_idx is not None and 0 <= state_idx < len(category_keywords_map):
+        return state_idx
+
     if not completed_keys:
         return 0
-    
-    # Check which category's keywords appear in completed tasks
-    for cat_idx, keywords in CATEGORY_KEYWORDS.items():
+
+    # Fallback: pick the HIGHEST category that has any matching keyword in
+    # completed_keys. The original implementation returned the first match,
+    # which incorrectly preferred Cat 1 entries over later ones.
+    highest_match = None
+    for cat_idx, keywords in category_keywords_map.items():
+        kw_set = set(keywords)
         for key in completed_keys:
-            keyword = key.split("|")[0]
-            if keyword in keywords:
-                return cat_idx
-    
-    return 0
+            keyword = key.split("|", 1)[0]
+            if keyword in kw_set:
+                if highest_match is None or cat_idx > highest_match:
+                    highest_match = cat_idx
+                break
+
+    return highest_match if highest_match is not None else 0
 
 
 def _count_leads_in_master() -> int:
@@ -122,12 +161,16 @@ def _count_batch_files() -> int:
     return len(list(output_dir.glob("leads_batch_*.csv")))
 
 
-def _find_next_task(completed_keys: Set[str], category_keywords: List[str]) -> Tuple[Optional[str], Optional[str], int, int]:
+def _find_next_task(
+    completed_keys: Set[str],
+    category_keywords: List[str],
+    locations: List[str],
+) -> Tuple[Optional[str], Optional[str], int, int]:
     """
     Find the next task to execute.
     Returns: (next_keyword, next_location, location_index, keyword_index)
     """
-    for loc_idx, location in enumerate(LOCATIONS):
+    for loc_idx, location in enumerate(locations):
         for kw_idx, keyword in enumerate(category_keywords):
             key = f"{keyword}|{location}"
             if key not in completed_keys:
@@ -142,6 +185,8 @@ def get_progress_status() -> dict:
     # Parse completed tasks
     completed_keys, location_keywords, last_timestamp = _parse_completed_tasks()
     completed_count = len(completed_keys)
+    locations, category_keywords_map, total_categories = _current_scraper_shape()
+    location_tree = get_location_tree_status()
     
     # Base result for fresh state
     if completed_count == 0:
@@ -151,16 +196,17 @@ def get_progress_status() -> dict:
             "status": "fresh",
             "progress": None,
             "summary": "No saved progress. Ready for fresh run.",
+            "location_tree": location_tree,
             "checked_at": datetime.now().isoformat(),
         }
     
     # Detect active category
-    category_index = _detect_active_category(completed_keys)
-    category_keywords = CATEGORY_KEYWORDS.get(category_index, KEYWORD_CATEGORY_1)
+    category_index = _detect_active_category(completed_keys, category_keywords_map)
+    category_keywords = category_keywords_map.get(category_index, [])
     keywords_in_category = len(category_keywords)
     
     # Calculate totals for this category
-    total_locations = len(LOCATIONS)
+    total_locations = len(locations)
     total_tasks = total_locations * keywords_in_category
     
     # Calculate per-location completion
@@ -168,7 +214,7 @@ def get_progress_status() -> dict:
     locations_partially_completed = 0
     locations_used = 0
     
-    for location in LOCATIONS:
+    for location in locations:
         completed_for_loc = len(location_keywords.get(location, []))
         if completed_for_loc > 0:
             locations_used += 1
@@ -179,21 +225,21 @@ def get_progress_status() -> dict:
     
     # Find next task
     next_keyword, next_location, next_loc_idx, next_kw_idx = _find_next_task(
-        completed_keys, category_keywords
+        completed_keys, category_keywords, locations
     )
     
     # Check completion status
     category_complete = (next_keyword is None)
-    all_complete = category_complete and (category_index >= TOTAL_CATEGORIES - 1)
+    all_complete = category_complete and (category_index >= total_categories - 1)
     
     # Calculate progress percentage
     progress_pct = (completed_count / total_tasks * 100) if total_tasks > 0 else 0
     locations_completed_pct = (locations_fully_completed / total_locations * 100) if total_locations > 0 else 0
     locations_used_pct = (locations_used / total_locations * 100) if total_locations > 0 else 0
     categories_completed_pct = (
-        ((category_index + 1) / TOTAL_CATEGORIES) * 100
+        ((category_index + 1) / total_categories) * 100
         if category_complete
-        else (category_index / TOTAL_CATEGORIES) * 100
+        else (category_index / total_categories) * 100
     )
     
     # Count leads and batches
@@ -203,16 +249,16 @@ def get_progress_status() -> dict:
     # Determine status
     if all_complete:
         status = "all_complete"
-        summary = f"All {TOTAL_CATEGORIES} categories complete! {completed_count} searches, {total_leads} leads collected."
+        summary = f"All {total_categories} categories complete! {completed_count} searches, {total_leads} leads collected."
     elif category_complete:
         status = "category_complete"
-        summary = f"Category {category_index + 1}/{TOTAL_CATEGORIES} complete. Ready for --next-category."
+        summary = f"Category {category_index + 1}/{total_categories} complete. Ready for --next-category."
     else:
         status = "in_progress"
         summary = f"Category {category_index + 1}: {completed_count}/{total_tasks} searches ({progress_pct:.1f}%). {locations_fully_completed}/{total_locations} locations complete."
     
     # Current location info (the one being worked on)
-    current_loc_name = next_location if next_location else LOCATIONS[-1] if LOCATIONS else "?"
+    current_loc_name = next_location if next_location else locations[-1] if locations else "?"
     current_loc_idx = next_loc_idx if next_loc_idx >= 0 else (total_locations - 1)
     current_kw_idx = next_kw_idx if next_kw_idx >= 0 else (keywords_in_category - 1)
     current_kw_name = next_keyword if next_keyword else category_keywords[-1] if category_keywords else "?"
@@ -223,11 +269,12 @@ def get_progress_status() -> dict:
         "is_complete": all_complete,
         "status": status,
         "summary": summary,
+        "location_tree": location_tree,
         "checked_at": datetime.now().isoformat(),
         "progress": {
             "category": {
                 "index": category_index,
-                "total": TOTAL_CATEGORIES,
+                "total": total_categories,
                 "keywords_in_category": keywords_in_category,
                 "keyword_names": list(category_keywords),
                 "is_complete": category_complete,
@@ -306,11 +353,12 @@ def is_all_complete() -> bool:
 def get_category_status() -> dict:
     """Get detailed category status."""
     status = get_progress_status()
+    _, _, total_categories = _current_scraper_shape()
     
     if not status["progress"]:
         return {
             "current_index": 0,
-            "total": TOTAL_CATEGORIES,
+            "total": total_categories,
             "categories_completed": 0,
             "progress_pct": 0.0,
             "is_current_complete": False,
@@ -321,12 +369,12 @@ def get_category_status() -> dict:
     cat = status["progress"].get("category", {})
     return {
         "current_index": cat.get("index", 0),
-        "total": TOTAL_CATEGORIES,
+        "total": cat.get("total", total_categories),
         "categories_completed": cat.get("categories_completed", 0),
         "progress_pct": cat.get("progress_pct", 0.0),
         "keywords_in_category": cat.get("keywords_in_category", 0),
         "is_current_complete": cat.get("is_complete", False),
-        "all_complete": cat.get("categories_completed", 0) >= TOTAL_CATEGORIES,
+        "all_complete": cat.get("categories_completed", 0) >= cat.get("total", total_categories),
         "needs_next_category": needs_next_category(),
     }
 
@@ -352,10 +400,11 @@ def get_resume_cursor() -> Optional[dict]:
 def get_locations_usage() -> dict:
     """Get locations usage info (within current category)."""
     status = get_progress_status()
+    locations, _, _ = _current_scraper_shape()
     
     if not status["progress"]:
         return {
-            "total": len(LOCATIONS),
+            "total": len(locations),
             "used": 0,
             "used_pct": 0.0,
             "completed": 0,
@@ -366,7 +415,7 @@ def get_locations_usage() -> dict:
     
     locations = status["progress"].get("locations", {})
     return {
-        "total": locations.get("total", len(LOCATIONS)),
+        "total": locations.get("total", len(_current_scraper_shape()[0])),
         "used": locations.get("used", 0),
         "used_pct": locations.get("used_pct", 0.0),
         "completed": locations.get("completed", 0),
@@ -379,6 +428,7 @@ def get_locations_usage() -> dict:
 def print_status(as_json: bool = False):
     """Print the current status to stdout."""
     status = get_progress_status()
+    locations, _, total_categories = _current_scraper_shape()
     
     if as_json:
         print(json.dumps(status, indent=2))
@@ -400,8 +450,8 @@ def print_status(as_json: bool = False):
         
         # Category info
         print(f"\n📂 CATEGORY:")
-        print(f"   Current:   {cat.get('index', 0)+1}/{cat.get('total', TOTAL_CATEGORIES)}")
-        print(f"   Completed: {cat.get('categories_completed', 0)}/{cat.get('total', TOTAL_CATEGORIES)} ({cat.get('progress_pct', 0):.1f}%)")
+        print(f"   Current:   {cat.get('index', 0)+1}/{cat.get('total', total_categories)}")
+        print(f"   Completed: {cat.get('categories_completed', 0)}/{cat.get('total', total_categories)} ({cat.get('progress_pct', 0):.1f}%)")
         print(f"   Keywords:  {cat.get('keywords_in_category', 0)} ({', '.join(cat.get('keyword_names', [])[:3])}{'...' if len(cat.get('keyword_names', [])) > 3 else ''})")
         if cat.get('is_complete'):
             print(f"   ✅ CATEGORY COMPLETE - use --next-category to advance")
@@ -409,7 +459,7 @@ def print_status(as_json: bool = False):
         # Current position
         if not cat.get('is_complete'):
             print(f"\n📍 CURRENT POSITION:")
-            print(f"   Location: [{current_loc.get('index', 0)+1}/{locations.get('total', len(LOCATIONS))}] {current_loc.get('name', '?')}")
+            print(f"   Location: [{current_loc.get('index', 0)+1}/{locations.get('total', len(locations))}] {current_loc.get('name', '?')}")
             print(f"   Keyword:  [{current_loc.get('keyword_index', 0)+1}/{current_loc.get('keywords_total', 0)}] {current_loc.get('keyword_name', '?')}")
             print(f"   Progress: {overall.get('progress_pct', 0):.1f}%")
         

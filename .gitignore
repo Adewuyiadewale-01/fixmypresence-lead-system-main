@@ -78,3 +78,5 @@ controller/logs/
 
 # Runtime state files
 controller/enrichment_batch_counter.txt
+deploy/resume-state/*.tar.gz
+deploy/resume-state/backups/

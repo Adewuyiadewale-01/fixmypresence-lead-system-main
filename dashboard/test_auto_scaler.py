@@ -1,12 +1,13 @@
 """
-Tests for dashboard/auto_scaler.py
+Tests for dashboard/auto_scaler.py.
 
 Covers:
-  - _compute_new_workers() arithmetic
-  - _compute_action() health-signal logic
-  - check_and_apply() guard conditions and apply path
-  - record_manual_change() clock reset
-  - get_auto_scale_status() output shape
+  - worker arithmetic
+  - immediate live brake logic
+  - completed-run planning logic
+  - check_and_apply() live brake + completed-run apply paths
+  - manual change reset
+  - status output shape
 """
 
 from __future__ import annotations
@@ -19,9 +20,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-# ---------------------------------------------------------------------------
-# Path setup — mirror what auto_scaler.py itself does
-# ---------------------------------------------------------------------------
 DASHBOARD_DIR = Path(__file__).parent
 PROJECT_ROOT = DASHBOARD_DIR.parent
 BOTS_DIR = PROJECT_ROOT / "Bots"
@@ -40,51 +38,11 @@ def _iso(minutes_ago: float = 0) -> str:
     return _utc(minutes_ago).isoformat()
 
 
-# ===========================================================================
-# 1. Worker arithmetic
-# ===========================================================================
-
-class TestComputeNewWorkers(unittest.TestCase):
-
-    def test_increase_20_percent(self):
-        # 4 * 1.20 = 4.8 → rounds to 5
-        self.assertEqual(asc._compute_new_workers(4, "increase"), 5)
-
-    def test_decrease_20_percent(self):
-        # 4 * 0.80 = 3.2 → rounds to 3
-        self.assertEqual(asc._compute_new_workers(4, "decrease"), 3)
-
-    def test_increase_always_moves_at_least_one(self):
-        # 1 * 1.20 = 1.2 → rounds to 1, but minimum +1 applies → 2
-        self.assertEqual(asc._compute_new_workers(1, "increase"), 2)
-
-    def test_decrease_always_moves_at_least_one(self):
-        # 2 * 0.80 = 1.6 → rounds to 2, but minimum -1 applies → 1
-        self.assertEqual(asc._compute_new_workers(2, "decrease"), 1)
-
-    def test_increase_capped_at_max(self):
-        self.assertEqual(asc._compute_new_workers(asc.MAX_WORKERS, "increase"), asc.MAX_WORKERS)
-
-    def test_decrease_capped_at_min(self):
-        self.assertEqual(asc._compute_new_workers(asc.MIN_WORKERS, "decrease"), asc.MIN_WORKERS)
-
-    def test_no_action_returns_current(self):
-        self.assertEqual(asc._compute_new_workers(6, "none"), 6)
-
-    def test_larger_counts_scale_proportionally(self):
-        # 10 * 1.20 = 12
-        self.assertEqual(asc._compute_new_workers(10, "increase"), 12)
-        # 10 * 0.80 = 8
-        self.assertEqual(asc._compute_new_workers(10, "decrease"), 8)
-
-
-# ===========================================================================
-# 2. Health-signal → action
-# ===========================================================================
-
 def _health_file(tmp_dir: Path, **kwargs) -> Path:
-    """Write a minimal health JSON and return its path."""
     defaults = {
+        "started_at": _iso(minutes_ago=5),
+        "ended_at": None,
+        "current_phase": "healthy",
         "run_searches": 50,
         "run_batches": 2,
         "run_leads": 100,
@@ -92,361 +50,360 @@ def _health_file(tmp_dir: Path, **kwargs) -> Path:
         "run_website_total": 50,
         "captcha_count": 0,
         "error_count": 0,
+        "compute_utilization_pct": 40.0,
+        "cpu_percent": 32.0,
+        "memory_pressure_pct": 48.0,
     }
     defaults.update(kwargs)
-    p = tmp_dir / "scraper_health.json"
-    p.write_text(json.dumps(defaults), encoding="utf-8")
-    return p
+    path = tmp_dir / "scraper_health.json"
+    path.write_text(json.dumps(defaults), encoding="utf-8")
+    return path
 
 
-class TestComputeAction(unittest.TestCase):
-
+class AutoScalerBase(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.tmp_path = Path(self.tmp.name)
+        self.state_path = self.tmp_path / "auto_scale_state.json"
+        self.state_patch = patch.object(asc, "AUTO_SCALE_STATE_FILE", self.state_path)
+        self.state_patch.start()
 
     def tearDown(self):
+        self.state_patch.stop()
         self.tmp.cleanup()
 
-    def _patch(self, health_path):
-        """Patch SCRAPER_HEALTH_FILE import inside _compute_action."""
+    def _patch_health(self, health_path: Path):
         mock_cfg = MagicMock()
         mock_cfg.SCRAPER_HEALTH_FILE = str(health_path)
         return patch.dict("sys.modules", {"maps_scraper.config": mock_cfg})
 
-    def test_increase_when_high_yield_and_high_website_rate(self):
-        p = _health_file(
-            self.tmp_path,
-            run_leads=120,        # 120/50*100 = 240 >= 220 HIGH_YIELD
-            run_website_found=40, # 40/50 = 80% >= 75% HIGH_WEBSITE
-        )
-        with self._patch(p):
-            self.assertEqual(asc._compute_action(), "increase")
-
-    def test_decrease_when_captcha_detected(self):
-        p = _health_file(self.tmp_path, captcha_count=1)
-        with self._patch(p):
-            self.assertEqual(asc._compute_action(), "decrease")
-
-    def test_decrease_when_low_website_rate(self):
-        p = _health_file(
-            self.tmp_path,
-            run_website_found=25,  # 25/50 = 50% < 55% LOW_WEBSITE
-        )
-        with self._patch(p):
-            self.assertEqual(asc._compute_action(), "decrease")
-
-    def test_decrease_when_low_yield(self):
-        p = _health_file(
-            self.tmp_path,
-            run_leads=50,          # 50/50*100 = 100 < 120 LOW_YIELD
-            run_website_found=40,  # 80% website — healthy, but yield is low
-        )
-        with self._patch(p):
-            self.assertEqual(asc._compute_action(), "decrease")
-
-    def test_none_when_error_spike(self):
-        p = _health_file(self.tmp_path, error_count=5)
-        with self._patch(p):
-            self.assertEqual(asc._compute_action(), "none")
-
-    def test_none_when_not_enough_data(self):
-        p = _health_file(self.tmp_path, run_searches=10, run_batches=0)
-        with self._patch(p):
-            self.assertEqual(asc._compute_action(), "none")
-
-    def test_none_when_in_optimal_range(self):
-        # website_rate = 64% (between 55-75%), yield = 160 (between 120-220)
-        p = _health_file(
-            self.tmp_path,
-            run_leads=80,          # 80/50*100 = 160
-            run_website_found=32,  # 32/50 = 64%
-        )
-        with self._patch(p):
-            self.assertEqual(asc._compute_action(), "none")
-
-    def test_none_when_health_file_missing(self):
-        mock_cfg = MagicMock()
-        mock_cfg.SCRAPER_HEALTH_FILE = str(self.tmp_path / "nonexistent.json")
-        with patch.dict("sys.modules", {"maps_scraper.config": mock_cfg}):
-            self.assertEqual(asc._compute_action(), "none")
-
-    def test_none_when_import_fails(self):
-        with patch.dict("sys.modules", {"maps_scraper.config": None}):
-            # ImportError path
-            self.assertEqual(asc._compute_action(), "none")
-
-
-# ===========================================================================
-# 3. check_and_apply() guard conditions
-# ===========================================================================
-
-class TestCheckAndApply(unittest.TestCase):
-
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.state_path = Path(self.tmp.name) / "auto_scale_state.json"
-        # Redirect state file to temp dir
-        self.patcher_state = patch.object(asc, "AUTO_SCALE_STATE_FILE", self.state_path)
-        self.patcher_state.start()
-
-    def tearDown(self):
-        self.patcher_state.stop()
-        self.tmp.cleanup()
-
-    def _mock_action(self, action):
-        return patch.object(asc, "_compute_action", return_value=action)
-
-    def _mock_config(self, workers=4):
+    def _patch_config(self, workers=4):
         mock_cfg_mod = MagicMock()
         mock_cfg_mod.get_dashboard_config.return_value = {"runtime": {"num_workers": workers}}
         mock_cfg_mod.save_dashboard_config = MagicMock()
         return patch.dict("sys.modules", {"maps_scraper.config": mock_cfg_mod}), mock_cfg_mod
 
-    # --- no actionable recommendation ---
-    def test_no_action_returns_no_apply(self):
-        with self._mock_action("none"):
-            result = asc.check_and_apply()
-        self.assertFalse(result["applied"])
-        self.assertEqual(result["reason"], "no_actionable_recommendation")
+    def _patch_config_and_health(self, health_path: Path, workers=4):
+        mock_cfg_mod = MagicMock()
+        mock_cfg_mod.SCRAPER_HEALTH_FILE = str(health_path)
+        mock_cfg_mod.get_dashboard_config.return_value = {"runtime": {"num_workers": workers}}
+        mock_cfg_mod.save_dashboard_config = MagicMock()
+        return patch.dict("sys.modules", {"maps_scraper.config": mock_cfg_mod}), mock_cfg_mod
 
-    # --- recommendation just appeared: start tracking clock ---
-    def test_new_recommendation_starts_clock(self):
-        with self._mock_action("increase"):
-            result = asc.check_and_apply()
-        self.assertFalse(result["applied"])
-        self.assertEqual(result["reason"], "recommendation_changed")
-        state = json.loads(self.state_path.read_text())
-        self.assertEqual(state["recommendation"], "increase")
-        self.assertIsNotNone(state["recommendation_first_seen_at"])
 
-    # --- manual change too recent ---
-    def test_manual_too_recent_blocks(self):
-        self.state_path.write_text(json.dumps({
-            "last_manual_change_at": _iso(minutes_ago=1),  # 1 min ago, within STABLE_MINUTES=5
-        }))
-        with self._mock_action("increase"):
-            result = asc.check_and_apply()
-        self.assertFalse(result["applied"])
-        self.assertEqual(result["reason"], "manual_too_recent")
-        self.assertGreater(result["minutes_left"], 0)
+class TestComputeNewWorkers(unittest.TestCase):
+    def test_increase_20_percent(self):
+        self.assertEqual(asc._compute_new_workers(4, "increase"), 5)
 
-    # --- manual change old enough to not block ---
-    def test_manual_old_enough_does_not_block(self):
-        self.state_path.write_text(json.dumps({
-            "last_manual_change_at": _iso(minutes_ago=10),  # older than STABLE_MINUTES=5
-            "recommendation": "increase",
-            "recommendation_first_seen_at": _iso(minutes_ago=10),
-        }))
-        cfg_patch, mock_mod = self._mock_config(workers=4)
-        with self._mock_action("increase"), cfg_patch:
+    def test_decrease_20_percent(self):
+        self.assertEqual(asc._compute_new_workers(4, "decrease"), 3)
+
+    def test_increase_always_moves_at_least_one(self):
+        self.assertEqual(asc._compute_new_workers(1, "increase"), 2)
+
+    def test_decrease_always_moves_at_least_one(self):
+        self.assertEqual(asc._compute_new_workers(2, "decrease"), 1)
+
+    def test_boundaries(self):
+        self.assertEqual(asc._compute_new_workers(asc.MAX_WORKERS, "increase"), asc.MAX_WORKERS)
+        self.assertEqual(asc._compute_new_workers(asc.MIN_WORKERS, "decrease"), asc.MIN_WORKERS)
+
+
+class TestLiveBrakeAction(AutoScalerBase):
+    def test_none_for_healthy_live_run(self):
+        health = _health_file(self.tmp_path)
+        with self._patch_health(health):
+            self.assertEqual(asc._compute_action(), "none")
+
+    def test_decrease_on_memory_pressure(self):
+        health = _health_file(self.tmp_path, memory_pressure_pct=94.0)
+        with self._patch_health(health):
+            self.assertEqual(asc._compute_action(), "decrease")
+
+    def test_decrease_on_captcha(self):
+        health = _health_file(self.tmp_path, captcha_count=1)
+        with self._patch_health(health):
+            self.assertEqual(asc._compute_action(), "decrease")
+
+    def test_load_alone_does_not_force_decrease(self):
+        health = _health_file(self.tmp_path, compute_utilization_pct=196.0)
+        with self._patch_health(health):
+            self.assertEqual(asc._compute_action(), "none")
+
+    def test_decrease_on_cpu_saturation(self):
+        health = _health_file(self.tmp_path, cpu_percent=96.0)
+        with self._patch_health(health):
+            self.assertEqual(asc._compute_action(), "decrease")
+
+
+class TestCompletedRunRecommendation(unittest.TestCase):
+    def test_increase_for_completed_run_with_headroom(self):
+        summary = {
+            "runtime_minutes": 65.0,
+            "sample_count": 8,
+            "run_searches": 200,
+            "run_batches": 4,
+            "run_leads": 260,
+            "leads_per_100": 130.0,
+            "website_rate": 82.0,
+            "captcha_count": 0,
+            "error_count": 1,
+            "error_rate": 0.5,
+            "compute_p75": 158.0,
+            "cpu_p75": 49.0,
+            "memory_pressure_p75": 52.0,
+        }
+        self.assertEqual(asc._recommend_run_action(summary), ("increase", "completed_run_headroom"))
+
+    def test_decrease_for_completed_run_with_low_website_rate(self):
+        summary = {
+            "runtime_minutes": 70.0,
+            "sample_count": 8,
+            "run_searches": 180,
+            "run_batches": 4,
+            "run_leads": 160,
+            "leads_per_100": 88.9,
+            "website_rate": 50.0,
+            "captcha_count": 0,
+            "error_count": 0,
+            "error_rate": 0.0,
+            "compute_p75": 170.0,
+            "cpu_p75": 42.0,
+            "memory_pressure_p75": 50.0,
+        }
+        self.assertEqual(asc._recommend_run_action(summary), ("decrease", "website_rate_low"))
+
+    def test_none_when_run_too_short(self):
+        summary = {
+            "runtime_minutes": 12.0,
+            "sample_count": 6,
+            "run_searches": 100,
+            "run_batches": 2,
+            "run_leads": 100,
+            "leads_per_100": 100.0,
+            "website_rate": 80.0,
+            "captcha_count": 0,
+            "error_count": 0,
+            "error_rate": 0.0,
+            "compute_p75": 190.0,
+            "cpu_p75": 30.0,
+            "memory_pressure_p75": 35.0,
+        }
+        self.assertEqual(asc._recommend_run_action(summary), ("none", "run_too_short"))
+
+
+class TestCheckAndApply(AutoScalerBase):
+    def test_live_brake_applies_immediately(self):
+        health = _health_file(self.tmp_path, memory_pressure_pct=94.0)
+        cfg_patch, mock_mod = self._patch_config_and_health(health, workers=4)
+        with cfg_patch:
             result = asc.check_and_apply()
+
         self.assertTrue(result["applied"])
+        self.assertEqual(result["action"], "decrease")
+        self.assertEqual(result["new_workers"], 3)
+        saved_payload = mock_mod.save_dashboard_config.call_args[0][0]
+        self.assertEqual(saved_payload["runtime"]["num_workers"], 3)
 
-    # --- signal not stable long enough ---
-    def test_not_stable_enough_waits(self):
-        self.state_path.write_text(json.dumps({
-            "recommendation": "increase",
-            "recommendation_first_seen_at": _iso(minutes_ago=2),  # only 2 min, need 5
-        }))
-        with self._mock_action("increase"):
+    def test_confirmed_ram_emergency_triggers_cooldown_stop(self):
+        health = _health_file(self.tmp_path, memory_pressure_pct=95.0)
+        cfg_patch, mock_mod = self._patch_config_and_health(health, workers=4)
+        mock_scheduler = MagicMock()
+        mock_scheduler.is_enabled.return_value = False
+        mock_pm = MagicMock()
+        mock_pm.stop_scraper_only.return_value = {"success": True, "method": "sigint"}
+
+        with cfg_patch, \
+             patch.object(asc, "_get_scheduler", return_value=mock_scheduler), \
+             patch.object(asc, "_get_process_manager", return_value=mock_pm):
+            first = asc.check_and_apply()
+            second = asc.check_and_apply()
+
+        self.assertTrue(first["applied"])
+        self.assertEqual(first["action"], "decrease")
+        self.assertEqual(second["source"], "emergency_cooldown")
+        self.assertEqual(second["reason"], "ram_critical_confirmed")
+        mock_pm.stop_scraper_only.assert_called_once()
+        state = json.loads(self.state_path.read_text(encoding="utf-8"))
+        self.assertEqual(state["last_emergency_run_started_at"], json.loads(health.read_text())["started_at"])
+        self.assertIsNotNone(state["emergency_cooldown"])
+
+    def test_extreme_ram_emergency_triggers_immediately(self):
+        health = _health_file(self.tmp_path, memory_pressure_pct=97.0)
+        cfg_patch, _ = self._patch_config_and_health(health, workers=4)
+        mock_scheduler = MagicMock()
+        mock_scheduler.is_enabled.return_value = False
+        mock_pm = MagicMock()
+        mock_pm.stop_scraper_only.return_value = {"success": True, "method": "sigint"}
+
+        with cfg_patch, \
+             patch.object(asc, "_get_scheduler", return_value=mock_scheduler), \
+             patch.object(asc, "_get_process_manager", return_value=mock_pm):
             result = asc.check_and_apply()
-        self.assertFalse(result["applied"])
-        self.assertEqual(result["reason"], "waiting_for_stability")
-        self.assertGreater(result["minutes_left"], 0)
 
-    # --- recommendation changed mid-wait resets clock ---
-    def test_recommendation_change_resets_clock(self):
-        old_time = _iso(minutes_ago=3)
-        self.state_path.write_text(json.dumps({
-            "recommendation": "increase",
-            "recommendation_first_seen_at": old_time,
-        }))
-        with self._mock_action("decrease"):  # flipped to decrease
-            result = asc.check_and_apply()
-        self.assertFalse(result["applied"])
-        self.assertEqual(result["reason"], "recommendation_changed")
-        state = json.loads(self.state_path.read_text())
-        self.assertEqual(state["recommendation"], "decrease")
-        # Clock should be newer than old_time
-        self.assertGreater(state["recommendation_first_seen_at"], old_time)
+        self.assertEqual(result["source"], "emergency_cooldown")
+        self.assertEqual(result["reason"], "ram_extreme_single_hit")
+        mock_pm.stop_scraper_only.assert_called_once()
 
-    # --- already at boundary ---
-    def test_already_at_max_workers_no_apply(self):
-        self.state_path.write_text(json.dumps({
-            "recommendation": "increase",
-            "recommendation_first_seen_at": _iso(minutes_ago=10),
-        }))
-        cfg_patch, _ = self._mock_config(workers=asc.MAX_WORKERS)
-        with self._mock_action("increase"), cfg_patch:
-            result = asc.check_and_apply()
-        self.assertFalse(result["applied"])
-        self.assertEqual(result["reason"], "already_at_boundary")
+    def test_completed_run_plan_applies_after_run_finishes(self):
+        run_started_at = _iso(minutes_ago=45)
+        running_health = _health_file(
+            self.tmp_path,
+            started_at=run_started_at,
+            ended_at=None,
+            run_searches=240,
+            run_batches=5,
+            run_leads=300,
+            run_website_found=200,
+            run_website_total=240,
+            compute_utilization_pct=55.0,
+            cpu_percent=44.0,
+            memory_pressure_pct=50.0,
+        )
+        cfg_patch, mock_mod = self._patch_config_and_health(running_health, workers=4)
 
-    def test_already_at_min_workers_no_apply(self):
-        self.state_path.write_text(json.dumps({
-            "recommendation": "decrease",
-            "recommendation_first_seen_at": _iso(minutes_ago=10),
-        }))
-        cfg_patch, _ = self._mock_config(workers=asc.MIN_WORKERS)
-        with self._mock_action("decrease"), cfg_patch:
-            result = asc.check_and_apply()
-        self.assertFalse(result["applied"])
-        self.assertEqual(result["reason"], "already_at_boundary")
+        with cfg_patch:
+            for _ in range(5):
+                result = asc.check_and_apply()
+                self.assertFalse(result["applied"])
 
-    # --- auto-applied too recently ---
-    def test_auto_applied_too_recently_blocks(self):
-        self.state_path.write_text(json.dumps({
-            "recommendation": "increase",
-            "recommendation_first_seen_at": _iso(minutes_ago=10),
-            "last_auto_apply_at": _iso(minutes_ago=2),  # 2 min ago, within 5 min
-        }))
-        cfg_patch, _ = self._mock_config(workers=4)
-        with self._mock_action("increase"), cfg_patch:
-            result = asc.check_and_apply()
-        self.assertFalse(result["applied"])
-        self.assertEqual(result["reason"], "auto_applied_too_recently")
-
-    # --- successful apply ---
-    def test_successful_increase_apply(self):
-        self.state_path.write_text(json.dumps({
-            "recommendation": "increase",
-            "recommendation_first_seen_at": _iso(minutes_ago=10),
-        }))
-        cfg_patch, mock_mod = self._mock_config(workers=4)
-        with self._mock_action("increase"), cfg_patch:
+            _health_file(
+                self.tmp_path,
+                started_at=run_started_at,
+                ended_at=_iso(minutes_ago=0),
+                run_searches=240,
+                run_batches=5,
+                run_leads=300,
+                run_website_found=200,
+                run_website_total=240,
+                compute_utilization_pct=55.0,
+                cpu_percent=44.0,
+                memory_pressure_pct=50.0,
+            )
             result = asc.check_and_apply()
 
         self.assertTrue(result["applied"])
         self.assertEqual(result["action"], "increase")
-        self.assertEqual(result["from_workers"], 4)
-        self.assertEqual(result["new_workers"], 5)  # 4 * 1.20 = 4.8 → 5
-
-        # save_dashboard_config called with new worker count
+        self.assertEqual(result["new_workers"], 5)
         saved_payload = mock_mod.save_dashboard_config.call_args[0][0]
         self.assertEqual(saved_payload["runtime"]["num_workers"], 5)
 
-        # State file updated
-        state = json.loads(self.state_path.read_text())
-        self.assertEqual(state["last_auto_applied_workers"], 5)
-        self.assertEqual(state["last_auto_from_workers"], 4)
-        self.assertEqual(state["last_auto_action"], "increase")
-        self.assertIsNotNone(state["last_auto_apply_at"])
-
-    def test_successful_decrease_apply(self):
-        self.state_path.write_text(json.dumps({
-            "recommendation": "decrease",
-            "recommendation_first_seen_at": _iso(minutes_ago=10),
-        }))
-        cfg_patch, mock_mod = self._mock_config(workers=8)
-        with self._mock_action("decrease"), cfg_patch:
-            result = asc.check_and_apply()
-
-        self.assertTrue(result["applied"])
-        self.assertEqual(result["new_workers"], 6)  # 8 * 0.80 = 6.4 → 6
-
-    def test_state_file_missing_starts_fresh(self):
-        """No state file → treated as empty state, starts clock on first call."""
-        with self._mock_action("increase"):
+    def test_no_apply_when_not_enough_data(self):
+        run_started_at = _iso(minutes_ago=50)
+        running_health = _health_file(
+            self.tmp_path,
+            started_at=run_started_at,
+            run_searches=10,
+            run_batches=0,
+        )
+        cfg_patch, _ = self._patch_config_and_health(running_health, workers=4)
+        with cfg_patch:
+            for _ in range(5):
+                asc.check_and_apply()
+            _health_file(
+                self.tmp_path,
+                started_at=run_started_at,
+                ended_at=_iso(minutes_ago=0),
+                run_searches=10,
+                run_batches=0,
+            )
             result = asc.check_and_apply()
         self.assertFalse(result["applied"])
-        # Either recommendation_changed or started_tracking — either way, not applied
-        self.assertIn(result["reason"], ("recommendation_changed", "started_tracking"))
 
-
-# ===========================================================================
-# 4. record_manual_change()
-# ===========================================================================
-
-class TestRecordManualChange(unittest.TestCase):
-
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.state_path = Path(self.tmp.name) / "auto_scale_state.json"
-        self.patcher = patch.object(asc, "AUTO_SCALE_STATE_FILE", self.state_path)
-        self.patcher.start()
-
-    def tearDown(self):
-        self.patcher.stop()
-        self.tmp.cleanup()
-
-    def test_records_timestamp_and_resets_recommendation(self):
-        self.state_path.write_text(json.dumps({
-            "recommendation": "increase",
-            "recommendation_first_seen_at": _iso(minutes_ago=3),
-        }))
-        asc.record_manual_change()
-        state = json.loads(self.state_path.read_text())
-        self.assertIsNotNone(state["last_manual_change_at"])
-        self.assertIsNone(state["recommendation"])
-        self.assertIsNone(state["recommendation_first_seen_at"])
-
-    def test_manual_change_then_check_is_blocked(self):
-        asc.record_manual_change()
-        with patch.object(asc, "_compute_action", return_value="increase"):
+    def test_manual_mode_restarts_after_emergency_cooldown(self):
+        run_started_at = _iso(minutes_ago=50)
+        _health_file(
+            self.tmp_path,
+            started_at=run_started_at,
+            ended_at=_iso(minutes_ago=40),
+            run_searches=240,
+            run_batches=5,
+            run_leads=300,
+            run_website_found=200,
+            run_website_total=240,
+            compute_utilization_pct=55.0,
+            cpu_percent=44.0,
+            memory_pressure_pct=50.0,
+        )
+        self.state_path.write_text(
+            json.dumps(
+                {
+                    "emergency_cooldown": {
+                        "run_started_at": run_started_at,
+                        "reason": "ram_critical_confirmed",
+                        "triggered_at": _iso(minutes_ago=35),
+                        "restart_at": _iso(minutes_ago=20),
+                        "cooldown_minutes": 15,
+                        "scheduler_managed": False,
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        with self._patch_health(self.tmp_path / "scraper_health.json"), \
+             patch.object(asc, "_get_scheduler", return_value=MagicMock(is_enabled=MagicMock(return_value=False))), \
+             patch.object(asc, "_get_process_manager") as mock_get_pm:
+            mock_pm = MagicMock()
+            mock_pm.is_controller_running.return_value = False
+            mock_pm.start.return_value = {"success": True, "pid": 123}
+            mock_get_pm.return_value = mock_pm
             result = asc.check_and_apply()
-        self.assertEqual(result["reason"], "manual_too_recent")
+
+        self.assertEqual(result["reason"], "restarted_after_emergency_cooldown")
+        state = json.loads(self.state_path.read_text(encoding="utf-8"))
+        self.assertIsNone(state.get("emergency_cooldown"))
 
 
-# ===========================================================================
-# 5. get_auto_scale_status()
-# ===========================================================================
+class TestManualChange(AutoScalerBase):
+    def test_record_manual_change_clears_pending_plan(self):
+        self.state_path.write_text(
+            json.dumps(
+                {
+                    "pending_recommendation": {
+                        "action": "increase",
+                        "source": "completed_run",
+                    },
+                    "emergency_cooldown": {
+                        "reason": "ram_critical_confirmed",
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        asc.record_manual_change()
+        state = json.loads(self.state_path.read_text(encoding="utf-8"))
+        self.assertIsNotNone(state["last_manual_change_at"])
+        self.assertIsNone(state["pending_recommendation"])
+        self.assertIsNone(state["emergency_cooldown"])
 
-class TestGetAutoScaleStatus(unittest.TestCase):
 
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.state_path = Path(self.tmp.name) / "auto_scale_state.json"
-        self.patcher = patch.object(asc, "AUTO_SCALE_STATE_FILE", self.state_path)
-        self.patcher.start()
-
-    def tearDown(self):
-        self.patcher.stop()
-        self.tmp.cleanup()
-
-    def test_empty_state_returns_safe_defaults(self):
-        status = asc.get_auto_scale_status()
+class TestGetAutoScaleStatus(AutoScalerBase):
+    def test_collecting_run_status_note(self):
+        health = _health_file(self.tmp_path, started_at=_iso(minutes_ago=20), ended_at=None)
+        with self._patch_health(health):
+            status = asc.get_auto_scale_status()
         self.assertTrue(status["enabled"])
+        self.assertTrue(status["collecting_run"])
         self.assertEqual(status["action"], "none")
-        self.assertIsNone(status["stable_minutes"])
-        self.assertIsNone(status["minutes_left"])
-        self.assertFalse(status["manual_blocking"])
+        self.assertIn("observing the current run", status["note"])
 
-    def test_tracking_in_progress_shows_countdown(self):
-        self.state_path.write_text(json.dumps({
-            "recommendation": "increase",
-            "recommendation_first_seen_at": _iso(minutes_ago=2),
-        }))
+    def test_pending_completed_run_status(self):
+        self.state_path.write_text(
+            json.dumps(
+                {
+                    "pending_recommendation": {
+                        "action": "increase",
+                        "source": "completed_run",
+                        "runtime_minutes": 62.0,
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
         status = asc.get_auto_scale_status()
         self.assertEqual(status["action"], "increase")
-        self.assertAlmostEqual(status["stable_minutes"], 2.0, delta=0.2)
-        self.assertAlmostEqual(status["minutes_left"], asc.STABLE_MINUTES - 2.0, delta=0.2)
-
-    def test_manual_blocking_true_within_window(self):
-        self.state_path.write_text(json.dumps({
-            "last_manual_change_at": _iso(minutes_ago=1),
-        }))
-        status = asc.get_auto_scale_status()
-        self.assertTrue(status["manual_blocking"])
-
-    def test_manual_blocking_false_after_window(self):
-        self.state_path.write_text(json.dumps({
-            "last_manual_change_at": _iso(minutes_ago=asc.STABLE_MINUTES + 1),
-        }))
-        status = asc.get_auto_scale_status()
-        self.assertFalse(status["manual_blocking"])
-
-    def test_last_auto_apply_fields_propagated(self):
-        self.state_path.write_text(json.dumps({
-            "last_auto_apply_at": _iso(minutes_ago=10),
-            "last_auto_applied_workers": 5,
-            "last_auto_from_workers": 4,
-            "last_auto_action": "increase",
-        }))
-        status = asc.get_auto_scale_status()
-        self.assertEqual(status["last_auto_applied_workers"], 5)
-        self.assertEqual(status["last_auto_from_workers"], 4)
-        self.assertEqual(status["last_auto_action"], "increase")
+        self.assertEqual(status["source"], "completed_run")
+        self.assertIn("last completed run recommends increase workers ~20%", status["note"])
 
 
 if __name__ == "__main__":

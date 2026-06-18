@@ -6,6 +6,12 @@
 {% block content %}
 <div class="waveform-strip">
     <canvas id="waveform-robot"></canvas>
+    <div id="robot-pressure" class="hero-pressure hero-pressure-strip" aria-label="Host pressure readout">
+        <span class="pressure-cell"><span class="pressure-label">Load</span><span id="robot-pressure-load" class="pressure-value">--</span></span>
+        <span class="pressure-cell"><span class="pressure-label">CPU</span><span id="robot-pressure-cpu" class="pressure-value">--</span></span>
+        <span class="pressure-cell"><span class="pressure-label">RAM</span><span id="robot-pressure-mem" class="pressure-value">--</span></span>
+        <span id="robot-pressure-binding" class="pressure-binding pressure-binding-idle">idle</span>
+    </div>
 </div>
 
 <section class="panel robot-state-panel">
@@ -230,19 +236,46 @@
     if (!canvas) return;
     const wf = new Waveform(canvas);
 
+    const els = {
+        load: document.getElementById('robot-pressure-load'),
+        cpu: document.getElementById('robot-pressure-cpu'),
+        mem: document.getElementById('robot-pressure-mem'),
+        binding: document.getElementById('robot-pressure-binding'),
+    };
+    const fmt = (v) => (v == null || Number.isNaN(Number(v))) ? '--' : `${Math.round(Number(v))}%`;
+
     window.addEventListener('status-update', (e) => {
         const process = e.detail.process || {};
         const pipeline = e.detail.pipeline || {};
         const scraper = pipeline.maps_scraper || {};
-        const attention = Array.isArray(pipeline.attention) ? pipeline.attention : [];
-        const hasDanger = attention.some((item) => item.level === 'danger') || scraper.current_phase === 'paused_critical';
-        const hasWarning = attention.some((item) => item.level === 'warning') || scraper.current_phase === 'confirming';
+        const phase = (e.detail.scheduler || {}).phase;
 
-        if (hasDanger) wf.setIntensity(0.78);
-        else if (hasWarning) wf.setIntensity(0.42);
-        else if (process.running) wf.setIntensity(0.24);
-        else if ((e.detail.scheduler || {}).phase === 'RESTING') wf.setIntensity(0.12);
-        else wf.setIntensity(0.06);
+        const load = scraper.compute_utilization_pct != null ? Number(scraper.compute_utilization_pct) : null;
+        const cpu = scraper.cpu_percent != null ? Number(scraper.cpu_percent) : null;
+        const mem = (scraper.memory_pressure_pct != null || scraper.memory_percent != null)
+            ? Number(scraper.memory_pressure_pct ?? scraper.memory_percent) : null;
+        const hasSignal = load != null || cpu != null || mem != null;
+        const showLivePressure = process.running && hasSignal;
+
+        if (els.load) els.load.textContent = showLivePressure ? fmt(load) : '--';
+        if (els.cpu) els.cpu.textContent = showLivePressure ? fmt(cpu) : '--';
+        if (els.mem) els.mem.textContent = showLivePressure ? fmt(mem) : '--';
+
+        if (showLivePressure) {
+            wf.feedPressure({ load, cpu, mem });
+            const binding = wf.pressure ? wf.pressure.binding : 'load';
+            if (els.binding) {
+                els.binding.textContent = `${binding} binding`;
+                els.binding.className = `pressure-binding pressure-binding-${binding}`;
+            }
+        } else {
+            wf.clearPressure();
+            wf.setIntensity(phase === 'RESTING' ? 0.15 : 0.06);
+            if (els.binding) {
+                els.binding.textContent = phase === 'RESTING' ? 'resting' : 'idle';
+                els.binding.className = 'pressure-binding pressure-binding-idle';
+            }
+        }
     });
 })();
 </script>

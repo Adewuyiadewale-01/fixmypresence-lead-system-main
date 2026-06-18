@@ -1,4 +1,5 @@
 import asyncio
+from collections import Counter
 import fcntl
 import hashlib
 import os
@@ -4057,6 +4058,27 @@ async def fetch_urls_from_sheet(session: aiohttp.ClientSession) -> List[dict]:
     return await GoogleClient.fetch_urls(session)
 
 
+def _categorize_scraper_error(error_message: str, blocked: bool = False) -> str:
+    text = str(error_message or "").strip().lower()
+    if blocked or "blocked by site firewall" in text or "access blocked" in text:
+        return "blocked"
+    if "timed out" in text or "timeout" in text:
+        return "timeout"
+    if "429" in text or "rate limit" in text or "too many requests" in text:
+        return "rate_limited"
+    if "403" in text or "forbidden" in text or "401" in text or "unauthorized" in text:
+        return "access_denied"
+    if "ssl" in text or "tls" in text or "certificate" in text:
+        return "ssl"
+    if "dns" in text or "name or service not known" in text or "temporary failure in name resolution" in text:
+        return "dns"
+    if "connection refused" in text or "connection reset" in text or "server disconnected" in text or "clientconnector" in text:
+        return "network"
+    if "playwright" in text or "target closed" in text or "execution context" in text or "browser" in text:
+        return "browser"
+    return "other"
+
+
 # ─── Run lock ─────────────────────────────────────────────────────────────────
 
 class RunLock:
@@ -4218,6 +4240,7 @@ async def main_from_sheet(batch_size: int = 50, dry_run: bool = False):
     mark_fail_count = 0
     timeout_count = 0
     blocked_count = 0
+    error_reason_counts: Counter[str] = Counter()
 
     try:
         async with aiohttp.ClientSession() as session:
@@ -4395,8 +4418,14 @@ async def main_from_sheet(batch_size: int = 50, dry_run: bool = False):
                         blocked_count += 1
 
                     if result.get("error"):
+                        error_reason = _categorize_scraper_error(
+                            result.get("error", ""),
+                            blocked=bool(result.get("blocked")),
+                        )
+                        error_reason_counts[error_reason] += 1
                         entry_log["write"] = "skipped"
                         entry_log["marked"] = "error"
+                        entry_log["error_reason"] = error_reason
                         if not dry_run and result.get("tab") and result.get("row"):
                             mark_result = await _retry_result(
                                 lambda r=result: GoogleClient.mark_source_processed_detailed(
@@ -4519,6 +4548,8 @@ async def main_from_sheet(batch_size: int = 50, dry_run: bool = False):
                 "mark_failed": mark_fail_count,
                 "timeout_count": timeout_count,
                 "blocked_count": blocked_count,
+                "error_reasons": dict(sorted(error_reason_counts.items(), key=lambda item: (-item[1], item[0]))),
+                "dominant_error_reason": (error_reason_counts.most_common(1)[0][0] if error_reason_counts else None),
                 "linkedin_urls": total_linkedin,
                 "emails": total_emails,
                 "persons_extracted": total_persons,

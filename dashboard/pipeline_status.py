@@ -14,6 +14,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections import Counter
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -46,16 +47,22 @@ _CACHE_REFRESH_IN_PROGRESS: Dict[str, bool] = {
     "delivery_sheet": False,
 }
 
-# Scraper recommendation thresholds are intentionally conservative and are
-# calibrated to current Maps Scraper behavior:
-# - leads/100 searches below 120 usually means weak keyword/location yield
+# Scraper recommendation thresholds:
 # - 220+ leads/100 searches usually means the current mix is producing well
 # - website-found rate below 55% often indicates noisy/non-business results
 # - 75%+ website-found rate is a healthy signal for safely increasing workers
-SCRAPER_LOW_YIELD_PER_100 = 120.0
+# - host load remains useful for visibility, but CPU and RAM pressure are the
+#   real safety brakes for worker scaling decisions
 SCRAPER_HIGH_YIELD_PER_100 = 220.0
 SCRAPER_LOW_WEBSITE_RATE = 55.0
 SCRAPER_HIGH_WEBSITE_RATE = 75.0
+SCRAPER_MAX_SAFE_ERROR_RATE = 1.0
+# RAM pressure guardrails are based on available headroom, not raw OS "used"
+# memory, so they map better to actual OOM risk.
+SCRAPER_HIGH_MEMORY_PERCENT = 93.0
+SCRAPER_TARGET_INCREASE_MEMORY_PERCENT = 85.0
+SCRAPER_HIGH_CPU_PERCENT = 95.0
+SCRAPER_TARGET_INCREASE_CPU_PERCENT = 88.0
 
 CREDENTIALS_PATH = Path(
     os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "~/sheet-bot-key.json")
@@ -139,6 +146,78 @@ def _read_latest_json(directory: Path, pattern: str) -> Optional[dict]:
         if data is not None:
             return data
     return None
+
+
+def _read_scraper_v3_history_summary() -> Dict[str, Any]:
+    totals: Dict[str, Any] = {
+        "runs": 0,
+        "attempted": 0,
+        "scraped_error": 0,
+        "marked_error": 0,
+        "write_failed": 0,
+        "mark_failed": 0,
+        "timeout_count": 0,
+        "blocked_count": 0,
+        "error_reasons": {},
+        "dominant_error_reason": None,
+    }
+    if not SCRAPER_V3_SUMMARY_DIR.exists():
+        return totals
+
+    reason_counts: Counter[str] = Counter()
+    try:
+        summary_paths = sorted(SCRAPER_V3_SUMMARY_DIR.glob("run_summary_*.json"))
+    except OSError:
+        return totals
+
+    for path in summary_paths:
+        payload = _read_json(path)
+        if not isinstance(payload, dict):
+            continue
+        totals["runs"] += 1
+        for key in (
+            "attempted",
+            "scraped_error",
+            "marked_error",
+            "write_failed",
+            "mark_failed",
+            "timeout_count",
+            "blocked_count",
+        ):
+            try:
+                totals[key] += int(payload.get(key) or 0)
+            except (TypeError, ValueError):
+                continue
+
+        raw_reasons = payload.get("error_reasons")
+        if isinstance(raw_reasons, dict) and raw_reasons:
+            for reason, count in raw_reasons.items():
+                try:
+                    reason_counts[str(reason)] += int(count or 0)
+                except (TypeError, ValueError):
+                    continue
+            continue
+
+        # Older summaries do not contain reason buckets. Backfill the obvious
+        # categories so all-time reporting still remains useful.
+        timeout_count = int(payload.get("timeout_count") or 0)
+        blocked_count = int(payload.get("blocked_count") or 0)
+        scraped_error = int(payload.get("scraped_error") or 0)
+        if timeout_count:
+            reason_counts["timeout"] += timeout_count
+        if blocked_count:
+            reason_counts["blocked"] += blocked_count
+        residual = max(0, scraped_error - timeout_count - blocked_count)
+        if residual:
+            reason_counts["other"] += residual
+
+    totals["error_reasons"] = dict(
+        sorted(reason_counts.items(), key=lambda item: (-item[1], item[0]))
+    )
+    totals["dominant_error_reason"] = (
+        reason_counts.most_common(1)[0][0] if reason_counts else None
+    )
+    return totals
 
 
 def _auth_client():
@@ -300,6 +379,18 @@ def _empty_live_metrics() -> Dict[str, Any]:
             "gamma_family": None,
             "total": None,
         },
+        "scraper_v3_source_errors": {
+            "alpha": None,
+            "alpha_high": None,
+            "beta": None,
+            "beta_high": None,
+            "gamma": None,
+            "gamma_high": None,
+            "alpha_family": None,
+            "beta_family": None,
+            "gamma_family": None,
+            "total": None,
+        },
     }
 
 
@@ -440,6 +531,78 @@ def _schedule_cache_refresh(name: str, cache: Dict[str, Any], compute_fn) -> Non
                 _CACHE_REFRESH_IN_PROGRESS[name] = False
 
     threading.Thread(target=_runner, daemon=True).start()
+
+
+def _read_source_error_backlog(
+    dest_book: Any,
+    source_settlement: Dict[str, Any],
+) -> Dict[str, Optional[int]]:
+    counts: Dict[str, Optional[int]] = {
+        "alpha": None,
+        "alpha_high": None,
+        "beta": None,
+        "beta_high": None,
+        "gamma": None,
+        "gamma_high": None,
+        "alpha_family": None,
+        "beta_family": None,
+        "gamma_family": None,
+        "total": None,
+    }
+    source_tabs = {
+        "alpha": (source_settlement.get("alpha_tab") or "Alpha",),
+        "alpha_high": (source_settlement.get("alpha_high_tab") or "Alpha_high",),
+        "beta": (source_settlement.get("beta_tab") or "Beta",),
+        "beta_high": (source_settlement.get("beta_high_tab") or "Beta_high",),
+        "gamma": (source_settlement.get("gamma_tab") or "Gamma",),
+        "gamma_high": (source_settlement.get("gamma_high_tab") or "Gamma_high",),
+    }
+
+    for key, aliases in source_tabs.items():
+        value = None
+        for tab in aliases:
+            try:
+                ws = guarded_gspread_call(
+                    lambda tab_name=tab: dest_book.worksheet(tab_name),
+                    operation="read",
+                    description=f"Open source worksheet {tab}",
+                )
+                values = guarded_gspread_call(
+                    lambda: ws.get_all_values(),
+                    operation="read",
+                    description=f"Read source worksheet {tab} values",
+                )
+            except Exception:
+                continue
+
+            header = [str(h).strip().lower() for h in values[0]] if values else []
+            rows = values[1:] if len(values) > 1 else []
+            try:
+                status_idx = header.index("scrape status")
+            except ValueError:
+                value = 0
+                break
+
+            value = sum(
+                1
+                for row in rows
+                if status_idx < len(row)
+                and str(row[status_idx]).strip().lower() == "error"
+            )
+            break
+        counts[key] = value
+
+    if counts["alpha"] is not None and counts["alpha_high"] is not None:
+        counts["alpha_family"] = (counts["alpha"] or 0) + (counts["alpha_high"] or 0)
+    if counts["beta"] is not None and counts["beta_high"] is not None:
+        counts["beta_family"] = (counts["beta"] or 0) + (counts["beta_high"] or 0)
+    if counts["gamma"] is not None and counts["gamma_high"] is not None:
+        counts["gamma_family"] = (counts["gamma"] or 0) + (counts["gamma_high"] or 0)
+
+    family_keys = ("alpha_family", "beta_family", "gamma_family")
+    if all(counts[key] is not None for key in family_keys):
+        counts["total"] = sum(int(counts[key] or 0) for key in family_keys)
+    return counts
 
 
 def _compute_live_metrics() -> Dict[str, Any]:
@@ -639,6 +802,7 @@ def _compute_live_metrics() -> Dict[str, Any]:
 
     # Scraper V3 ready counts from source webhook
     scraper_v3_ready = _fetch_scraper_v3_ready_counts()
+    scraper_v3_source_errors = _read_source_error_backlog(dest_book, source_settlement)
     output_values = (
         guarded_gspread_call(
             lambda: output_ws.get_all_values(),
@@ -692,6 +856,7 @@ def _compute_live_metrics() -> Dict[str, Any]:
         },
         "settlement": settlement,
         "scraper_v3_ready": scraper_v3_ready,
+        "scraper_v3_source_errors": scraper_v3_source_errors,
     }
 
 
@@ -793,8 +958,14 @@ def _scraper_recommendation(
     website_found_rate: Optional[float],
     captcha_count: int,
     error_count: int,
+    compute_utilization_pct: Optional[float],
+    cpu_percent: Optional[float] = None,
+    memory_pressure_pct: Optional[float] = None,
 ) -> tuple[str, str]:
     """Heuristic recommendation for scraper aggression on overview."""
+    if memory_pressure_pct is not None and memory_pressure_pct >= SCRAPER_HIGH_MEMORY_PERCENT:
+        return ("RAM critical — reduce aggression", "danger")
+
     if searches < 20 or batches < 1:
         return ("Learning baseline", "info")
 
@@ -803,17 +974,47 @@ def _scraper_recommendation(
     if error_count >= 5:
         return ("Inspect worker stability", "warning")
 
+    error_rate = (float(error_count) / searches) * 100 if searches > 0 else None
+    is_cpu_saturated = (
+        cpu_percent is not None and cpu_percent >= SCRAPER_HIGH_CPU_PERCENT
+    )
+    has_cpu_headroom = (
+        cpu_percent is None or cpu_percent <= SCRAPER_TARGET_INCREASE_CPU_PERCENT
+    )
+    has_memory_headroom = (
+        memory_pressure_pct is None
+        or memory_pressure_pct <= SCRAPER_TARGET_INCREASE_MEMORY_PERCENT
+    )
+    low_error_pressure = (
+        error_rate is not None and error_rate <= SCRAPER_MAX_SAFE_ERROR_RATE
+    )
+
+    if is_cpu_saturated:
+        return ("Reduce aggression", "warning")
+
     if website_found_rate is None:
-        if leads_per_100 is not None and leads_per_100 >= SCRAPER_HIGH_YIELD_PER_100:
-            return ("Healthy yield", "info")
-        if leads_per_100 is not None and leads_per_100 < SCRAPER_LOW_YIELD_PER_100:
-            return ("Low yield, inspect inputs", "warning")
+        if (
+            has_cpu_headroom
+            and has_memory_headroom
+            and low_error_pressure
+            and leads_per_100 is not None
+            and leads_per_100 >= SCRAPER_HIGH_YIELD_PER_100
+        ):
+            return ("Healthy yield + headroom", "info")
         return ("Benchmarking", "info")
 
-    if website_found_rate >= SCRAPER_HIGH_WEBSITE_RATE and (leads_per_100 or 0) >= SCRAPER_HIGH_YIELD_PER_100:
-        return ("Safe to increase ~20%", "info")
-    if website_found_rate < SCRAPER_LOW_WEBSITE_RATE or ((leads_per_100 or 0) < SCRAPER_LOW_YIELD_PER_100):
+    if website_found_rate < SCRAPER_LOW_WEBSITE_RATE:
         return ("Reduce aggression", "warning")
+
+    if (
+        has_cpu_headroom
+        and has_memory_headroom
+        and low_error_pressure
+    ):
+        if website_found_rate >= SCRAPER_HIGH_WEBSITE_RATE:
+            return ("CPU/RAM headroom — safe to increase", "info")
+    if compute_utilization_pct is not None and compute_utilization_pct >= 300.0:
+        return ("Observe host queue pressure", "warning")
     return ("Optimal", "info")
 
 
@@ -901,6 +1102,11 @@ def _read_scraper_all_time_stats() -> Dict[str, Optional[float]]:
         "total_website_total": None,
         "total_captchas": None,
         "total_errors": None,
+        "total_early_duplicates_skipped": 0,
+        "total_historical_duplicates_skipped": 0,
+        "total_live_duplicates_skipped": 0,
+        "total_coordinator_failures": 0,
+        "total_sidebar_fallbacks_avoided_estimate": 0,
     }
 
     output_health = _read_scraper_output_health()
@@ -961,6 +1167,32 @@ def _read_scraper_health() -> Dict[str, Any]:
             "run_website_found": None,
             "run_website_total": None,
             "current_batch_number": None,
+            "host_cpu_count": None,
+            "load_avg_1m": None,
+            "load_avg_5m": None,
+            "load_avg_15m": None,
+            "compute_utilization_pct": None,
+            "cpu_percent": None,
+            "memory_pressure_pct": None,
+            "memory_available_pct": None,
+            "memory_percent": None,
+            "memory_available_gb": None,
+            "memory_used_gb": None,
+            "memory_total_gb": None,
+            "run_worker_count": None,
+            "configured_worker_count": None,
+            "run_website_status_workers": None,
+            "adaptive_worker_scaling_enabled": None,
+            "maps_max_workers": None,
+            "maps_min_workers": None,
+            "maps_worker_scale_down_check_interval_seconds": None,
+            "retired_worker_count": None,
+            "resource_pressure_stop_requested": None,
+            "early_dedupe_enabled": None,
+            "coordinator_running": None,
+            "known_place_keys": None,
+            "active_reservations": None,
+            "telemetry": {},
         }
 
     data = _read_json(Path(SCRAPER_HEALTH_FILE)) or {}
@@ -977,7 +1209,48 @@ def _read_scraper_health() -> Dict[str, Any]:
         "run_website_found": data.get("run_website_found"),
         "run_website_total": data.get("run_website_total"),
         "current_batch_number": data.get("current_batch_number"),
+        "host_cpu_count": data.get("host_cpu_count"),
+        "load_avg_1m": data.get("load_avg_1m"),
+        "load_avg_5m": data.get("load_avg_5m"),
+        "load_avg_15m": data.get("load_avg_15m"),
+        "compute_utilization_pct": data.get("compute_utilization_pct"),
+        "cpu_percent": data.get("cpu_percent"),
+        "memory_pressure_pct": data.get("memory_pressure_pct", data.get("memory_percent")),
+        "memory_available_pct": data.get("memory_available_pct"),
+        "memory_percent": data.get("memory_percent"),
+        "memory_available_gb": data.get("memory_available_gb"),
+        "memory_used_gb": data.get("memory_used_gb"),
+        "memory_total_gb": data.get("memory_total_gb"),
+        "run_worker_count": data.get("run_worker_count"),
+        "configured_worker_count": data.get("configured_worker_count"),
+        "run_website_status_workers": data.get("run_website_status_workers"),
+        "adaptive_worker_scaling_enabled": data.get("adaptive_worker_scaling_enabled"),
+        "maps_max_workers": data.get("maps_max_workers"),
+        "maps_min_workers": data.get("maps_min_workers"),
+        "maps_worker_scale_down_check_interval_seconds": data.get("maps_worker_scale_down_check_interval_seconds"),
+        "retired_worker_count": data.get("retired_worker_count"),
+        "resource_pressure_stop_requested": data.get("resource_pressure_stop_requested"),
+        "early_dedupe_enabled": data.get("early_dedupe_enabled"),
+        "coordinator_running": data.get("coordinator_running"),
+        "known_place_keys": data.get("known_place_keys"),
+        "active_reservations": data.get("active_reservations"),
+        "telemetry": data.get("telemetry") if isinstance(data.get("telemetry"), dict) else {},
     }
+
+
+def _scraper_health_is_live(scraper_health: Dict[str, Any], stale_after_seconds: int = 180) -> bool:
+    if not scraper_health.get("started_at") or scraper_health.get("ended_at"):
+        return False
+    last_activity = scraper_health.get("last_activity")
+    if not last_activity:
+        return False
+    try:
+        activity_dt = datetime.fromisoformat(str(last_activity).replace("Z", "+00:00"))
+        if activity_dt.tzinfo is None:
+            activity_dt = activity_dt.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return False
+    return (datetime.now(timezone.utc) - activity_dt).total_seconds() <= stale_after_seconds
 
 
 # ============================================================================
@@ -1364,12 +1637,16 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
     latest_scraper_v3_summary = _read_latest_json(
         SCRAPER_V3_SUMMARY_DIR, "run_summary_*.json"
     ) or {}
+    scraper_v3_history = _read_scraper_v3_history_summary()
+
+    scraper_health = _read_scraper_health()
+    scraper_health_live = _scraper_health_is_live(scraper_health)
 
     # Derive subsystem states from available data.
     # Maps scraper status tracks the controller subprocess, not the auxiliary
     # watchers — a watcher staying alive after the controller exits must not
     # be reported as "scraper running".
-    is_running = process_info.get("controller_running", process_info.get("running", False))
+    is_running = process_info.get("controller_running", process_info.get("running", False)) or scraper_health_live
     scheduler_phase = scheduler_state.get("phase", "DISABLED")
 
     # Maps scraper status
@@ -1380,6 +1657,7 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
         scraper_status = "resting"
 
     progress = scraper_progress.get("progress") or {}
+    location_tree = scraper_progress.get("location_tree") or {}
     scraper_status_raw = str(scraper_progress.get("status") or "").strip().lower()
     overall = progress.get("overall", {})
     loc = progress.get("current_location", {})
@@ -1458,7 +1736,6 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
     if batch_count > 0:
         leads_per_batch = round(scraped_total / batch_count, 1)
 
-    scraper_health = _read_scraper_health()
     run_searches = scraper_health.get("run_searches")
     run_leads = scraper_health.get("run_leads")
     run_batches = scraper_health.get("run_batches")
@@ -1502,9 +1779,11 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
         try:
             completed_dt = datetime.fromisoformat(str(category_completed_at).replace("Z", "+00:00"))
             if completed_dt.tzinfo is None:
+                server_tz = datetime.now().astimezone().tzinfo or timezone.utc
+                completed_dt = completed_dt.replace(tzinfo=server_tz)
                 deadline_dt = completed_dt + timedelta(minutes=category_timeout_minutes)
                 category_auto_progress_deadline = deadline_dt.isoformat()
-                category_auto_progress_overdue = datetime.now() >= deadline_dt
+                category_auto_progress_overdue = datetime.now(server_tz) >= deadline_dt
             else:
                 deadline_dt = completed_dt + timedelta(minutes=category_timeout_minutes)
                 category_auto_progress_deadline = deadline_dt.isoformat()
@@ -1545,6 +1824,19 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
             "run_website_found": None,
             "run_website_total": None,
             "current_batch_number": None,
+            "host_cpu_count": None,
+            "load_avg_1m": None,
+            "load_avg_5m": None,
+            "load_avg_15m": None,
+            "compute_utilization_pct": None,
+            "cpu_percent": None,
+            "memory_pressure_pct": None,
+            "memory_available_pct": None,
+            "memory_percent": None,
+            "memory_available_gb": None,
+            "memory_used_gb": None,
+            "memory_total_gb": None,
+            "telemetry": {},
         }
         run_searches = None
         run_leads = None
@@ -1568,7 +1860,15 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
             run_website_found_rate,
             int(scraper_health.get("captcha_count") or 0),
             int(scraper_health.get("error_count") or 0),
+            scraper_health.get("compute_utilization_pct"),
+            scraper_health.get("cpu_percent"),
+            scraper_health.get("memory_pressure_pct", scraper_health.get("memory_percent")),
         )
+
+    configured_worker_count = scraper_runtime_cfg.get("num_workers")
+    configured_website_status_workers = scraper_runtime_cfg.get("website_status_workers")
+    active_worker_count = scraper_health.get("run_worker_count") if scraper_health_live else None
+    active_website_status_workers = scraper_health.get("run_website_status_workers") if scraper_health_live else None
 
     maps_scraper = {
         "status": scraper_status,
@@ -1595,9 +1895,35 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
         "captcha_count": scraper_health.get("captcha_count"),
         "error_count": scraper_health.get("error_count"),
         "category": f"{cat.get('index', 0) + 1}/{cat.get('total', '?')}" if cat else None,
-        "worker_count": scraper_runtime_cfg.get("num_workers"),
+        "location_tree": location_tree,
+        "worker_count": active_worker_count if active_worker_count is not None else configured_worker_count,
+        "active_worker_count": active_worker_count,
+        "configured_worker_count": configured_worker_count,
+        "maps_min_workers": scraper_health.get("maps_min_workers") or scraper_runtime_cfg.get("maps_min_workers"),
+        "maps_max_workers": scraper_health.get("maps_max_workers") or scraper_runtime_cfg.get("maps_max_workers"),
+        "maps_worker_scale_down_check_interval_seconds": (
+            scraper_health.get("maps_worker_scale_down_check_interval_seconds")
+            or scraper_runtime_cfg.get("maps_worker_scale_down_check_interval_seconds")
+        ),
+        "adaptive_worker_scaling_enabled": scraper_health.get("adaptive_worker_scaling_enabled"),
+        "retired_worker_count": scraper_health.get("retired_worker_count"),
+        "resource_pressure_stop_requested": scraper_health.get("resource_pressure_stop_requested"),
+        "early_dedupe_enabled": (
+            scraper_health.get("early_dedupe_enabled")
+            if scraper_health.get("early_dedupe_enabled") is not None
+            else scraper_runtime_cfg.get("maps_early_dedupe_enabled")
+        ),
+        "coordinator_running": scraper_health.get("coordinator_running"),
+        "known_place_keys": scraper_health.get("known_place_keys"),
+        "active_reservations": scraper_health.get("active_reservations"),
         "batch_size": scraper_runtime_cfg.get("batch_size"),
-        "website_status_workers": scraper_runtime_cfg.get("website_status_workers"),
+        "website_status_workers": (
+            active_website_status_workers
+            if active_website_status_workers is not None
+            else configured_website_status_workers
+        ),
+        "active_website_status_workers": active_website_status_workers,
+        "configured_website_status_workers": configured_website_status_workers,
         "recommendation": recommendation,
         "recommendation_tone": recommendation_tone,
         "delivery_sheet": delivery_sheet,
@@ -1607,6 +1933,15 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
         "run_ended_at": scraper_health.get("ended_at"),
         "current_phase": scraper_health.get("current_phase"),
         "current_batch_number": scraper_health.get("current_batch_number"),
+        "compute_utilization_pct": scraper_health.get("compute_utilization_pct"),
+        "cpu_percent": scraper_health.get("cpu_percent"),
+        "memory_pressure_pct": scraper_health.get("memory_pressure_pct", scraper_health.get("memory_percent")),
+        "memory_available_pct": scraper_health.get("memory_available_pct"),
+        "memory_percent": scraper_health.get("memory_percent"),
+        "memory_available_gb": scraper_health.get("memory_available_gb"),
+        "memory_used_gb": scraper_health.get("memory_used_gb"),
+        "memory_total_gb": scraper_health.get("memory_total_gb"),
+        "telemetry": scraper_health.get("telemetry") or {},
         "category_progression": {
             "awaiting_approval": scraper_status_raw == "category_complete" and not is_running,
             "state": "awaiting_approval" if scraper_status_raw == "category_complete" and not is_running else (
@@ -1634,6 +1969,23 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
             "captcha_rate": run_captcha_rate,
             "error_rate": run_error_rate,
             "searches_per_hour": searches_per_hour,
+            "compute_utilization_pct": scraper_health.get("compute_utilization_pct"),
+            "host_cpu_count": scraper_health.get("host_cpu_count"),
+            "load_avg_1m": scraper_health.get("load_avg_1m"),
+            "load_avg_5m": scraper_health.get("load_avg_5m"),
+            "load_avg_15m": scraper_health.get("load_avg_15m"),
+            "cpu_percent": scraper_health.get("cpu_percent"),
+            "memory_pressure_pct": scraper_health.get("memory_pressure_pct", scraper_health.get("memory_percent")),
+            "memory_available_pct": scraper_health.get("memory_available_pct"),
+            "memory_percent": scraper_health.get("memory_percent"),
+            "memory_available_gb": scraper_health.get("memory_available_gb"),
+            "memory_used_gb": scraper_health.get("memory_used_gb"),
+            "memory_total_gb": scraper_health.get("memory_total_gb"),
+            "telemetry": scraper_health.get("telemetry") or {},
+            "early_dedupe_enabled": scraper_health.get("early_dedupe_enabled"),
+            "coordinator_running": scraper_health.get("coordinator_running"),
+            "known_place_keys": scraper_health.get("known_place_keys"),
+            "active_reservations": scraper_health.get("active_reservations"),
         },
         "all_time": {
             "searches": all_time_completed_searches,
@@ -1648,6 +2000,11 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
             "error_count": total_errors,
             "captcha_rate": all_time_captcha_rate,
             "error_rate": all_time_error_rate,
+            "early_duplicates_skipped": all_time_stats.get("total_early_duplicates_skipped"),
+            "historical_duplicates_skipped": all_time_stats.get("total_historical_duplicates_skipped"),
+            "live_duplicates_skipped": all_time_stats.get("total_live_duplicates_skipped"),
+            "coordinator_failures": all_time_stats.get("total_coordinator_failures"),
+            "sidebar_fallbacks_avoided_estimate": all_time_stats.get("total_sidebar_fallbacks_avoided_estimate"),
         },
         "recent_callouts": scraper_callouts,
         "auto_scale": _get_auto_scale_status(),
@@ -1799,6 +2156,16 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
         "beta_family": live["scraper_v3_ready"].get("beta_family"),
         "gamma_family": live["scraper_v3_ready"].get("gamma_family"),
         "total": live["scraper_v3_ready"].get("total"),
+        "source_error_alpha": live["scraper_v3_source_errors"].get("alpha"),
+        "source_error_alpha_high": live["scraper_v3_source_errors"].get("alpha_high"),
+        "source_error_beta": live["scraper_v3_source_errors"].get("beta"),
+        "source_error_beta_high": live["scraper_v3_source_errors"].get("beta_high"),
+        "source_error_gamma": live["scraper_v3_source_errors"].get("gamma"),
+        "source_error_gamma_high": live["scraper_v3_source_errors"].get("gamma_high"),
+        "source_error_alpha_family": live["scraper_v3_source_errors"].get("alpha_family"),
+        "source_error_beta_family": live["scraper_v3_source_errors"].get("beta_family"),
+        "source_error_gamma_family": live["scraper_v3_source_errors"].get("gamma_family"),
+        "source_error_total": live["scraper_v3_source_errors"].get("total"),
         "alpha_beta": (
             (live["scraper_v3_ready"].get("alpha_family") or 0)
             + (live["scraper_v3_ready"].get("beta_family") or 0)
@@ -1829,9 +2196,21 @@ def get_pipeline_status(process_info: dict, scheduler_state: dict, scraper_progr
         "last_graceful_shutdown": latest_scraper_v3_summary.get("graceful_shutdown"),
         "last_timeout_count": latest_scraper_v3_summary.get("timeout_count"),
         "last_blocked_count": latest_scraper_v3_summary.get("blocked_count"),
+        "last_error_reasons": latest_scraper_v3_summary.get("error_reasons"),
+        "last_dominant_error_reason": latest_scraper_v3_summary.get("dominant_error_reason"),
         "last_linkedin_urls": latest_scraper_v3_summary.get("linkedin_urls"),
         "last_emails": latest_scraper_v3_summary.get("emails"),
         "last_persons_extracted": latest_scraper_v3_summary.get("persons_extracted"),
+        "all_time_runs": scraper_v3_history.get("runs"),
+        "all_time_attempted": scraper_v3_history.get("attempted"),
+        "all_time_scraped_error": scraper_v3_history.get("scraped_error"),
+        "all_time_marked_error": scraper_v3_history.get("marked_error"),
+        "all_time_write_failed": scraper_v3_history.get("write_failed"),
+        "all_time_mark_failed": scraper_v3_history.get("mark_failed"),
+        "all_time_timeout_count": scraper_v3_history.get("timeout_count"),
+        "all_time_blocked_count": scraper_v3_history.get("blocked_count"),
+        "all_time_error_reasons": scraper_v3_history.get("error_reasons"),
+        "all_time_dominant_error_reason": scraper_v3_history.get("dominant_error_reason"),
     }
 
     # Watchers summary

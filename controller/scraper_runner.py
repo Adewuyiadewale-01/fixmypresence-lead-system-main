@@ -15,6 +15,7 @@ REPO_ROOT = Path(__file__).parent.parent
 SCRAPER_DIR = REPO_ROOT / "Bots" / "maps_scraper"
 SCRAPER_MAIN = SCRAPER_DIR / "main.py"
 PARALLEL_SCRAPER = SCRAPER_DIR / "parallel_scraper.py"
+DELIVERY_FAILED_EXIT_CODE = 75
 
 
 def run_scraper(next_category: bool = False, headless: bool = False, parallel: bool = True) -> Tuple[int, str]:
@@ -60,6 +61,8 @@ def run_scraper(next_category: bool = False, headless: bool = False, parallel: b
         
         if exit_code == 0:
             return (0, "Scraper exited normally")
+        if exit_code == DELIVERY_FAILED_EXIT_CODE:
+            return (exit_code, "Scraper paused after a delivery timeout. Pending leads were preserved for retry.")
         else:
             return (exit_code, f"Scraper exited with code {exit_code}")
             

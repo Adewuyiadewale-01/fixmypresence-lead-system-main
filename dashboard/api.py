@@ -3,13 +3,14 @@
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, Query, HTTPException, Request
+from fastapi import FastAPI, Query, HTTPException, Request, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
@@ -373,6 +374,43 @@ def _project_python() -> str:
     return str(venv_python) if venv_python.exists() else sys.executable
 
 
+def _systemd_dashboard_unit() -> str | None:
+    unit = (getattr(settings, "DASHBOARD_SYSTEMD_UNIT", "") or "").strip()
+    if not unit:
+        return None
+    if not Path("/run/systemd/system").exists():
+        return None
+    if not shutil.which("systemctl"):
+        return None
+    return unit
+
+
+def _spawn_dashboard_systemd_action(action: str, delay_seconds: float = 1.0) -> bool:
+    unit = _systemd_dashboard_unit()
+    if not unit:
+        return False
+    subprocess.Popen(
+        [
+            _project_python(),
+            "-c",
+            (
+                "import subprocess, sys, time; "
+                "time.sleep(float(sys.argv[1])); "
+                "raise SystemExit(subprocess.call(['systemctl', sys.argv[2], sys.argv[3]]))"
+            ),
+            str(delay_seconds),
+            action,
+            unit,
+        ],
+        cwd=settings.PROJECT_ROOT,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    return True
+
+
 def _run_subprocess_capture(cmd: list[str], *, env_overrides: Optional[dict] = None, timeout: int = 240) -> dict:
     env = os.environ.copy()
     if env_overrides:
@@ -497,11 +535,52 @@ async def control_approve_next_category():
     return pm.start(extra_flags=["--approve-next-category"])
 
 
+@app.post("/control/scraper/review-resume")
+async def control_scraper_review_resume():
+    """
+    Resume the scraper after a robot-triggered critical pause.
+    Preserves cycle behavior if the scheduler is enabled.
+    """
+    scheduler = get_scheduler()
+    pm = get_process_manager()
+    extra_flags = ["--approve-next-category"] if scheduler.is_enabled() else None
+    result = pm.start(extra_flags=extra_flags)
+    if result.get("success"):
+        mode_note = " Cycle mode remains active." if scheduler.is_enabled() else " Manual mode resume started."
+        result["message"] = f"{result.get('message', 'Scraper resumed.')}{mode_note}"
+    return result
+
+
+@app.post("/control/scraper/review-hold")
+async def control_scraper_review_hold():
+    """
+    Keep the scraper paused for operator review and disable cycle auto-restart.
+    """
+    _record_manual_change()
+    scheduler = get_scheduler()
+    result = scheduler.manual_stop()
+    result["message"] = "Scraper pause held for review. Cycle auto-restart is disabled until you start it again."
+    return result
+
+
+@app.post("/control/scraper/review-pause-now")
+async def control_scraper_review_pause_now():
+    """
+    Pause the scraper immediately for operator review and disable cycle auto-restart.
+    """
+    _record_manual_change()
+    scheduler = get_scheduler()
+    result = scheduler.manual_stop()
+    result["message"] = "Scraper stop requested for review. Cycle auto-restart is disabled until you start it again."
+    return result
+
+
 @app.post("/control/stop")
 async def control_stop():
     """
     Graceful stop + disable scheduler (manual override).
     """
+    _record_manual_change()
     scheduler = get_scheduler()
     return scheduler.manual_stop()
 
@@ -512,6 +591,7 @@ async def control_kill():
     Immediate hard kill.
     Also disables scheduler.
     """
+    _record_manual_change()
     scheduler = get_scheduler()
     scheduler._enabled = False
     scheduler._stop_event.set()
@@ -522,16 +602,17 @@ async def control_kill():
 
 @app.post("/control/dashboard/shutdown")
 async def control_dashboard_shutdown():
-    """Shutdown the dashboard backend through the dedicated control script."""
-    control_script = settings.PROJECT_ROOT / "scripts" / "dashboard_server.py"
-    subprocess.Popen(
-        [_project_python(), str(control_script), "stop", "--force", "--delay", "1.0"],
-        cwd=settings.PROJECT_ROOT,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        stdin=subprocess.DEVNULL,
-        start_new_session=True,
-    )
+    """Shutdown the dashboard backend through systemd when available."""
+    if not _spawn_dashboard_systemd_action("stop", delay_seconds=1.0):
+        control_script = settings.PROJECT_ROOT / "scripts" / "dashboard_server.py"
+        subprocess.Popen(
+            [_project_python(), str(control_script), "stop", "--force", "--delay", "1.0"],
+            cwd=settings.PROJECT_ROOT,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
     return {
         "success": True,
         "message": "Dashboard shutdown requested. This page will disconnect in a moment.",
@@ -540,16 +621,17 @@ async def control_dashboard_shutdown():
 
 @app.post("/control/dashboard/restart")
 async def control_dashboard_restart():
-    """Restart the dashboard backend through the dedicated control script."""
-    control_script = settings.PROJECT_ROOT / "scripts" / "dashboard_server.py"
-    subprocess.Popen(
-        [_project_python(), str(control_script), "restart", "--delay", "1.0"],
-        cwd=settings.PROJECT_ROOT,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        stdin=subprocess.DEVNULL,
-        start_new_session=True,
-    )
+    """Restart the dashboard backend through systemd when available."""
+    if not _spawn_dashboard_systemd_action("restart", delay_seconds=1.0):
+        control_script = settings.PROJECT_ROOT / "scripts" / "dashboard_server.py"
+        subprocess.Popen(
+            [_project_python(), str(control_script), "restart", "--delay", "1.0"],
+            cwd=settings.PROJECT_ROOT,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
     return {
         "success": True,
         "message": "Dashboard restart requested. This page should reconnect shortly.",
@@ -734,8 +816,9 @@ async def get_scheduler_config():
 
 
 @app.get("/config/scraper")
-async def get_scraper_config_endpoint():
+async def get_scraper_config_endpoint(response: Response):
     """Return dashboard-managed scraper configuration."""
+    response.headers["Cache-Control"] = "no-store"
     config = get_scraper_config()
     if isinstance(config, dict):
         meta = config.get("meta") if isinstance(config.get("meta"), dict) else {}
@@ -939,6 +1022,83 @@ async def enrichment_linkedin_reset_hard():
     return {
         "success": True,
         "message": "LinkedIn enrichment hard reset completed.",
+        "output": result["output"],
+    }
+
+
+@app.post("/control/enrichment/keywords/watcher-check")
+async def enrichment_keywords_watcher_check():
+    """Run a single keyword/scoring watcher tick."""
+    cmd = [_project_python(), str(settings.CONTROLLER_DIR / "ultra_validated_watcher.py"), "--once"]
+    result = _run_subprocess_capture(cmd)
+    output = result["output"] or ""
+    output_lc = output.lower()
+    healthy_noop = result["returncode"] == 1 and (
+        ("not enough rows" in output_lc or "waiting for" in output_lc or "ready rows:" in output_lc)
+        and "failed" not in output_lc
+        and "error" not in output_lc
+        and "traceback" not in output_lc
+    )
+    if not result["ok"] and not healthy_noop:
+        raise HTTPException(status_code=500, detail=output or "Keyword/scoring watcher check failed.")
+    return {
+        "success": True,
+        "message": "Keyword + scoring watcher check completed.",
+        "output": output,
+    }
+
+
+@app.post("/control/enrichment/keywords/force-run")
+async def enrichment_keywords_force_run():
+    """Force a keyword/scoring watcher tick to run immediately if backlog exists."""
+    cmd = [_project_python(), str(settings.CONTROLLER_DIR / "ultra_validated_watcher.py"), "--once"]
+    result = _run_subprocess_capture(
+        cmd,
+        env_overrides={
+            "ULTRA_TRIGGER_THRESHOLD": "1",
+        },
+    )
+    output = result["output"] or ""
+    output_lc = output.lower()
+    healthy_noop = result["returncode"] == 1 and (
+        ("ready rows: 0" in output_lc or "not enough rows" in output_lc or "waiting for" in output_lc)
+        and "failed" not in output_lc
+        and "error" not in output_lc
+        and "traceback" not in output_lc
+    )
+    if not result["ok"] and not healthy_noop:
+        raise HTTPException(status_code=500, detail=output or "Keyword/scoring force run failed.")
+    return {
+        "success": True,
+        "message": "Keyword + scoring force-run completed.",
+        "output": output,
+    }
+
+
+@app.post("/control/enrichment/keywords/reset-pointer")
+async def enrichment_keywords_reset_pointer():
+    """Reset the keyword detector pointer back to row 2."""
+    cmd = [_project_python(), str(settings.BOTS_DIR / "enricher" / "keyword_detector.py"), "--reset-pointer"]
+    result = _run_subprocess_capture(cmd)
+    if not result["ok"]:
+        raise HTTPException(status_code=500, detail=result["output"] or "Keyword pointer reset failed.")
+    return {
+        "success": True,
+        "message": "Keyword detector pointer reset.",
+        "output": result["output"],
+    }
+
+
+@app.post("/control/enrichment/keywords/reset-hard")
+async def enrichment_keywords_reset_hard():
+    """Reset the Ultra keyword/scoring lane by clearing Ultra_validated and its pointer."""
+    cmd = [_project_python(), str(settings.CONTROLLER_DIR / "clean_pipeline.py"), "--reset-ultra"]
+    result = _run_subprocess_capture(cmd, timeout=420)
+    if not result["ok"]:
+        raise HTTPException(status_code=500, detail=result["output"] or "Ultra keyword/scoring reset failed.")
+    return {
+        "success": True,
+        "message": "Ultra keyword/scoring lane reset.",
         "output": result["output"],
     }
 

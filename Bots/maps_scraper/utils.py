@@ -5,11 +5,12 @@ from __future__ import annotations
 import csv
 import hashlib
 import random
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional, Set
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import tldextract
 
@@ -61,6 +62,12 @@ class Lead:
             return None
         return normalize_domain(self.website)
 
+    @property
+    def place_key(self) -> Optional[str]:
+        if not self.place_url:
+            return None
+        return extract_place_key(self.place_url)
+
 
 def normalize_domain(url: str) -> Optional[str]:
     """Normalize a URL down to its registered domain."""
@@ -88,6 +95,65 @@ def normalize_domain(url: str) -> Optional[str]:
     return host or None
 
 
+def extract_place_key(place_url: Optional[str]) -> Optional[str]:
+    """Extract a stable Google Maps place identifier from a place URL."""
+    if not place_url:
+        return None
+
+    raw = place_url.strip()
+    if not raw:
+        return None
+
+    try:
+        parsed = urlparse(raw)
+    except Exception:
+        parsed = None
+
+    query = parse_qs(parsed.query) if parsed else {}
+    for param in ("cid", "ftid"):
+        values = query.get(param)
+        if values and values[0]:
+            return f"{param}:{values[0].strip().lower()}"
+
+    match = re.search(r"!1s([^!/?&]+)", raw)
+    if match:
+        return f"1s:{match.group(1).strip().lower()}"
+
+    if parsed and parsed.path:
+        path = parsed.path.rstrip("/")
+        if "/maps/place/" in path:
+            return f"path:{path.lower()}"
+
+    return raw.lower()
+
+
+def extract_strong_place_key(place_url: Optional[str]) -> Optional[str]:
+    """Extract only Google identifiers safe enough for pre-extraction dedupe."""
+    if not place_url:
+        return None
+
+    raw = place_url.strip()
+    if not raw:
+        return None
+
+    try:
+        parsed = urlparse(raw)
+        query = parse_qs(parsed.query)
+    except Exception:
+        query = {}
+
+    for param in ("cid", "ftid"):
+        values = query.get(param)
+        if values and values[0]:
+            return f"{param}:{values[0].strip().lower()}"
+
+    match = re.search(r"!1s([^!/?&]+)", raw)
+    if match:
+        return f"1s:{match.group(1).strip().lower()}"
+
+    return None
+
+
 def is_aggregator(url: Optional[str]) -> bool:
     if not url:
         return False
@@ -97,19 +163,33 @@ def is_aggregator(url: Optional[str]) -> bool:
     return any(domain == agg or domain.endswith(f".{agg}") for agg in AGGREGATOR_DOMAINS)
 
 
-def dedupe_leads(leads: Iterable[Lead], seen_domains: Set[str], seen_names: Set[str]):
-    """Yield leads that are new by domain (primary) and name+location (secondary)."""
+def dedupe_leads(
+    leads: Iterable[Lead],
+    seen_places: Set[str],
+    seen_domains: Set[str],
+    seen_names: Set[str],
+):
+    """Yield leads that are new by place identity, then domain, then name+location."""
     for lead in leads:
+        place_key = lead.place_key
         domain = lead.domain
         name_key = f"{lead.name.strip().lower()}|{lead.location.strip().lower()}"
+
+        if place_key:
+            if place_key in seen_places:
+                continue
+            seen_places.add(place_key)
+
         if domain:
             if domain in seen_domains:
                 continue
             seen_domains.add(domain)
-        else:
-            if name_key in seen_names:
-                continue
-            seen_names.add(name_key)
+            yield lead
+            continue
+
+        if name_key in seen_names:
+            continue
+        seen_names.add(name_key)
         yield lead
 
 

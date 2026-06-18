@@ -2,15 +2,27 @@
 
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Add Bots folder to path so common module can be found
 _SCRAPER_DIR = Path(__file__).parent
 _BOTS_DIR = _SCRAPER_DIR.parent
+_PROJECT_ROOT = _BOTS_DIR.parent
 if str(_BOTS_DIR) not in sys.path:
     sys.path.insert(0, str(_BOTS_DIR))
 
+from location_tree import (
+    build_tree_status,
+    choose_next_file,
+    parse_locations_file,
+    resolve_tree_root,
+    write_tree_state,
+)
+
 CONFIG_OVERRIDES_FILE = _SCRAPER_DIR / "config_overrides.json"
+LOCATION_TREE_STATE_FILE = _SCRAPER_DIR / "output" / "location_tree_state.json"
+_TASKS_PROGRESS_PATH = _SCRAPER_DIR / "output" / "completed_tasks.jsonl"
 
 
 def _read_overrides() -> dict:
@@ -618,12 +630,17 @@ _OVERRIDES = _read_overrides()
 
 LOCATION_SOURCE_MODE_INLINE = "inline"
 LOCATION_SOURCE_MODE_SHEET = "sheet_csv"
+LOCATION_SOURCE_MODE_LOCAL_TREE = "local_tree"
 
 
 def _clean_location_source(value: dict | None) -> dict:
     data = value if isinstance(value, dict) else {}
     mode = str(data.get("mode") or LOCATION_SOURCE_MODE_INLINE).strip().lower()
-    if mode not in {LOCATION_SOURCE_MODE_INLINE, LOCATION_SOURCE_MODE_SHEET}:
+    if mode not in {
+        LOCATION_SOURCE_MODE_INLINE,
+        LOCATION_SOURCE_MODE_SHEET,
+        LOCATION_SOURCE_MODE_LOCAL_TREE,
+    }:
         mode = LOCATION_SOURCE_MODE_INLINE
     tab_names = _clean_string_list(data.get("tab_names"))
     legacy_tab_name = str(data.get("tab_name") or "").strip()
@@ -642,13 +659,70 @@ def _clean_location_source(value: dict | None) -> dict:
         "column_name": str(data.get("column_name") or "").strip(),
         "last_synced_at": str(data.get("last_synced_at") or "").strip(),
         "csv_export_url": str(data.get("csv_export_url") or "").strip(),
+        "tree_root": str(data.get("tree_root") or "Bots/address-bot/out/locations").strip(),
+        "terminal_filename": (
+            Path(str(data.get("terminal_filename") or "LOCATIONS.js").strip()).name
+            or "LOCATIONS.js"
+        ),
+        "country_order": _clean_string_list(data.get("country_order")),
+        "initial_file": str(data.get("initial_file") or "").strip().replace("\\", "/"),
+        "active_file": str(data.get("active_file") or "").strip().replace("\\", "/"),
     }
+
+
+def get_location_tree_status(
+    overrides: dict | None = None,
+    *,
+    include_discovered_files: bool = False,
+) -> dict:
+    """Return the current local-tree inventory and cursor status."""
+    current = overrides if isinstance(overrides, dict) else _read_overrides()
+    source = _clean_location_source(current.get("location_source"))
+    if source["mode"] != LOCATION_SOURCE_MODE_LOCAL_TREE:
+        return {
+            "enabled": False,
+            "files_total": 0,
+            "files_completed": 0,
+            "has_next_file": False,
+            "tree_exhausted": False,
+        }
+
+    tree_root = resolve_tree_root(source["tree_root"], _PROJECT_ROOT)
+    status = build_tree_status(
+        tree_root=tree_root,
+        terminal_filename=source["terminal_filename"],
+        country_order=source["country_order"],
+        state_file=LOCATION_TREE_STATE_FILE,
+        configured_initial_file=source["initial_file"],
+        include_discovered_files=include_discovered_files,
+    )
+    try:
+        has_task_progress = (
+            _TASKS_PROGRESS_PATH.exists()
+            and _TASKS_PROGRESS_PATH.stat().st_size > 0
+        )
+    except OSError:
+        has_task_progress = False
+    status["migration_pending"] = not status["state_exists"] and has_task_progress
+    return status
 
 
 def _resolve_locations(overrides: dict) -> list[str]:
     source = _clean_location_source(overrides.get("location_source"))
     inline_locations = _clean_string_list(overrides.get("locations")) or _DEFAULT_LOCATIONS
     resolved_locations = _clean_string_list(overrides.get("location_resolved_locations"))
+    if source["mode"] == LOCATION_SOURCE_MODE_LOCAL_TREE:
+        tree_status = get_location_tree_status(overrides)
+        if tree_status.get("migration_pending"):
+            return inline_locations
+        if resolved_locations:
+            return resolved_locations
+        current_file = tree_status.get("current_file")
+        if current_file:
+            try:
+                return parse_locations_file(Path(tree_status["tree_root"]) / current_file)
+            except (OSError, ValueError):
+                return inline_locations
     if source["mode"] == LOCATION_SOURCE_MODE_SHEET and resolved_locations:
         return resolved_locations
     return inline_locations
@@ -791,6 +865,7 @@ MAX_DELAY_S = 0.9
 # UI interaction waits for expanding cards / loading sidebars.
 CARD_CLICK_TIMEOUT_MS = 4000
 SIDEBAR_AFTER_CLICK_WAIT_MS = 700
+SIDEBAR_ADAPTIVE_MAX_WAIT_MS = _as_int(_OVERRIDES.get("sidebar_adaptive_max_wait_ms"), 1200, minimum=100)
 SCROLL_WAIT_MS = 900
 
 # When Google presents a captcha we back off for this many seconds before
@@ -801,12 +876,74 @@ CATEGORY_ADVANCE_TIMEOUT_MINUTES = _as_int(
     30,
     minimum=1,
 )
+DELIVERY_RETRY_COOLDOWN_MINUTES = _as_int(
+    _OVERRIDES.get("delivery_retry_cooldown_minutes"),
+    15,
+    minimum=1,
+)
 
 # ============================================================================
 # PARALLEL SCRAPING CONFIGURATION
 # ============================================================================
 # Number of parallel browser instances. Set to 1 to disable parallel mode.
 NUM_WORKERS = _as_int(_OVERRIDES.get("num_workers"), 4, minimum=1)
+
+# Efficiency features. These preserve headed Maps behavior and keep existing
+# extraction as the fallback path.
+MAPS_TELEMETRY_ENABLED = _as_bool(_OVERRIDES.get("maps_telemetry_enabled"), True)
+MAPS_BATCH_CARD_READ_ENABLED = _as_bool(_OVERRIDES.get("maps_batch_card_read_enabled"), True)
+MAPS_ADAPTIVE_SIDEBAR_WAIT_ENABLED = _as_bool(_OVERRIDES.get("maps_adaptive_sidebar_wait_enabled"), True)
+MAPS_EARLY_DEDUPE_ENABLED = _as_bool(_OVERRIDES.get("maps_early_dedupe_enabled"), True)
+MAPS_EARLY_DEDUPE_REQUEST_TIMEOUT_MS = _as_int(
+    _OVERRIDES.get("maps_early_dedupe_request_timeout_ms"),
+    1500,
+    minimum=100,
+)
+MAPS_EARLY_DEDUPE_RESERVATION_TTL_SECONDS = _as_int(
+    _OVERRIDES.get("maps_early_dedupe_reservation_ttl_seconds"),
+    1800,
+    minimum=60,
+)
+MAPS_ADAPTIVE_WORKER_SCALING_ENABLED = _as_bool(_OVERRIDES.get("maps_adaptive_worker_scaling_enabled"), True)
+MAPS_MAX_WORKERS = _as_int(_OVERRIDES.get("maps_max_workers"), NUM_WORKERS, minimum=1)
+MAPS_MIN_WORKERS = _as_int(_OVERRIDES.get("maps_min_workers"), 2, minimum=1)
+MAPS_MAX_WORKERS = max(MAPS_MAX_WORKERS, MAPS_MIN_WORKERS)
+MAPS_WORKER_RAMP_STEP = _as_int(_OVERRIDES.get("maps_worker_ramp_step"), 1, minimum=1)
+MAPS_WORKER_RAMP_CHECK_INTERVAL_SECONDS = _as_int(
+    _OVERRIDES.get("maps_worker_ramp_check_interval_seconds"),
+    300,
+    minimum=30,
+)
+MAPS_WORKER_SCALE_DOWN_CHECK_INTERVAL_SECONDS = _as_int(
+    _OVERRIDES.get("maps_worker_scale_down_check_interval_seconds"),
+    120,
+    minimum=30,
+)
+MAPS_WORKER_PRESSURE_CONFIRMATION_CHECKS = _as_int(
+    _OVERRIDES.get("maps_worker_pressure_confirmation_checks"),
+    2,
+    minimum=1,
+)
+MAPS_WORKER_CPU_CEILING_PERCENT = _as_float(
+    _OVERRIDES.get("maps_worker_cpu_ceiling_percent"),
+    88.0,
+    minimum=1.0,
+)
+MAPS_WORKER_MEMORY_PRESSURE_CEILING_PERCENT = _as_float(
+    _OVERRIDES.get("maps_worker_memory_pressure_ceiling_percent"),
+    85.0,
+    minimum=1.0,
+)
+MAPS_MIN_WEBSITE_FOUND_RATE_FOR_RAMP = _as_float(
+    _OVERRIDES.get("maps_min_website_found_rate_for_ramp"),
+    75.0,
+    minimum=0.0,
+)
+MAPS_MAX_ERROR_RATE_FOR_RAMP = _as_float(
+    _OVERRIDES.get("maps_max_error_rate_for_ramp"),
+    1.0,
+    minimum=0.0,
+)
 
 # Delay range (seconds) between requests. Actual delay is randomized within this range.
 INTER_REQUEST_DELAY_MIN = _as_float(_OVERRIDES.get("inter_request_delay_min"), 6.0, minimum=0.0)
@@ -857,10 +994,20 @@ def get_dashboard_config() -> dict:
     inline_locations = _clean_string_list(overrides.get("locations")) or _DEFAULT_LOCATIONS
     resolved_locations = _clean_string_list(overrides.get("location_resolved_locations"))
     location_source = _clean_location_source(overrides.get("location_source"))
-    effective_locations = resolved_locations if location_source["mode"] == LOCATION_SOURCE_MODE_SHEET and resolved_locations else inline_locations
+    effective_locations = _resolve_locations(overrides)
+    location_tree = get_location_tree_status(overrides)
     keyword_categories = _clean_keyword_categories(
         overrides.get("keyword_categories"),
         _DEFAULT_KEYWORD_CATEGORIES,
+    )
+    maps_min_workers = _as_int(overrides.get("maps_min_workers"), 2, minimum=1)
+    maps_max_workers = max(
+        maps_min_workers,
+        _as_int(
+            overrides.get("maps_max_workers"),
+            _as_int(overrides.get("num_workers"), 4, minimum=1),
+            minimum=1,
+        ),
     )
     return {
         "runtime": {
@@ -883,6 +1030,37 @@ def get_dashboard_config() -> dict:
                 30,
                 minimum=1,
             ),
+            "delivery_retry_cooldown_minutes": _as_int(
+                overrides.get("delivery_retry_cooldown_minutes"),
+                15,
+                minimum=1,
+            ),
+            "sidebar_adaptive_max_wait_ms": _as_int(overrides.get("sidebar_adaptive_max_wait_ms"), 1200, minimum=100),
+            "maps_telemetry_enabled": _as_bool(overrides.get("maps_telemetry_enabled"), True),
+            "maps_batch_card_read_enabled": _as_bool(overrides.get("maps_batch_card_read_enabled"), True),
+            "maps_adaptive_sidebar_wait_enabled": _as_bool(overrides.get("maps_adaptive_sidebar_wait_enabled"), True),
+            "maps_early_dedupe_enabled": _as_bool(overrides.get("maps_early_dedupe_enabled"), True),
+            "maps_early_dedupe_request_timeout_ms": _as_int(
+                overrides.get("maps_early_dedupe_request_timeout_ms"),
+                1500,
+                minimum=100,
+            ),
+            "maps_early_dedupe_reservation_ttl_seconds": _as_int(
+                overrides.get("maps_early_dedupe_reservation_ttl_seconds"),
+                1800,
+                minimum=60,
+            ),
+            "maps_adaptive_worker_scaling_enabled": _as_bool(overrides.get("maps_adaptive_worker_scaling_enabled"), True),
+            "maps_max_workers": maps_max_workers,
+            "maps_min_workers": maps_min_workers,
+            "maps_worker_ramp_step": _as_int(overrides.get("maps_worker_ramp_step"), 1, minimum=1),
+            "maps_worker_ramp_check_interval_seconds": _as_int(overrides.get("maps_worker_ramp_check_interval_seconds"), 300, minimum=30),
+            "maps_worker_scale_down_check_interval_seconds": _as_int(overrides.get("maps_worker_scale_down_check_interval_seconds"), 120, minimum=30),
+            "maps_worker_pressure_confirmation_checks": _as_int(overrides.get("maps_worker_pressure_confirmation_checks"), 2, minimum=1),
+            "maps_worker_cpu_ceiling_percent": _as_float(overrides.get("maps_worker_cpu_ceiling_percent"), 88.0, minimum=1.0),
+            "maps_worker_memory_pressure_ceiling_percent": _as_float(overrides.get("maps_worker_memory_pressure_ceiling_percent"), 85.0, minimum=1.0),
+            "maps_min_website_found_rate_for_ramp": _as_float(overrides.get("maps_min_website_found_rate_for_ramp"), 75.0, minimum=0.0),
+            "maps_max_error_rate_for_ramp": _as_float(overrides.get("maps_max_error_rate_for_ramp"), 1.0, minimum=0.0),
         },
         "guardrails": {
             "batch_warning_error_rate": _as_float(overrides.get("batch_warning_error_rate"), 5.0, minimum=0.0),
@@ -903,6 +1081,7 @@ def get_dashboard_config() -> dict:
         },
         "locations": inline_locations,
         "location_source": location_source,
+        "location_tree": location_tree,
         "location_resolved_locations": resolved_locations,
         "effective_locations": effective_locations,
         "keyword_categories": keyword_categories,
@@ -910,6 +1089,8 @@ def get_dashboard_config() -> dict:
             "locations_count": len(effective_locations),
             "inline_locations_count": len(inline_locations),
             "resolved_locations_count": len(resolved_locations),
+            "location_files_total": location_tree.get("files_total", 0),
+            "location_files_completed": location_tree.get("files_completed", 0),
             "keyword_counts": [len(group) for group in keyword_categories],
             "overrides_file": str(CONFIG_OVERRIDES_FILE),
         },
@@ -924,6 +1105,15 @@ def save_dashboard_config(payload: dict) -> dict:
     current_source = _clean_location_source(current.get("location_source"))
     incoming_source = payload.get("location_source") if isinstance(payload.get("location_source"), dict) else {}
     source = _clean_location_source({**current_source, **incoming_source})
+    maps_min_workers = _as_int(runtime.get("maps_min_workers"), 2, minimum=1)
+    maps_max_workers = max(
+        maps_min_workers,
+        _as_int(
+            runtime.get("maps_max_workers"),
+            _as_int(runtime.get("num_workers"), 4, minimum=1),
+            minimum=1,
+        ),
+    )
     overrides = {
         "num_workers": _as_int(runtime.get("num_workers"), 4, minimum=1),
         "batch_size": _as_int(runtime.get("batch_size"), 40, minimum=1),
@@ -944,6 +1134,37 @@ def save_dashboard_config(payload: dict) -> dict:
             30,
             minimum=1,
         ),
+        "delivery_retry_cooldown_minutes": _as_int(
+            runtime.get("delivery_retry_cooldown_minutes"),
+            15,
+            minimum=1,
+        ),
+        "sidebar_adaptive_max_wait_ms": _as_int(runtime.get("sidebar_adaptive_max_wait_ms"), 1200, minimum=100),
+        "maps_telemetry_enabled": _as_bool(runtime.get("maps_telemetry_enabled"), True),
+        "maps_batch_card_read_enabled": _as_bool(runtime.get("maps_batch_card_read_enabled"), True),
+        "maps_adaptive_sidebar_wait_enabled": _as_bool(runtime.get("maps_adaptive_sidebar_wait_enabled"), True),
+        "maps_early_dedupe_enabled": _as_bool(runtime.get("maps_early_dedupe_enabled"), True),
+        "maps_early_dedupe_request_timeout_ms": _as_int(
+            runtime.get("maps_early_dedupe_request_timeout_ms"),
+            1500,
+            minimum=100,
+        ),
+        "maps_early_dedupe_reservation_ttl_seconds": _as_int(
+            runtime.get("maps_early_dedupe_reservation_ttl_seconds"),
+            1800,
+            minimum=60,
+        ),
+        "maps_adaptive_worker_scaling_enabled": _as_bool(runtime.get("maps_adaptive_worker_scaling_enabled"), True),
+        "maps_max_workers": maps_max_workers,
+        "maps_min_workers": maps_min_workers,
+        "maps_worker_ramp_step": _as_int(runtime.get("maps_worker_ramp_step"), 1, minimum=1),
+        "maps_worker_ramp_check_interval_seconds": _as_int(runtime.get("maps_worker_ramp_check_interval_seconds"), 300, minimum=30),
+        "maps_worker_scale_down_check_interval_seconds": _as_int(runtime.get("maps_worker_scale_down_check_interval_seconds"), 120, minimum=30),
+        "maps_worker_pressure_confirmation_checks": _as_int(runtime.get("maps_worker_pressure_confirmation_checks"), 2, minimum=1),
+        "maps_worker_cpu_ceiling_percent": _as_float(runtime.get("maps_worker_cpu_ceiling_percent"), 88.0, minimum=1.0),
+        "maps_worker_memory_pressure_ceiling_percent": _as_float(runtime.get("maps_worker_memory_pressure_ceiling_percent"), 85.0, minimum=1.0),
+        "maps_min_website_found_rate_for_ramp": _as_float(runtime.get("maps_min_website_found_rate_for_ramp"), 75.0, minimum=0.0),
+        "maps_max_error_rate_for_ramp": _as_float(runtime.get("maps_max_error_rate_for_ramp"), 1.0, minimum=0.0),
         "batch_warning_error_rate": _as_float(guardrails.get("batch_warning_error_rate"), 5.0, minimum=0.0),
         "batch_critical_error_rate": max(
             _as_float(guardrails.get("batch_warning_error_rate"), 5.0, minimum=0.0),
@@ -1013,9 +1234,44 @@ def save_location_source_settings(source_payload: dict) -> dict:
 
 
 def sync_location_source_now(*, advance: bool = False, respect_delay: bool = False) -> dict:
-    """Sync the active sheet-backed location source into resolved locations."""
+    """Sync the active external location source into resolved locations."""
     current = _read_overrides()
     source = _clean_location_source(current.get("location_source"))
+    if source["mode"] == LOCATION_SOURCE_MODE_LOCAL_TREE:
+        if advance:
+            return advance_location_tree_source()["config"]
+
+        status = get_location_tree_status(current)
+        if status.get("migration_pending"):
+            return get_dashboard_config()
+
+        current_file = status.get("current_file")
+        if not current_file:
+            raise ValueError(
+                f"No {source['terminal_filename']} files found under {status.get('tree_root')}."
+            )
+
+        locations = parse_locations_file(Path(status["tree_root"]) / current_file)
+        if not status.get("state_exists"):
+            write_tree_state(
+                LOCATION_TREE_STATE_FILE,
+                {
+                    "current_file": current_file,
+                    "completed_files": [],
+                },
+            )
+
+        source.update({
+            "active_file": current_file,
+            "last_synced_at": datetime.now(timezone.utc).isoformat(),
+        })
+        current.update({
+            "location_source": _clean_location_source(source),
+            "location_resolved_locations": locations,
+        })
+        _write_overrides(current)
+        return get_dashboard_config()
+
     if source["mode"] != LOCATION_SOURCE_MODE_SHEET:
         return get_dashboard_config()
 
@@ -1056,3 +1312,90 @@ def sync_location_source_now(*, advance: bool = False, respect_delay: bool = Fal
     })
     _write_overrides(current)
     return get_dashboard_config()
+
+
+def advance_location_tree_source() -> dict:
+    """Complete the active location file and switch to the next tree file."""
+    current = _read_overrides()
+    source = _clean_location_source(current.get("location_source"))
+    if source["mode"] != LOCATION_SOURCE_MODE_LOCAL_TREE:
+        return {
+            "advanced": False,
+            "exhausted": False,
+            "reason": "Local location-tree mode is not enabled.",
+            "config": get_dashboard_config(),
+        }
+
+    status = get_location_tree_status(current, include_discovered_files=True)
+    current_file = status.get("current_file")
+    if not current_file:
+        raise ValueError(
+            f"No {source['terminal_filename']} files found under {status.get('tree_root')}."
+        )
+
+    completed = set(status.get("completed_files") or [])
+    completed.add(current_file)
+    next_file = choose_next_file(
+        status.get("discovered_files") or [],
+        current_file,
+        completed,
+    )
+
+    if not next_file:
+        write_tree_state(
+            LOCATION_TREE_STATE_FILE,
+            {
+                "current_file": current_file,
+                "completed_files": sorted(completed, key=str.casefold),
+            },
+        )
+        return {
+            "advanced": False,
+            "exhausted": True,
+            "previous_file": current_file,
+            "current_file": current_file,
+            "config": get_dashboard_config(),
+        }
+
+    next_path = Path(status["tree_root"]) / next_file
+    locations = parse_locations_file(next_path)
+    transition_time = datetime.now(timezone.utc).isoformat()
+
+    write_tree_state(
+        LOCATION_TREE_STATE_FILE,
+        {
+            "current_file": next_file,
+            "completed_files": sorted(completed, key=str.casefold),
+            "previous_file": current_file,
+            "transitioned_at": transition_time,
+        },
+    )
+
+    source.update({
+        "active_file": next_file,
+        "last_synced_at": transition_time,
+    })
+    current.update({
+        "location_source": _clean_location_source(source),
+        "location_resolved_locations": locations,
+    })
+    _write_overrides(current)
+
+    if TASKS_PROGRESS_FILE.exists():
+        TASKS_PROGRESS_FILE.unlink()
+    CATEGORY_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    category_tmp = CATEGORY_STATE_FILE.with_suffix(f"{CATEGORY_STATE_FILE.suffix}.tmp")
+    category_tmp.write_text(
+        json.dumps({"category_index": 0}, indent=2),
+        encoding="utf-8",
+    )
+    category_tmp.replace(CATEGORY_STATE_FILE)
+
+    return {
+        "advanced": True,
+        "exhausted": False,
+        "previous_file": current_file,
+        "current_file": next_file,
+        "locations_loaded": len(locations),
+        "config": get_dashboard_config(),
+    }

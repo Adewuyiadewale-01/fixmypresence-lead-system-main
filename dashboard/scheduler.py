@@ -29,6 +29,7 @@ class Scheduler:
         self._run_minutes = settings.DEFAULT_RUN_MINUTES
         self._rest_minutes = settings.DEFAULT_REST_MINUTES
         self._next_transition: Optional[datetime] = None
+        self._cooldown_reason: Optional[str] = None
         self._thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
@@ -79,6 +80,7 @@ class Scheduler:
             self._enabled = True
             self._phase = CyclePhase.RUNNING
             self._next_transition = datetime.now() + timedelta(minutes=self._run_minutes)
+            self._cooldown_reason = None
 
             # Start background thread
             self._stop_event.clear()
@@ -101,6 +103,7 @@ class Scheduler:
             self._enabled = False
             self._phase = CyclePhase.DISABLED
             self._next_transition = None
+            self._cooldown_reason = None
             self._stop_event.set()
         
         # Stop the controller
@@ -131,12 +134,46 @@ class Scheduler:
                 "enabled": self._enabled,
                 "phase": self._phase.value,
                 "next_transition": self._next_transition.isoformat() if self._next_transition else None,
+                "cooldown_reason": self._cooldown_reason,
                 "config": self.get_config()
             }
     
     def is_enabled(self) -> bool:
         """Check if scheduler is enabled."""
         return self._enabled
+
+    def request_emergency_cooldown(self, cooldown_minutes: int, reason: str = "") -> Dict[str, Any]:
+        """
+        Enter an immediate REST/cooldown window and stop only the scraper.
+
+        This is used for host-protection events like critical RAM pressure.
+        The scheduler stays enabled, but auto-restart is deferred until the
+        cooldown expires.
+        """
+        cooldown_minutes = max(1, int(cooldown_minutes or 0))
+        with self._lock:
+            if not self._enabled:
+                return {
+                    "success": False,
+                    "scheduled": False,
+                    "message": "Cycle is not enabled.",
+                }
+
+            self._phase = CyclePhase.RESTING
+            self._next_transition = datetime.now() + timedelta(minutes=cooldown_minutes)
+            self._cooldown_reason = reason or "emergency_host_protection"
+            restart_at = self._next_transition.isoformat()
+
+        pm = get_process_manager()
+        stop_result = pm.stop_scraper_only()
+        return {
+            "success": True,
+            "scheduled": True,
+            "message": f"Emergency cooldown started for {cooldown_minutes} minute(s).",
+            "next_transition": restart_at,
+            "reason": self._cooldown_reason,
+            "stop_details": stop_result,
+        }
     
     # =========================================================================
     # BACKGROUND LOOP
@@ -170,6 +207,7 @@ class Scheduler:
                         # Transition to RUN
                         self._phase = CyclePhase.RUNNING
                         self._next_transition = now + timedelta(minutes=self._run_minutes)
+                        self._cooldown_reason = None
                         print(f"[Scheduler] Entering RUN phase for {self._run_minutes}min")
                         
                         # Start controller
