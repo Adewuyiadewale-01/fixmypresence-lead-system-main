@@ -1,0 +1,20 @@
+LOCATIONS = [
+  "Bleijerheide, Kerkrade, Limburg, Netherlands",
+  "Chevremont, Kerkrade, Limburg, Netherlands",
+  "Erenstein, Kerkrade, Limburg, Netherlands",
+  "Eygelshoven-Kom, Kerkrade, Limburg, Netherlands",
+  "Gracht, Kerkrade, Limburg, Netherlands",
+  "Haanrade, Kerkrade, Limburg, Netherlands",
+  "Heilust, Kerkrade, Limburg, Netherlands",
+  "Holz, Kerkrade, Limburg, Netherlands",
+  "Hopel, Kerkrade, Limburg, Netherlands",
+  "Kaalheide, Kerkrade, Limburg, Netherlands",
+  "Kerkrade-Centrum, Kerkrade, Limburg, Netherlands",
+  "Nulland, Kerkrade, Limburg, Netherlands",
+  "Rolduckerveld, Kerkrade, Limburg, Netherlands",
+  "Spekholzerheide, Kerkrade, Limburg, Netherlands",
+  "Terwinselen, Kerkrade, Limburg, Netherlands",
+  "Verspreide huizen Dentgenbach, Kerkrade, Limburg, Netherlands",
+  "Vink, Kerkrade, Limburg, Netherlands",
+  "Waubacherveld, Kerkrade, Limburg, Netherlands"
+]

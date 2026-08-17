@@ -1,0 +1,21 @@
+LOCATIONS = [
+  "Astwood, Worcester, Worcestershire, United Kingdom",
+  "Barbourne, Worcester, Worcestershire, United Kingdom",
+  "Blackpole, Worcester, Worcestershire, United Kingdom",
+  "Brickfields, Worcester, Worcestershire, United Kingdom",
+  "Britannia Square, Worcester, Worcestershire, United Kingdom",
+  "Cherry Orchard, Worcester, Worcestershire, United Kingdom",
+  "Claines, Worcester, Worcestershire, United Kingdom",
+  "Diglis, Worcester, Worcestershire, United Kingdom",
+  "Dines Green, Worcester, Worcestershire, United Kingdom",
+  "Lower Wick, Worcester, Worcestershire, United Kingdom",
+  "Northwick, Worcester, Worcestershire, United Kingdom",
+  "Rainbow Hill, Worcester, Worcestershire, United Kingdom",
+  "Red Hill, Worcester, Worcestershire, United Kingdom",
+  "Ronkswood, Worcester, Worcestershire, United Kingdom",
+  "St John's, Worcester, Worcestershire, United Kingdom",
+  "St Peter the Great, Worcester, Worcestershire, United Kingdom",
+  "Swinesherd, Worcester, Worcestershire, United Kingdom",
+  "Tolladine, Worcester, Worcestershire, United Kingdom",
+  "Warndon, Worcester, Worcestershire, United Kingdom"
+]

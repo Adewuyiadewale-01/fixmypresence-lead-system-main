@@ -1,0 +1,21 @@
+LOCATIONS = [
+  "Biscot, Luton, Eastern, United Kingdom",
+  "Bramingham Park, Luton, Eastern, United Kingdom",
+  "Bury Park, Luton, Eastern, United Kingdom",
+  "Farley Hill, Luton, Eastern, United Kingdom",
+  "Farleygreen, Luton, Eastern, United Kingdom",
+  "Hart Hill, Luton, Eastern, United Kingdom",
+  "High Town, Luton, Eastern, United Kingdom",
+  "Leagrave, Luton, Eastern, United Kingdom",
+  "Lewsey Farm, Luton, Eastern, United Kingdom",
+  "Limbury, Luton, Eastern, United Kingdom",
+  "Marsh Farm, Luton, Eastern, United Kingdom",
+  "New Town, Luton, Eastern, United Kingdom",
+  "Park Town, Luton, Eastern, United Kingdom",
+  "Round Green, Luton, Eastern, United Kingdom",
+  "Stopsley, Luton, Eastern, United Kingdom",
+  "Stopsley Common, Luton, Eastern, United Kingdom",
+  "Sundon Park, Luton, Eastern, United Kingdom",
+  "Warden Hill, Luton, Eastern, United Kingdom",
+  "Wigmore, Luton, Eastern, United Kingdom"
+]

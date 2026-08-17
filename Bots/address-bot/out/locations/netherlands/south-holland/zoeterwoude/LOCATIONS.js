@@ -1,0 +1,22 @@
+LOCATIONS = [
+  "Blankaartpark, Zoeterwoude, South Holland, Netherlands",
+  "Bloemenweide, Zoeterwoude, South Holland, Netherlands",
+  "De Goede Herder, Zoeterwoude, South Holland, Netherlands",
+  "Dorp Noord, Zoeterwoude, South Holland, Netherlands",
+  "Dorp Zuid, Zoeterwoude, South Holland, Netherlands",
+  "Dorpskern, Zoeterwoude, South Holland, Netherlands",
+  "Gelderswoude, Zoeterwoude, South Holland, Netherlands",
+  "Hoge Rijndijk Noord, Zoeterwoude, South Holland, Netherlands",
+  "Hoge Rijndijk Oost, Zoeterwoude, South Holland, Netherlands",
+  "Industriegebied Barrepolder, Zoeterwoude, South Holland, Netherlands",
+  "Industriegebied Grote Polder, Zoeterwoude, South Holland, Netherlands",
+  "Meerburg, Zoeterwoude, South Holland, Netherlands",
+  "Oosthoek, Zoeterwoude, South Holland, Netherlands",
+  "Rijnegom, Zoeterwoude, South Holland, Netherlands",
+  "Verspreide huizen, Zoeterwoude, South Holland, Netherlands",
+  "Vogelweide, Zoeterwoude, South Holland, Netherlands",
+  "Weipoort, Zoeterwoude, South Holland, Netherlands",
+  "Westeinde, Zoeterwoude, South Holland, Netherlands",
+  "Westwout, Zoeterwoude, South Holland, Netherlands",
+  "Zuidbuurt, Zoeterwoude, South Holland, Netherlands"
+]

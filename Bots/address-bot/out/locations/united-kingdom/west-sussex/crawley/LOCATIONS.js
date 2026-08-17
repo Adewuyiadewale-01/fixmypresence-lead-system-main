@@ -1,0 +1,23 @@
+LOCATIONS = [
+  "Bewbush, Crawley, West Sussex, United Kingdom",
+  "Broadfield, Crawley, West Sussex, United Kingdom",
+  "Burleys Wood, Crawley, West Sussex, United Kingdom",
+  "County Oak, Crawley, West Sussex, United Kingdom",
+  "Fernhill, Crawley, West Sussex, United Kingdom",
+  "Forge Wood, Crawley, West Sussex, United Kingdom",
+  "Furnace Green, Crawley, West Sussex, United Kingdom",
+  "Gossops Green, Crawley, West Sussex, United Kingdom",
+  "Ifield, Crawley, West Sussex, United Kingdom",
+  "Langley Green, Crawley, West Sussex, United Kingdom",
+  "Lowfield Heath, Crawley, West Sussex, United Kingdom",
+  "Maidenbower, Crawley, West Sussex, United Kingdom",
+  "Northgate, Crawley, West Sussex, United Kingdom",
+  "Pound Hill, Crawley, West Sussex, United Kingdom",
+  "Shipley Bridge, Crawley, West Sussex, United Kingdom",
+  "Southgate, Crawley, West Sussex, United Kingdom",
+  "Three Bridges, Crawley, West Sussex, United Kingdom",
+  "Tilgate, Crawley, West Sussex, United Kingdom",
+  "Tinsley Green, Crawley, West Sussex, United Kingdom",
+  "West Green, Crawley, West Sussex, United Kingdom",
+  "Worth, Crawley, West Sussex, United Kingdom"
+]

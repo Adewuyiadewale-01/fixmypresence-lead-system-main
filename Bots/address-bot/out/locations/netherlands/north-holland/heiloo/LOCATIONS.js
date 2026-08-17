@@ -1,0 +1,22 @@
+LOCATIONS = [
+  "Akkerbuurt, Heiloo, North Holland, Netherlands",
+  "Blockhovepark, Heiloo, North Holland, Netherlands",
+  "De Volkstuinen, Heiloo, North Holland, Netherlands",
+  "Gemeentebos, Heiloo, North Holland, Netherlands",
+  "Het Die, Heiloo, North Holland, Netherlands",
+  "Kapelbuurt, Heiloo, North Holland, Netherlands",
+  "Nijenburg, Heiloo, North Holland, Netherlands",
+  "Noorderneg, Heiloo, North Holland, Netherlands",
+  "Oosterzij, Heiloo, North Holland, Netherlands",
+  "Oud West, Heiloo, North Holland, Netherlands",
+  "Oud Zuid, Heiloo, North Holland, Netherlands",
+  "Oude Werf, Heiloo, North Holland, Netherlands",
+  "Plan Oost, Heiloo, North Holland, Netherlands",
+  "Tuindorp, Heiloo, North Holland, Netherlands",
+  "Vennewater, Heiloo, North Holland, Netherlands",
+  "Willibrord, Heiloo, North Holland, Netherlands",
+  "Zuid Oost, Heiloo, North Holland, Netherlands",
+  "Zuid West, Heiloo, North Holland, Netherlands",
+  "Zuiderloo, Heiloo, North Holland, Netherlands",
+  "Zuiderneg, Heiloo, North Holland, Netherlands"
+]

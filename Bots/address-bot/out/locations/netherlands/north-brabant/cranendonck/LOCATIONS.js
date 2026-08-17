@@ -1,0 +1,22 @@
+LOCATIONS = [
+  "Budel, Cranendonck, North Brabant, Netherlands",
+  "Budel-Dorplein, Cranendonck, North Brabant, Netherlands",
+  "Budel-Schoot, Cranendonck, North Brabant, Netherlands",
+  "Gastel, Cranendonck, North Brabant, Netherlands",
+  "Heikant, Meemortel, Bosch, Cranendonck, North Brabant, Netherlands",
+  "Industrieterrein Den Engelsman Rondven, Cranendonck, North Brabant, Netherlands",
+  "Industrieterrein Dorplein, Cranendonck, North Brabant, Netherlands",
+  "Kamersven, Cranendonck, North Brabant, Netherlands",
+  "Keunenhoek Broekkant Schoordijk, Cranendonck, North Brabant, Netherlands",
+  "Klein-Schoot, Cranendonck, North Brabant, Netherlands",
+  "Maarheeze, Cranendonck, North Brabant, Netherlands",
+  "Soerendonk, Cranendonck, North Brabant, Netherlands",
+  "Verspreide huizen Berg en Toom, Cranendonck, North Brabant, Netherlands",
+  "Verspreide huizen Budel-Dorplein, Cranendonck, North Brabant, Netherlands",
+  "Verspreide huizen Gastelse Hei, Cranendonck, North Brabant, Netherlands",
+  "Verspreide huizen Hugten, Cranendonck, North Brabant, Netherlands",
+  "Verspreide huizen in het Oosten, Cranendonck, North Brabant, Netherlands",
+  "Verspreide huizen in het Westen, Cranendonck, North Brabant, Netherlands",
+  "Verspreide huizen Maarheeze, Cranendonck, North Brabant, Netherlands",
+  "Verspreide huizen Soerendonk, Cranendonck, North Brabant, Netherlands"
+]

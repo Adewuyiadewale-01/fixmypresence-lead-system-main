@@ -1,0 +1,20 @@
+LOCATIONS = [
+  "'t Spil, Waterland, North Holland, Netherlands",
+  "Binnengouw, Waterland, North Holland, Netherlands",
+  "Broek in Waterland, Waterland, North Holland, Netherlands",
+  "Buitengouw, Waterland, North Holland, Netherlands",
+  "De Purmer (gedeeltelijk), Waterland, North Holland, Netherlands",
+  "Havenbuurt en Kerkbuurt, Waterland, North Holland, Netherlands",
+  "Ilpendam, Waterland, North Holland, Netherlands",
+  "Katwoude, Waterland, North Holland, Netherlands",
+  "Markgouw, Waterland, North Holland, Netherlands",
+  "Monnickendam, Waterland, North Holland, Netherlands",
+  "Ooster Ee, Waterland, North Holland, Netherlands",
+  "Oranjewijk, Waterland, North Holland, Netherlands",
+  "Ringshemmen, Waterland, North Holland, Netherlands",
+  "Uitdam, Waterland, North Holland, Netherlands",
+  "Verspr.h. Op de Werven ten Z. van kanaal, Waterland, North Holland, Netherlands",
+  "Verspreide huizen, Waterland, North Holland, Netherlands",
+  "Watergang, Waterland, North Holland, Netherlands",
+  "Zuiderwoude, Waterland, North Holland, Netherlands"
+]

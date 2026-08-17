@@ -1,0 +1,23 @@
+LOCATIONS = [
+  "Albergen kern, Tubbergen, Overijssel, Netherlands",
+  "Fleringen kern, Tubbergen, Overijssel, Netherlands",
+  "Geesteren kern, Tubbergen, Overijssel, Netherlands",
+  "Harbrinkhoek kern, Tubbergen, Overijssel, Netherlands",
+  "Langeveen kern, Tubbergen, Overijssel, Netherlands",
+  "Mariaparochie, Tubbergen, Overijssel, Netherlands",
+  "Reutum kern, Tubbergen, Overijssel, Netherlands",
+  "Tubbergen-Dorp, Tubbergen, Overijssel, Netherlands",
+  "Vasse kern, Tubbergen, Overijssel, Netherlands",
+  "Verspreide huizen Albergen, Tubbergen, Overijssel, Netherlands",
+  "Verspreide huizen Fleringen, Tubbergen, Overijssel, Netherlands",
+  "Verspreide huizen Geesteren, Tubbergen, Overijssel, Netherlands",
+  "Verspreide huizen Haarle, Tubbergen, Overijssel, Netherlands",
+  "Verspreide huizen Harbrinkhoek, Tubbergen, Overijssel, Netherlands",
+  "Verspreide huizen Hezingen, Tubbergen, Overijssel, Netherlands",
+  "Verspreide huizen Langeveen, Tubbergen, Overijssel, Netherlands",
+  "Verspreide huizen Mander, Tubbergen, Overijssel, Netherlands",
+  "Verspreide huizen Manderveen, Tubbergen, Overijssel, Netherlands",
+  "Verspreide huizen Reutum, Tubbergen, Overijssel, Netherlands",
+  "Verspreide huizen Tubbergen, Tubbergen, Overijssel, Netherlands",
+  "Verspreide huizen Vasse, Tubbergen, Overijssel, Netherlands"
+]

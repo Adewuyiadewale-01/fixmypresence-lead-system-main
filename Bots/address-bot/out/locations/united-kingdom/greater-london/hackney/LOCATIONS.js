@@ -1,0 +1,20 @@
+LOCATIONS = [
+  "Brownswood Park, Hackney, Greater London, United Kingdom",
+  "Clapton Park, Hackney, Greater London, United Kingdom",
+  "Craven Walk, Hackney, Greater London, United Kingdom",
+  "Dalston, Hackney, Greater London, United Kingdom",
+  "De Beauvoir Town, Hackney, Greater London, United Kingdom",
+  "Hackney Marsh, Hackney, Greater London, United Kingdom",
+  "Haggerston, Hackney, Greater London, United Kingdom",
+  "Homerton, Hackney, Greater London, United Kingdom",
+  "Hoxton, Hackney, Greater London, United Kingdom",
+  "Kingsland, Hackney, Greater London, United Kingdom",
+  "Lea Bridge, Hackney, Greater London, United Kingdom",
+  "Lower Clapton, Hackney, Greater London, United Kingdom",
+  "Shacklewell, Hackney, Greater London, United Kingdom",
+  "Shoreditch, Hackney, Greater London, United Kingdom",
+  "South Hackney, Hackney, Greater London, United Kingdom",
+  "Stamford Hill, Hackney, Greater London, United Kingdom",
+  "Stoke Newington, Hackney, Greater London, United Kingdom",
+  "Upper Clapton, Hackney, Greater London, United Kingdom"
+]

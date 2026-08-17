@@ -1,0 +1,21 @@
+LOCATIONS = [
+  "Bentveld Noord, Zandvoort, North Holland, Netherlands",
+  "Bentveld Zuid, Zandvoort, North Holland, Netherlands",
+  "Boulevard Midden, Zandvoort, North Holland, Netherlands",
+  "Boulevard Noord, Zandvoort, North Holland, Netherlands",
+  "Boulevard Zuid, Zandvoort, North Holland, Netherlands",
+  "Brederode- Gerkestraat e.o., Zandvoort, North Holland, Netherlands",
+  "Centrum, Zandvoort, North Holland, Netherlands",
+  "Kostverloren e.o., Zandvoort, North Holland, Netherlands",
+  "Nieuw Noord - bedrijven, Zandvoort, North Holland, Netherlands",
+  "Nieuw Noord - wonen, Zandvoort, North Holland, Netherlands",
+  "Noord duinen, Zandvoort, North Holland, Netherlands",
+  "Noord strand, Zandvoort, North Holland, Netherlands",
+  "Oud Noord, Zandvoort, North Holland, Netherlands",
+  "Recreatiepark, Zandvoort, North Holland, Netherlands",
+  "Sport Circuit, Zandvoort, North Holland, Netherlands",
+  "Stations omgeving, Zandvoort, North Holland, Netherlands",
+  "Zandvoortselaan, Zandvoort, North Holland, Netherlands",
+  "Zuid duinen, Zandvoort, North Holland, Netherlands",
+  "Zuid strand, Zandvoort, North Holland, Netherlands"
+]

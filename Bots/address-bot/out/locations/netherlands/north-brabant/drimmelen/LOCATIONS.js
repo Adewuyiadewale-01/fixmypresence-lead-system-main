@@ -1,0 +1,20 @@
+LOCATIONS = [
+  "Blauwe Sluis, Drimmelen, North Brabant, Netherlands",
+  "Drimmelen, Drimmelen, North Brabant, Netherlands",
+  "Helkant, Drimmelen, North Brabant, Netherlands",
+  "Hooge Zwaluwe, Drimmelen, North Brabant, Netherlands",
+  "Lage Zwaluwe inclusief Gaete, Drimmelen, North Brabant, Netherlands",
+  "Made, Drimmelen, North Brabant, Netherlands",
+  "Terheijden, Drimmelen, North Brabant, Netherlands",
+  "Tuinbouwgebied, Drimmelen, North Brabant, Netherlands",
+  "Verspr.h. Groot Zonzeelsche Polder, Drimmelen, North Brabant, Netherlands",
+  "Verspreide huizen Biesbosch, Drimmelen, North Brabant, Netherlands",
+  "Verspreide huizen Binnenpolder, Drimmelen, North Brabant, Netherlands",
+  "Verspreide huizen Drimmelen, Drimmelen, North Brabant, Netherlands",
+  "Verspreide huizen Hooge Zwaluwe, Drimmelen, North Brabant, Netherlands",
+  "Verspreide huizen Lage Zwaluwe, Drimmelen, North Brabant, Netherlands",
+  "Verspreide huizen Made, Drimmelen, North Brabant, Netherlands",
+  "Verspreide huizen Wagenberg, Drimmelen, North Brabant, Netherlands",
+  "Verspreide huizen Zonzeelsepolder, Drimmelen, North Brabant, Netherlands",
+  "Wagenberg, Drimmelen, North Brabant, Netherlands"
+]

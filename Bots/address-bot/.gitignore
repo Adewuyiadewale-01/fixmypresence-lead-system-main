@@ -1,0 +1,11 @@
+# Python environments and bytecode
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Test and editor artifacts
+.pytest_cache/
+.DS_Store
+.idea/
+.vscode/

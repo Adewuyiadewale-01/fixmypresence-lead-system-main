@@ -1,0 +1,20 @@
+LOCATIONS = [
+  "Boompjesdijk, Steenbergen, North Brabant, Netherlands",
+  "De Heen, Steenbergen, North Brabant, Netherlands",
+  "Dinteloord, Steenbergen, North Brabant, Netherlands",
+  "Graaf Hendrik- en Triangelpolder, Steenbergen, North Brabant, Netherlands",
+  "Heense polders, Steenbergen, North Brabant, Netherlands",
+  "Het Oudland, Steenbergen, North Brabant, Netherlands",
+  "Industrieterrein Reinierpolder, Steenbergen, North Brabant, Netherlands",
+  "Kruisland, Steenbergen, North Brabant, Netherlands",
+  "Kruislandse polders, Steenbergen, North Brabant, Netherlands",
+  "Nieuw-Vossemeer, Steenbergen, North Brabant, Netherlands",
+  "Steenbergen-Centrum, Steenbergen, North Brabant, Netherlands",
+  "Steenbergen-Noord, Steenbergen, North Brabant, Netherlands",
+  "Steenbergen-Zuid, Steenbergen, North Brabant, Netherlands",
+  "Verspr.h. waaronder Pelsendijk en Rolaf, Steenbergen, North Brabant, Netherlands",
+  "Verspreide huizen in het Oosten, Steenbergen, North Brabant, Netherlands",
+  "Verspreide huizen in het Westen, Steenbergen, North Brabant, Netherlands",
+  "Welberg, Steenbergen, North Brabant, Netherlands",
+  "Westelijke polders, Steenbergen, North Brabant, Netherlands"
+]

@@ -1,0 +1,21 @@
+LOCATIONS = [
+  "Brentford, Hounslow, Greater London, United Kingdom",
+  "Brentford End, Hounslow, Greater London, United Kingdom",
+  "Chiswick, Hounslow, Greater London, United Kingdom",
+  "East Bedfont, Hounslow, Greater London, United Kingdom",
+  "Feltham, Hounslow, Greater London, United Kingdom",
+  "Grove Park, Hounslow, Greater London, United Kingdom",
+  "Gunnersbury, Hounslow, Greater London, United Kingdom",
+  "Hanworth, Hounslow, Greater London, United Kingdom",
+  "Heston, Hounslow, Greater London, United Kingdom",
+  "Hounslow West, Hounslow, Greater London, United Kingdom",
+  "Isleworth, Hounslow, Greater London, United Kingdom",
+  "Lampton, Hounslow, Greater London, United Kingdom",
+  "Lower Feltham, Hounslow, Greater London, United Kingdom",
+  "North Feltham, Hounslow, Greater London, United Kingdom",
+  "North Hyde, Hounslow, Greater London, United Kingdom",
+  "Osterley, Hounslow, Greater London, United Kingdom",
+  "Spring Grove, Hounslow, Greater London, United Kingdom",
+  "Strand on the Green, Hounslow, Greater London, United Kingdom",
+  "Woodlands, Hounslow, Greater London, United Kingdom"
+]

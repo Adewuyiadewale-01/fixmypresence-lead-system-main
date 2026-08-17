@@ -1,0 +1,21 @@
+LOCATIONS = [
+  "Binnenstad, Maassluis, South Holland, Netherlands",
+  "Bloemenbuurt, Maassluis, South Holland, Netherlands",
+  "Bomendal, Maassluis, South Holland, Netherlands",
+  "Burgemeesterswijk, Maassluis, South Holland, Netherlands",
+  "Componistenbuurt, Maassluis, South Holland, Netherlands",
+  "De Dijk, Maassluis, South Holland, Netherlands",
+  "Het Balkon, Maassluis, South Holland, Netherlands",
+  "Kapelpolder, Maassluis, South Holland, Netherlands",
+  "Koningshoek, Maassluis, South Holland, Netherlands",
+  "Nieuwe waterweg, Maassluis, South Holland, Netherlands",
+  "Sluispolder Oost, Maassluis, South Holland, Netherlands",
+  "Sluispolder West, Maassluis, South Holland, Netherlands",
+  "Steendijkpolder Noord, Maassluis, South Holland, Netherlands",
+  "Steendijkpolder Zuid, Maassluis, South Holland, Netherlands",
+  "Taanschuurpolder, Maassluis, South Holland, Netherlands",
+  "Vertobuurt, Maassluis, South Holland, Netherlands",
+  "Vogelbuurt, Maassluis, South Holland, Netherlands",
+  "Wilgenrijk, Maassluis, South Holland, Netherlands",
+  "Zuidbuurt, Maassluis, South Holland, Netherlands"
+]

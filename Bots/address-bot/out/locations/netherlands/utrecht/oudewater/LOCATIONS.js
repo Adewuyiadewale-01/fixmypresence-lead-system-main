@@ -1,0 +1,20 @@
+LOCATIONS = [
+  "Brede dijk, Oudewater, Utrecht, Netherlands",
+  "de Noort syde, Oudewater, Utrecht, Netherlands",
+  "Diemerbroek, Oudewater, Utrecht, Netherlands",
+  "Groenbuffer noord, Oudewater, Utrecht, Netherlands",
+  "Hekendorpse buurt, Oudewater, Utrecht, Netherlands",
+  "Hoenkoopse buurt, Oudewater, Utrecht, Netherlands",
+  "Kern Hekendorp, Oudewater, Utrecht, Netherlands",
+  "Kern Hoenkoop, Oudewater, Utrecht, Netherlands",
+  "Kern Oudewater, Oudewater, Utrecht, Netherlands",
+  "Kern Papekop, Oudewater, Utrecht, Netherlands",
+  "Klein Hekendorp, Oudewater, Utrecht, Netherlands",
+  "Klein Hekendorp buitengebied, Oudewater, Utrecht, Netherlands",
+  "Markveld, Oudewater, Utrecht, Netherlands",
+  "Rozendaal, Oudewater, Utrecht, Netherlands",
+  "Ruige weide, Oudewater, Utrecht, Netherlands",
+  "Snelrewaard, Oudewater, Utrecht, Netherlands",
+  "Tappersheul, Oudewater, Utrecht, Netherlands",
+  "Willeskop, Oudewater, Utrecht, Netherlands"
+]

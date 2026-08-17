@@ -78,5 +78,23 @@ controller/logs/
 
 # Runtime state files
 controller/enrichment_batch_counter.txt
+controller/*.json
+controller/*.lock
+controller/*.txt
+dashboard_server.pid
+dashboard_controller.pid
+dashboard_*watcher.pid
 deploy/resume-state/*.tar.gz
 deploy/resume-state/backups/
+
+# Generated pipeline data and browser state
+Bots/enricher/outputs/
+Bots/maps_scraper/output/
+Bots/maps_scraper/.playwright-profile/
+Bots/maps_scraper/.playwright-profile-worker-*/
+.playwright-cli/
+enriched_people.json
+txt
+
+# Local credentials and machine-specific configuration
+secrets/

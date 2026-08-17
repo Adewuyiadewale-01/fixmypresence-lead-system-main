@@ -1,0 +1,20 @@
+LOCATIONS = [
+  "Echteld, Neder-Betuwe, Gelderland, Netherlands",
+  "IJzendoorn, Neder-Betuwe, Gelderland, Netherlands",
+  "Kesteren, Neder-Betuwe, Gelderland, Netherlands",
+  "Kom Dodewaard met Hien, Neder-Betuwe, Gelderland, Netherlands",
+  "Kom Wely, Neder-Betuwe, Gelderland, Netherlands",
+  "Ochten, Neder-Betuwe, Gelderland, Netherlands",
+  "Opheusden, Neder-Betuwe, Gelderland, Netherlands",
+  "Pottemsestraat en Groenestraat e.o., Neder-Betuwe, Gelderland, Netherlands",
+  "Verspreide huizen Dodewaard-Oost en Wely, Neder-Betuwe, Gelderland, Netherlands",
+  "Verspreide huizen Dodewaard-West, Neder-Betuwe, Gelderland, Netherlands",
+  "Verspreide huizen Echteld, Neder-Betuwe, Gelderland, Netherlands",
+  "Verspreide huizen Echteld-Waalbandijk, Neder-Betuwe, Gelderland, Netherlands",
+  "Verspreide huizen IJzendoorn, Neder-Betuwe, Gelderland, Netherlands",
+  "Verspreide huizen Kesteren, Neder-Betuwe, Gelderland, Netherlands",
+  "Verspreide huizen Lede en Oudewaard, Neder-Betuwe, Gelderland, Netherlands",
+  "Verspreide huizen Ochten, Neder-Betuwe, Gelderland, Netherlands",
+  "Verspreide huizen Opheusden, Neder-Betuwe, Gelderland, Netherlands",
+  "Verspreide huizen poldergebied, Neder-Betuwe, Gelderland, Netherlands"
+]

@@ -1,0 +1,25 @@
+{
+  "generated_at": "2026-06-22T11:13:22.926344+00:00",
+  "location_unit": "OSNI townland",
+  "parent_unit": "ONS local government district",
+  "assignment": "Townland centroid within ONS district boundary; offshore or detached polygons use nearest district boundary within 0.1 degrees",
+  "districts": 11,
+  "locations": 8831,
+  "district_location_counts": {
+    "Antrim and Newtownabbey": 305,
+    "Armagh City, Banbridge and Craigavon": 902,
+    "Belfast": 61,
+    "Causeway Coast and Glens": 1340,
+    "Derry City and Strabane": 682,
+    "Fermanagh and Omagh": 2492,
+    "Lisburn and Castlereagh": 255,
+    "Mid and East Antrim": 461,
+    "Mid Ulster": 1285,
+    "Newry, Mourne and Down": 777,
+    "Ards and North Down": 271
+  },
+  "sources": {
+    "townlands": "https://www.data.gov.uk/dataset/29498c8e-73de-4336-b9a7-d16f31a0ee92/osni-open-data-largescale-boundaries-townlands7",
+    "districts": "https://geoportal.statistics.gov.uk/search?q=BDY_LAD&sort=Date+Created%7Ccreated%7Cdesc"
+  }
+}

@@ -1,0 +1,20 @@
+LOCATIONS = [
+  "Bell Green, Lewisham, Greater London, United Kingdom",
+  "Bellingham, Lewisham, Greater London, United Kingdom",
+  "Blackheath, Lewisham, Greater London, United Kingdom",
+  "Brockley, Lewisham, Greater London, United Kingdom",
+  "Catford, Lewisham, Greater London, United Kingdom",
+  "Deptford, Lewisham, Greater London, United Kingdom",
+  "Downham, Lewisham, Greater London, United Kingdom",
+  "Forest Hill, Lewisham, Greater London, United Kingdom",
+  "Grove Park, Lewisham, Greater London, United Kingdom",
+  "Hither Green, Lewisham, Greater London, United Kingdom",
+  "Honor Oak Park, Lewisham, Greater London, United Kingdom",
+  "Ladywell, Lewisham, Greater London, United Kingdom",
+  "Lee, Lewisham, Greater London, United Kingdom",
+  "Lower Sydenham, Lewisham, Greater London, United Kingdom",
+  "New Cross, Lewisham, Greater London, United Kingdom",
+  "Southend, Lewisham, Greater London, United Kingdom",
+  "St John's, Lewisham, Greater London, United Kingdom",
+  "Upper Sydenham, Lewisham, Greater London, United Kingdom"
+]

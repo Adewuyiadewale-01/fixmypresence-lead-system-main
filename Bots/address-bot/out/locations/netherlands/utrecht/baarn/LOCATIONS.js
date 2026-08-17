@@ -1,0 +1,23 @@
+LOCATIONS = [
+  "Amaliapark, Baarn, Utrecht, Netherlands",
+  "Amerpoort Sherpa, Baarn, Utrecht, Netherlands",
+  "Centrum, Baarn, Utrecht, Netherlands",
+  "Componistenwijk, Baarn, Utrecht, Netherlands",
+  "Eemdal-Noord, Baarn, Utrecht, Netherlands",
+  "Eemdal-Zuid, Baarn, Utrecht, Netherlands",
+  "Eemland waaronder Eembrugge, Baarn, Utrecht, Netherlands",
+  "Lage Vuursche, Baarn, Utrecht, Netherlands",
+  "Nieuwe-Oosterhei, Baarn, Utrecht, Netherlands",
+  "Oude-Oosterhei, Baarn, Utrecht, Netherlands",
+  "Pekingpark, Baarn, Utrecht, Netherlands",
+  "Pr. Hendrikpark, Baarn, Utrecht, Netherlands",
+  "Professorenwijk, Baarn, Utrecht, Netherlands",
+  "Schilderswijk, Baarn, Utrecht, Netherlands",
+  "Schoonoordpark, Baarn, Utrecht, Netherlands",
+  "Staatsliedenwijk, Baarn, Utrecht, Netherlands",
+  "Transvaal, Baarn, Utrecht, Netherlands",
+  "Verspreide huizen Baarn, Baarn, Utrecht, Netherlands",
+  "Verspreide huizen Lage Vuursche, Baarn, Utrecht, Netherlands",
+  "Wilhelminapark, Baarn, Utrecht, Netherlands",
+  "Zandvoort, Baarn, Utrecht, Netherlands"
+]

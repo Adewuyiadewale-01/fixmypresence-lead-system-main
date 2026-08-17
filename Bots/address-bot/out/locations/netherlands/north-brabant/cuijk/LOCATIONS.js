@@ -1,0 +1,22 @@
+LOCATIONS = [
+  "Beers buitengebied, Cuijk, North Brabant, Netherlands",
+  "Beers kern, Cuijk, North Brabant, Netherlands",
+  "Cuijk buitengebied ten westen, Cuijk, North Brabant, Netherlands",
+  "Cuijk buitengebied ten zuid-westen, Cuijk, North Brabant, Netherlands",
+  "Cuijk De Valuwe, Cuijk, North Brabant, Netherlands",
+  "Cuijk Heeswijkse Kampen, Cuijk, North Brabant, Netherlands",
+  "Cuijk industriegebied, Cuijk, North Brabant, Netherlands",
+  "Cuijk kern, Cuijk, North Brabant, Netherlands",
+  "Cuijk Padbroek, Cuijk, North Brabant, Netherlands",
+  "Haps buitengebied, Cuijk, North Brabant, Netherlands",
+  "Haps kern, Cuijk, North Brabant, Netherlands",
+  "Katwijk buitengebied, Cuijk, North Brabant, Netherlands",
+  "Katwijk havengebied, Cuijk, North Brabant, Netherlands",
+  "Katwijk kern, Cuijk, North Brabant, Netherlands",
+  "Linden buitengebied, Cuijk, North Brabant, Netherlands",
+  "Linden kern, Cuijk, North Brabant, Netherlands",
+  "Sint Agatha buitengebied, Cuijk, North Brabant, Netherlands",
+  "Sint Agatha kern, Cuijk, North Brabant, Netherlands",
+  "Vianen buitengebied, Cuijk, North Brabant, Netherlands",
+  "Vianen kern, Cuijk, North Brabant, Netherlands"
+]

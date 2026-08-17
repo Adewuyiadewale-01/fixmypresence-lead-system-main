@@ -1,0 +1,22 @@
+LOCATIONS = [
+  "Agnetendal, Valkenswaard, North Brabant, Netherlands",
+  "Borkel, Valkenswaard, North Brabant, Netherlands",
+  "Brouwershof, Valkenswaard, North Brabant, Netherlands",
+  "Centrum, Valkenswaard, North Brabant, Netherlands",
+  "De Belleman, Valkenswaard, North Brabant, Netherlands",
+  "Dommelen, Valkenswaard, North Brabant, Netherlands",
+  "Geenhoven, Valkenswaard, North Brabant, Netherlands",
+  "Het Gegraaf, Valkenswaard, North Brabant, Netherlands",
+  "Hoge Akkers, Valkenswaard, North Brabant, Netherlands",
+  "Industrieterrein Schaapsloop, Valkenswaard, North Brabant, Netherlands",
+  "Keersop, Valkenswaard, North Brabant, Netherlands",
+  "Keersopperbeemden, Valkenswaard, North Brabant, Netherlands",
+  "Kerkakkers, Valkenswaard, North Brabant, Netherlands",
+  "Schaft, Valkenswaard, North Brabant, Netherlands",
+  "Schepelweijen, Valkenswaard, North Brabant, Netherlands",
+  "Turfberg-Noord, Valkenswaard, North Brabant, Netherlands",
+  "Turfberg-Zuid, Valkenswaard, North Brabant, Netherlands",
+  "Verspr.h. Klein Borkel en Achterste Brug, Valkenswaard, North Brabant, Netherlands",
+  "Verspr.h. Malpiebergse- en Opperheide, Valkenswaard, North Brabant, Netherlands",
+  "Verspr.h. Turfbergse Heide Nederheide, Valkenswaard, North Brabant, Netherlands"
+]

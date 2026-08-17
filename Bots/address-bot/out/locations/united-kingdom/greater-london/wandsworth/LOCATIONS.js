@@ -1,0 +1,22 @@
+LOCATIONS = [
+  "Balham, Wandsworth, Greater London, United Kingdom",
+  "Battersea, Wandsworth, Greater London, United Kingdom",
+  "Clapham Common, Wandsworth, Greater London, United Kingdom",
+  "Clapham Junction, Wandsworth, Greater London, United Kingdom",
+  "Earlsfield, Wandsworth, Greater London, United Kingdom",
+  "Furzedown, Wandsworth, Greater London, United Kingdom",
+  "Nine Elms, Wandsworth, Greater London, United Kingdom",
+  "Putney, Wandsworth, Greater London, United Kingdom",
+  "Putney Heath, Wandsworth, Greater London, United Kingdom",
+  "Putney Vale, Wandsworth, Greater London, United Kingdom",
+  "Roehampton, Wandsworth, Greater London, United Kingdom",
+  "Southfields, Wandsworth, Greater London, United Kingdom",
+  "Streatham Park, Wandsworth, Greater London, United Kingdom",
+  "Summerstown, Wandsworth, Greater London, United Kingdom",
+  "The Mews, Wandsworth, Greater London, United Kingdom",
+  "Tooting Bec Common, Wandsworth, Greater London, United Kingdom",
+  "Tooting Graveney, Wandsworth, Greater London, United Kingdom",
+  "Upper Tooting, Wandsworth, Greater London, United Kingdom",
+  "Wandsworth Common, Wandsworth, Greater London, United Kingdom",
+  "Wimbledon Park, Wandsworth, Greater London, United Kingdom"
+]

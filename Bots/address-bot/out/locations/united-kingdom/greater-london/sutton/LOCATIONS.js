@@ -1,0 +1,21 @@
+LOCATIONS = [
+  "Bandonhill, Sutton, Greater London, United Kingdom",
+  "Beddington, Sutton, Greater London, United Kingdom",
+  "Beddington Corner, Sutton, Greater London, United Kingdom",
+  "Belmont, Sutton, Greater London, United Kingdom",
+  "Benhilton, Sutton, Greater London, United Kingdom",
+  "Carshalton, Sutton, Greater London, United Kingdom",
+  "Carshalton Beeches, Sutton, Greater London, United Kingdom",
+  "Carshalton on the Hill, Sutton, Greater London, United Kingdom",
+  "Cheam, Sutton, Greater London, United Kingdom",
+  "Hackbridge, Sutton, Greater London, United Kingdom",
+  "Little Woodcote, Sutton, Greater London, United Kingdom",
+  "North Cheam, Sutton, Greater London, United Kingdom",
+  "Rosehill, Sutton, Greater London, United Kingdom",
+  "Roundshaw, Sutton, Greater London, United Kingdom",
+  "South Beddington, Sutton, Greater London, United Kingdom",
+  "St Helier, Sutton, Greater London, United Kingdom",
+  "The Wrythe, Sutton, Greater London, United Kingdom",
+  "Wallington, Sutton, Greater London, United Kingdom",
+  "Woodcote Green, Sutton, Greater London, United Kingdom"
+]

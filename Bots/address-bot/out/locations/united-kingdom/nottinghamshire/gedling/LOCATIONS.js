@@ -1,0 +1,23 @@
+LOCATIONS = [
+  "Arnold, Gedling, Nottinghamshire, United Kingdom",
+  "Bakersfield, Gedling, Nottinghamshire, United Kingdom",
+  "Bestwood St Albans, Gedling, Nottinghamshire, United Kingdom",
+  "Bestwood Village, Gedling, Nottinghamshire, United Kingdom",
+  "Burton Joyce, Gedling, Nottinghamshire, United Kingdom",
+  "Calverton, Gedling, Nottinghamshire, United Kingdom",
+  "Carlton, Gedling, Nottinghamshire, United Kingdom",
+  "Colwick, Gedling, Nottinghamshire, United Kingdom",
+  "Daybrook, Gedling, Nottinghamshire, United Kingdom",
+  "Lambley, Gedling, Nottinghamshire, United Kingdom",
+  "Linby, Gedling, Nottinghamshire, United Kingdom",
+  "Netherfield, Gedling, Nottinghamshire, United Kingdom",
+  "Newstead, Gedling, Nottinghamshire, United Kingdom",
+  "Papplewick, Gedling, Nottinghamshire, United Kingdom",
+  "Porchester, Gedling, Nottinghamshire, United Kingdom",
+  "Ravenshead, Gedling, Nottinghamshire, United Kingdom",
+  "Red Hill, Gedling, Nottinghamshire, United Kingdom",
+  "Redhill, Gedling, Nottinghamshire, United Kingdom",
+  "Stoke Bardolph, Gedling, Nottinghamshire, United Kingdom",
+  "Woodborough, Gedling, Nottinghamshire, United Kingdom",
+  "Woodthorpe, Gedling, Nottinghamshire, United Kingdom"
+]

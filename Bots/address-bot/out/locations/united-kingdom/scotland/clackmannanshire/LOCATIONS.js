@@ -1,0 +1,23 @@
+LOCATIONS = [
+  "Alloa, Clackmannanshire, Scotland, United Kingdom",
+  "Alva, Clackmannanshire, Scotland, United Kingdom",
+  "Cambus, Clackmannanshire, Scotland, United Kingdom",
+  "Clackmannan, Clackmannanshire, Scotland, United Kingdom",
+  "Coalsnaughton, Clackmannanshire, Scotland, United Kingdom",
+  "Devonside, Clackmannanshire, Scotland, United Kingdom",
+  "Dollar, Clackmannanshire, Scotland, United Kingdom",
+  "Fairfield, Clackmannanshire, Scotland, United Kingdom",
+  "Fishcross, Clackmannanshire, Scotland, United Kingdom",
+  "Forestmill, Clackmannanshire, Scotland, United Kingdom",
+  "Glenochil Village, Clackmannanshire, Scotland, United Kingdom",
+  "Hallpark, Clackmannanshire, Scotland, United Kingdom",
+  "Helensfield, Clackmannanshire, Scotland, United Kingdom",
+  "Keilarsbrae, Clackmannanshire, Scotland, United Kingdom",
+  "Kennet, Clackmannanshire, Scotland, United Kingdom",
+  "Menstrie, Clackmannanshire, Scotland, United Kingdom",
+  "Pool of Muckhart, Clackmannanshire, Scotland, United Kingdom",
+  "Sauchie, Clackmannanshire, Scotland, United Kingdom",
+  "Tillicoultry, Clackmannanshire, Scotland, United Kingdom",
+  "Tullibody, Clackmannanshire, Scotland, United Kingdom",
+  "Yetts o' Muckhart, Clackmannanshire, Scotland, United Kingdom"
+]

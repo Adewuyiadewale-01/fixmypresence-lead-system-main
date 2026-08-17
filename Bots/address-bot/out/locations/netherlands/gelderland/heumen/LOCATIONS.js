@@ -1,0 +1,21 @@
+LOCATIONS = [
+  "Broekkant en Droge, Heumen, Gelderland, Netherlands",
+  "Heumen, Heumen, Gelderland, Netherlands",
+  "Kluis, Heumen, Gelderland, Netherlands",
+  "Malden-Oost, Heumen, Gelderland, Netherlands",
+  "Malden-West, Heumen, Gelderland, Netherlands",
+  "Molenhoek, Heumen, Gelderland, Netherlands",
+  "Nederasselt, Heumen, Gelderland, Netherlands",
+  "Overasselt, Heumen, Gelderland, Netherlands",
+  "Verspr.h. bosgebied ten oosten kanaal, Heumen, Gelderland, Netherlands",
+  "Verspr.h. bosgebied ten westen kanaal, Heumen, Gelderland, Netherlands",
+  "Verspr.h. in de polder Balgoij en Einde, Heumen, Gelderland, Netherlands",
+  "Verspr.h. Nederasseltse Uiterwaarden, Heumen, Gelderland, Netherlands",
+  "Verspr.h. Overasseltse Uiterwaarden, Heumen, Gelderland, Netherlands",
+  "Verspreide huizen Heumen, Heumen, Gelderland, Netherlands",
+  "Verspreide huizen Malden, Heumen, Gelderland, Netherlands",
+  "Verspreide huizen Nederasseltse Broek, Heumen, Gelderland, Netherlands",
+  "Verspreide huizen Overasseltse Broek, Heumen, Gelderland, Netherlands",
+  "Verspreide huizen Valenberg en Heide, Heumen, Gelderland, Netherlands",
+  "Verspreide huizen Worsum, Heumen, Gelderland, Netherlands"
+]

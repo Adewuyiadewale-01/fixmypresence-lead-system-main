@@ -1,0 +1,23 @@
+LOCATIONS = [
+  "De Deijl, Wassenaar, South Holland, Netherlands",
+  "De Kieviet, Wassenaar, South Holland, Netherlands",
+  "De Paauw, Wassenaar, South Holland, Netherlands",
+  "Dorp Wassenaar, Wassenaar, South Holland, Netherlands",
+  "Drie Papegaaien, Wassenaar, South Holland, Netherlands",
+  "Duindigt met Groenendaal, Wassenaar, South Holland, Netherlands",
+  "Groot Deijleroord en Ter Weer, Wassenaar, South Holland, Netherlands",
+  "Kerkehout, Wassenaar, South Holland, Netherlands",
+  "Klingenbosch, Wassenaar, South Holland, Netherlands",
+  "Maaldrift, Wassenaar, South Holland, Netherlands",
+  "Nieuw-Wassenaar, Wassenaar, South Holland, Netherlands",
+  "Oostdorp, Wassenaar, South Holland, Netherlands",
+  "Oud-Clingendaal, Wassenaar, South Holland, Netherlands",
+  "Oud-Wassenaar, Wassenaar, South Holland, Netherlands",
+  "Rijksdorp met De Pan, Wassenaar, South Holland, Netherlands",
+  "Verspr.h. Duinrell Wassenaarse Slag, Wassenaar, South Holland, Netherlands",
+  "Verspr.h. Raaphorst en in poldergebied, Wassenaar, South Holland, Netherlands",
+  "Verspreide huizen Eikenhorst, Wassenaar, South Holland, Netherlands",
+  "Verspreide huizen Meijendel, Wassenaar, South Holland, Netherlands",
+  "Weteringpark, Wassenaar, South Holland, Netherlands",
+  "Zijlwatering en haven, Wassenaar, South Holland, Netherlands"
+]

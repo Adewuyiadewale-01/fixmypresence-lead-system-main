@@ -1,0 +1,20 @@
+LOCATIONS = [
+  "Bedrijventerrein Broekweg & Langshaven, Wijk bij Duurstede, Utrecht, Netherlands",
+  "Binnenstad, Wijk bij Duurstede, Utrecht, Netherlands",
+  "Buitengeb. ten Z. v. Amsterdam-Rijnkanaa, Wijk bij Duurstede, Utrecht, Netherlands",
+  "Buitengebied Cothen, Wijk bij Duurstede, Utrecht, Netherlands",
+  "Buitengebied Langbroek, Wijk bij Duurstede, Utrecht, Netherlands",
+  "Buitengebied Wijk bij Duurstede, Wijk bij Duurstede, Utrecht, Netherlands",
+  "Cothen, Wijk bij Duurstede, Utrecht, Netherlands",
+  "De Engk, Wijk bij Duurstede, Utrecht, Netherlands",
+  "De Geer, Wijk bij Duurstede, Utrecht, Netherlands",
+  "De Heul, Wijk bij Duurstede, Utrecht, Netherlands",
+  "De Horden Parckwijk, Wijk bij Duurstede, Utrecht, Netherlands",
+  "De Horden Rivieren, Wijk bij Duurstede, Utrecht, Netherlands",
+  "De Horden Schepen, Wijk bij Duurstede, Utrecht, Netherlands",
+  "De Horden Stenen en Ovens, Wijk bij Duurstede, Utrecht, Netherlands",
+  "Frankenhof, Wijk bij Duurstede, Utrecht, Netherlands",
+  "Langbroek, Wijk bij Duurstede, Utrecht, Netherlands",
+  "Noorderwaard-Noord, Wijk bij Duurstede, Utrecht, Netherlands",
+  "Noorderwaard-Zuid, Wijk bij Duurstede, Utrecht, Netherlands"
+]

@@ -1,0 +1,22 @@
+LOCATIONS = [
+  "Achter 't Hof, Halderberge, North Brabant, Netherlands",
+  "Albano, Halderberge, North Brabant, Netherlands",
+  "Bosschenhoofd, Halderberge, North Brabant, Netherlands",
+  "Hoeven, Halderberge, North Brabant, Netherlands",
+  "Kruisstraat, Halderberge, North Brabant, Netherlands",
+  "Oud Gastel, Halderberge, North Brabant, Netherlands",
+  "Oudenbosch-Centrum, Halderberge, North Brabant, Netherlands",
+  "Pagnevaart, Halderberge, North Brabant, Netherlands",
+  "Spui, Halderberge, North Brabant, Netherlands",
+  "Stampersgat, Halderberge, North Brabant, Netherlands",
+  "Stoof, Halderberge, North Brabant, Netherlands",
+  "Velletri, Halderberge, North Brabant, Netherlands",
+  "Verspr.h. ten noorden van Oudenbosch, Halderberge, North Brabant, Netherlands",
+  "Verspr.h. ten zuiden van Oudenbosch, Halderberge, North Brabant, Netherlands",
+  "Verspreide huizen Bosschenhoofd, Halderberge, North Brabant, Netherlands",
+  "Verspreide huizen Kuivezand en omgeving, Halderberge, North Brabant, Netherlands",
+  "Verspreide huizen Oud Gastel, Halderberge, North Brabant, Netherlands",
+  "Verspreide huizen Stampersgat, Halderberge, North Brabant, Netherlands",
+  "Verspreide huizen ten noorden van Hoeven, Halderberge, North Brabant, Netherlands",
+  "Verspreide huizen ten zuiden van Hoeven, Halderberge, North Brabant, Netherlands"
+]

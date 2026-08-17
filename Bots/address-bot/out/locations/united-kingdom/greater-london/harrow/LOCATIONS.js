@@ -1,0 +1,21 @@
+LOCATIONS = [
+  "Belmont, Harrow, Greater London, United Kingdom",
+  "Canons Park, Harrow, Greater London, United Kingdom",
+  "Greenhill, Harrow, Greater London, United Kingdom",
+  "Harrow on the Hill, Harrow, Greater London, United Kingdom",
+  "Harrow Weald, Harrow, Greater London, United Kingdom",
+  "Hatch End, Harrow, Greater London, United Kingdom",
+  "Headstone, Harrow, Greater London, United Kingdom",
+  "Kenton, Harrow, Greater London, United Kingdom",
+  "Little Stanmore, Harrow, Greater London, United Kingdom",
+  "North Harrow, Harrow, Greater London, United Kingdom",
+  "Pinner, Harrow, Greater London, United Kingdom",
+  "Pinner Green, Harrow, Greater London, United Kingdom",
+  "Pinnerwood Park, Harrow, Greater London, United Kingdom",
+  "Rayners Lane, Harrow, Greater London, United Kingdom",
+  "Roxeth, Harrow, Greater London, United Kingdom",
+  "South Harrow, Harrow, Greater London, United Kingdom",
+  "Stanmore, Harrow, Greater London, United Kingdom",
+  "Wealdstone, Harrow, Greater London, United Kingdom",
+  "West Harrow, Harrow, Greater London, United Kingdom"
+]

@@ -1,0 +1,21 @@
+LOCATIONS = [
+  "Bayswater, City of Westminster, Greater London, United Kingdom",
+  "Belgravia, City of Westminster, Greater London, United Kingdom",
+  "Hyde Park Corner, City of Westminster, Greater London, United Kingdom",
+  "Knightsbridge, City of Westminster, Greater London, United Kingdom",
+  "Lisson Grove, City of Westminster, Greater London, United Kingdom",
+  "London, City of Westminster, Greater London, United Kingdom",
+  "Maida Vale, City of Westminster, Greater London, United Kingdom",
+  "Marylebone, City of Westminster, Greater London, United Kingdom",
+  "Mayfair, City of Westminster, Greater London, United Kingdom",
+  "Paddington, City of Westminster, Greater London, United Kingdom",
+  "Pimlico, City of Westminster, Greater London, United Kingdom",
+  "Soho, City of Westminster, Greater London, United Kingdom",
+  "St James's, City of Westminster, Greater London, United Kingdom",
+  "St John's Wood, City of Westminster, Greater London, United Kingdom",
+  "Strand, City of Westminster, Greater London, United Kingdom",
+  "Victoria, City of Westminster, Greater London, United Kingdom",
+  "West Kilburn, City of Westminster, Greater London, United Kingdom",
+  "Westbourne Green, City of Westminster, Greater London, United Kingdom",
+  "Whitehall, City of Westminster, Greater London, United Kingdom"
+]

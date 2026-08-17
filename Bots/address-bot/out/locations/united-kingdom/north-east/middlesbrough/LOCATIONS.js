@@ -1,0 +1,23 @@
+LOCATIONS = [
+  "Acklam, Middlesbrough, North East, United Kingdom",
+  "Beechwood, Middlesbrough, North East, United Kingdom",
+  "Berwick Hills, Middlesbrough, North East, United Kingdom",
+  "Brambles Farm, Middlesbrough, North East, United Kingdom",
+  "Brookfield, Middlesbrough, North East, United Kingdom",
+  "Coulby Newham, Middlesbrough, North East, United Kingdom",
+  "Easterside, Middlesbrough, North East, United Kingdom",
+  "Grove Hill, Middlesbrough, North East, United Kingdom",
+  "Hemlington, Middlesbrough, North East, United Kingdom",
+  "Linthorpe, Middlesbrough, North East, United Kingdom",
+  "Marton, Middlesbrough, North East, United Kingdom",
+  "Marton Grove, Middlesbrough, North East, United Kingdom",
+  "Newport, Middlesbrough, North East, United Kingdom",
+  "North Ormesby, Middlesbrough, North East, United Kingdom",
+  "Nunthorpe, Middlesbrough, North East, United Kingdom",
+  "Pallister, Middlesbrough, North East, United Kingdom",
+  "Park End, Middlesbrough, North East, United Kingdom",
+  "Stainton, Middlesbrough, North East, United Kingdom",
+  "Thornton, Middlesbrough, North East, United Kingdom",
+  "Thorntree, Middlesbrough, North East, United Kingdom",
+  "Whinney Banks, Middlesbrough, North East, United Kingdom"
+]

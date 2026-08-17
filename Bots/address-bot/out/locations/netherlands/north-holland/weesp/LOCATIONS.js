@@ -1,0 +1,21 @@
+LOCATIONS = [
+  "Aetsveld Noord, Weesp, North Holland, Netherlands",
+  "Aetsveld Zuid, Weesp, North Holland, Netherlands",
+  "Aetsveldsepolder, Weesp, North Holland, Netherlands",
+  "Bedrijventerrein Nijverheidslaan, Weesp, North Holland, Netherlands",
+  "Bedrijventerrein Noord, Weesp, North Holland, Netherlands",
+  "Bedrijventerrein Van Houten, Weesp, North Holland, Netherlands",
+  "Centrum, Weesp, North Holland, Netherlands",
+  "De Klomp, Weesp, North Holland, Netherlands",
+  "Dichtersbuurt, Weesp, North Holland, Netherlands",
+  "Herensingelkwartier, Weesp, North Holland, Netherlands",
+  "Hogewey Midden, Weesp, North Holland, Netherlands",
+  "Hogewey Noord, Weesp, North Holland, Netherlands",
+  "Hogewey Zuid, Weesp, North Holland, Netherlands",
+  "Leeuwenveld, Weesp, North Holland, Netherlands",
+  "Oostelijke Vechtoever, Weesp, North Holland, Netherlands",
+  "Schildersbuurt, Weesp, North Holland, Netherlands",
+  "Weespersluis, Weesp, North Holland, Netherlands",
+  "Zuid I, Weesp, North Holland, Netherlands",
+  "Zuid II, Weesp, North Holland, Netherlands"
+]

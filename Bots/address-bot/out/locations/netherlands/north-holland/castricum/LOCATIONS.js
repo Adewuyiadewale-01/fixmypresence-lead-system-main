@@ -1,0 +1,21 @@
+LOCATIONS = [
+  "Akersloot Oost, Castricum, North Holland, Netherlands",
+  "Akersloot West, Castricum, North Holland, Netherlands",
+  "Albert's Hoeve, Castricum, North Holland, Netherlands",
+  "Bakkum-Noord, Castricum, North Holland, Netherlands",
+  "Bakkum-Zuid, Castricum, North Holland, Netherlands",
+  "Beverwijkerstraatweg, Castricum, North Holland, Netherlands",
+  "Buitengebied, Castricum, North Holland, Netherlands",
+  "Centrum-Noord, Castricum, North Holland, Netherlands",
+  "Centrum-Zuid, Castricum, North Holland, Netherlands",
+  "De Woude, Castricum, North Holland, Netherlands",
+  "Duin en Bosch, Castricum, North Holland, Netherlands",
+  "Duingebied, Castricum, North Holland, Netherlands",
+  "Kooiweg, Castricum, North Holland, Netherlands",
+  "Limmen Centrum, Castricum, North Holland, Netherlands",
+  "Limmen Oost, Castricum, North Holland, Netherlands",
+  "Limmen West, Castricum, North Holland, Netherlands",
+  "Molendijk, Castricum, North Holland, Netherlands",
+  "Noord-End, Castricum, North Holland, Netherlands",
+  "Oranjebuurt, Castricum, North Holland, Netherlands"
+]
